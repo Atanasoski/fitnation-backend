@@ -69,6 +69,15 @@ class MenuHelper
             ];
         }
 
+        // Workout Preview - Only for admins
+        if ($user && $user->hasRole('admin')) {
+            $items[] = [
+                'icon' => 'task',
+                'name' => 'Workout Preview',
+                'path' => '/admin/workout-preview',
+            ];
+        }
+
         return $items;
     }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserWorkoutSessionController;
+use App\Http\Controllers\WorkoutPreviewController;
 use App\Http\Controllers\WorkoutSplitController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'update' => 'workout-splits.update',
                 'destroy' => 'workout-splits.destroy',
             ]);
+
+        Route::get('/workout-preview', [WorkoutPreviewController::class, 'index'])->name('workout-preview.index');
+        Route::post('/workout-preview', [WorkoutPreviewController::class, 'preview'])->name('workout-preview.preview');
     });
 
     // Dashboard

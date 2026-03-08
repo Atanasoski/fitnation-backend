@@ -40,12 +40,14 @@ class ExerciseController extends Controller
 
         $categories = Category::where('type', CategoryType::Workout)
             ->with(['exercises' => function ($query) {
-                $query->with('muscleGroups')->orderBy('name');
+                $query->with(['muscleGroups', 'partners', 'trainingStyles'])->orderBy('name');
             }])
             ->orderBy('display_order')
             ->get();
 
-        return view('exercises.admin.index', compact('categories'));
+        $partners = Partner::orderBy('name')->get();
+
+        return view('exercises.admin.index', compact('categories', 'partners'));
     }
 
     public function partnerIndex()

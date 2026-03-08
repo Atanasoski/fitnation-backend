@@ -5,11 +5,59 @@
 @section('content')
 <div x-data="{
     collapsedCategories: {},
+    activePartnerFilter: 'all',
     toggleCategory(categoryId) {
         this.collapsedCategories[categoryId] = !this.collapsedCategories[categoryId];
     },
     isCategoryCollapsed(categoryId) {
         return this.collapsedCategories[categoryId] || false;
+    },
+    setPartnerFilter(partnerId) {
+        this.activePartnerFilter = partnerId;
+        this.applyFilters();
+    },
+    showExercise(partnerIds) {
+        if (this.activePartnerFilter === 'all') {
+            return true;
+        }
+        if (!partnerIds) {
+            return false;
+        }
+        const partnerIdArray = partnerIds.split(',').map(id => id.trim());
+        return partnerIdArray.includes(this.activePartnerFilter.toString());
+    },
+    applyFilters() {
+        const searchTerm = document.getElementById('exercise-search')?.value.toLowerCase().trim() || '';
+        const exerciseRows = document.querySelectorAll('.exercise-row');
+        const categories = document.querySelectorAll('.exercise-category');
+
+        exerciseRows.forEach(row => {
+            const exerciseName = row.getAttribute('data-name');
+            const muscleGroups = row.getAttribute('data-muscle-groups') || '';
+            const partnerIds = row.getAttribute('data-partner-ids') || '';
+            const searchableText = exerciseName + ' ' + muscleGroups;
+
+            const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
+            const matchesPartner = this.showExercise(partnerIds);
+
+            if (matchesSearch && matchesPartner) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        categories.forEach(category => {
+            const tbody = category.querySelector('tbody');
+            if (!tbody) return;
+
+            const visibleRows = tbody.querySelectorAll('.exercise-row:not(.hidden)');
+            if (visibleRows.length === 0) {
+                category.classList.add('hidden');
+            } else {
+                category.classList.remove('hidden');
+            }
+        });
     }
 }" class="space-y-6">
     <!-- Breadcrumb -->
@@ -43,8 +91,31 @@
         </span>
         <input type="text"
                id="exercise-search"
+               @input="applyFilters()"
                placeholder="Search exercises by name or muscle group..."
                class="w-full rounded-lg border border-gray-200 bg-white py-3 pl-12 pr-4 text-gray-800 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-white/3 dark:text-white/90 dark:focus:border-brand-500">
+    </div>
+
+    <!-- Partner Filter -->
+    <div class="flex flex-wrap gap-2">
+        <button
+            @click="setPartnerFilter('all')"
+            :class="activePartnerFilter === 'all'
+                ? 'bg-brand-500 text-white border-brand-500'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 dark:bg-white/3 dark:text-gray-300 dark:border-gray-800'"
+            class="rounded-lg border px-4 py-2 text-sm font-medium transition">
+            All Partners
+        </button>
+        @foreach($partners as $partner)
+            <button
+                @click="setPartnerFilter('{{ $partner->id }}')"
+                :class="activePartnerFilter === '{{ $partner->id }}'
+                    ? 'bg-brand-500 text-white border-brand-500'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 dark:bg-white/3 dark:text-gray-300 dark:border-gray-800'"
+                class="rounded-lg border px-4 py-2 text-sm font-medium transition">
+                {{ $partner->name }}
+            </button>
+        @endforeach
     </div>
 
     <!-- Exercises by Category -->
@@ -120,6 +191,11 @@
                                     </th>
                                     <th class="px-5 py-3 text-left sm:px-6 hidden lg:table-cell">
                                         <p class="font-medium text-gray-500 text-theme-xs dark:text-gray-400">
+                                            Training Style
+                                        </p>
+                                    </th>
+                                    <th class="px-5 py-3 text-left sm:px-6 hidden lg:table-cell">
+                                        <p class="font-medium text-gray-500 text-theme-xs dark:text-gray-400">
                                             Angle
                                         </p>
                                     </th>
@@ -145,7 +221,8 @@
                                         }"
                                         @click.away="closeDropdown()"
                                         data-name="{{ strtolower($exercise->name) }}"
-                                        data-muscle-groups="{{ strtolower($exercise->muscleGroups->pluck('name')->implode(' ')) }}">
+                                        data-muscle-groups="{{ strtolower($exercise->muscleGroups->pluck('name')->implode(' ')) }}"
+                                        data-partner-ids="{{ $exercise->partners->pluck('id')->implode(',') }}">
                                         <td class="px-5 py-4 sm:px-6 hidden lg:table-cell">
                                             @if($exercise->muscle_group_image)
                                                 <img src="{{ Storage::url($exercise->muscle_group_image) }}" class="w-24 rounded" />
@@ -190,6 +267,17 @@
                                         </td>
                                         <td class="px-5 py-4 sm:px-6 hidden lg:table-cell">
                                             <span class="text-xs text-gray-400 dark:text-gray-500">{{ $exercise->targetRegion->name ?? '-' }}</span>
+                                        </td>
+                                        <td class="px-5 py-4 sm:px-6 hidden lg:table-cell">
+                                            <div class="flex flex-wrap gap-1">
+                                                @forelse($exercise->trainingStyles as $trainingStyle)
+                                                    <x-ui.badge variant="light" color="light" size="sm">
+                                                        {{ $trainingStyle->name }}
+                                                    </x-ui.badge>
+                                                @empty
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+                                                @endforelse
+                                            </div>
                                         </td>
                                         <td class="px-5 py-4 sm:px-6 hidden lg:table-cell">
                                             <span class="text-xs text-gray-400 dark:text-gray-500">{{ $exercise->angle->name ?? '-' }}</span>
@@ -249,43 +337,7 @@
 </div>
 @endsection
 
-@push('scripts')
-<script>
-// Exercise search functionality
-const exerciseSearchInput = document.getElementById('exercise-search');
-if (exerciseSearchInput) {
-    exerciseSearchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-        const exerciseRows = document.querySelectorAll('.exercise-row');
-        const categories = document.querySelectorAll('.exercise-category');
-
-        exerciseRows.forEach(row => {
-            const exerciseName = row.getAttribute('data-name');
-            const muscleGroups = row.getAttribute('data-muscle-groups') || '';
-            const searchableText = exerciseName + ' ' + muscleGroups;
-            if (searchableText.includes(searchTerm)) {
-                row.classList.remove('hidden');
-            } else {
-                row.classList.add('hidden');
-            }
-        });
-
-        categories.forEach(category => {
-            const tbody = category.querySelector('tbody');
-            if (!tbody) return;
-
-            const visibleRows = tbody.querySelectorAll('.exercise-row:not(.hidden)');
-            if (visibleRows.length === 0) {
-                category.classList.add('hidden');
-            } else {
-                category.classList.remove('hidden');
-            }
-        });
-    });
-}
-
-</script>
-
+@push('styles')
 <style>
     [x-cloak] { display: none !important; }
 </style>

@@ -38,14 +38,15 @@ class ExerciseController extends Controller
             abort(403, 'Only system administrators can access this page.');
         }
 
-        $categories = Category::where('type', CategoryType::Workout)
-            ->with(['exercises' => function ($query) {
-                $query->with('muscleGroups')->orderBy('name');
-            }])
+        $equipmentTypes = EquipmentType::with(['exercises' => function ($query) {
+            $query->with(['muscleGroups', 'partners', 'trainingStyles'])->orderBy('name');
+        }])
             ->orderBy('display_order')
             ->get();
 
-        return view('exercises.admin.index', compact('categories'));
+        $partners = Partner::orderBy('name')->get();
+
+        return view('exercises.admin.index', compact('equipmentTypes', 'partners'));
     }
 
     public function partnerIndex()

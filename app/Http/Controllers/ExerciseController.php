@@ -15,6 +15,7 @@ use App\Models\MovementPattern;
 use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\TargetRegion;
+use App\Models\TrainingStyle;
 use App\Services\MuscleGroupImageService;
 use App\Services\PartnerExerciseFileService;
 use Illuminate\Http\JsonResponse;
@@ -134,6 +135,7 @@ class ExerciseController extends Controller
         }
 
         $exercise->muscleGroups()->sync($muscleGroupAttachments);
+        $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
 
         return redirect()->route('exercises.index')
             ->with('success', 'Exercise created successfully!');
@@ -182,9 +184,10 @@ class ExerciseController extends Controller
             }
         }
 
-        DB::transaction(function () use ($exercise, $updateData, $muscleGroupAttachments) {
+        DB::transaction(function () use ($exercise, $updateData, $muscleGroupAttachments, $request) {
             $exercise->update($updateData);
             $exercise->muscleGroups()->sync($muscleGroupAttachments);
+            $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
         });
 
         foreach ($oldFilesToDelete as $path) {
@@ -298,7 +301,7 @@ class ExerciseController extends Controller
         }
 
         // Load exercise with relationships
-        $exercise->load(['category', 'movementPattern', 'targetRegion', 'equipmentType', 'angle', 'muscleGroups']);
+        $exercise->load(['category', 'movementPattern', 'targetRegion', 'equipmentType', 'angle', 'muscleGroups', 'trainingStyles']);
 
         // Get all categories for the dropdown
         $categories = Category::where('type', CategoryType::Workout)
@@ -326,9 +329,14 @@ class ExerciseController extends Controller
             ->orderBy('name')
             ->get();
 
+        $trainingStyles = TrainingStyle::query()
+            ->orderBy('display_order')
+            ->get();
+
         // Get currently selected muscle group IDs
         $primaryMuscleGroupIds = $exercise->primaryMuscleGroups()->pluck('muscle_groups.id')->toArray();
         $secondaryMuscleGroupIds = $exercise->secondaryMuscleGroups()->pluck('muscle_groups.id')->toArray();
+        $selectedTrainingStyleIds = $exercise->trainingStyles()->pluck('training_styles.id')->toArray();
 
         return view('exercises.admin.edit', compact(
             'exercise',
@@ -338,8 +346,10 @@ class ExerciseController extends Controller
             'equipmentTypes',
             'angles',
             'muscleGroups',
+            'trainingStyles',
             'primaryMuscleGroupIds',
             'secondaryMuscleGroupIds',
+            'selectedTrainingStyleIds',
         ));
     }
 
@@ -379,6 +389,10 @@ class ExerciseController extends Controller
             ->orderBy('name')
             ->get();
 
+        $trainingStyles = TrainingStyle::query()
+            ->orderBy('display_order')
+            ->get();
+
         return view('exercises.admin.create', compact(
             'categories',
             'movementPatterns',
@@ -386,6 +400,7 @@ class ExerciseController extends Controller
             'equipmentTypes',
             'angles',
             'muscleGroups',
+            'trainingStyles',
         ));
     }
 

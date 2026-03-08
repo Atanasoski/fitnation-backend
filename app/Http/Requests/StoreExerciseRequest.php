@@ -48,6 +48,8 @@ class StoreExerciseRequest extends FormRequest
             'primary_muscle_group_ids.*' => ['exists:muscle_groups,id'],
             'secondary_muscle_group_ids' => ['nullable', 'array'],
             'secondary_muscle_group_ids.*' => ['exists:muscle_groups,id'],
+            'training_style_ids' => ['nullable', 'array'],
+            'training_style_ids.*' => ['exists:training_styles,id'],
         ];
     }
 }

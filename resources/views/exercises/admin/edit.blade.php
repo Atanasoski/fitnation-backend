@@ -160,6 +160,28 @@
                         </div>
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Training Styles
+                            </label>
+                            <select name="training_style_ids[]"
+                                    multiple
+                                    size="6"
+                                    class="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-gray-800 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-white/3 dark:text-white/90 dark:focus:border-brand-500">
+                                @foreach($trainingStyles as $trainingStyle)
+                                    <option value="{{ $trainingStyle->id }}" {{ in_array($trainingStyle->id, old('training_style_ids', $selectedTrainingStyleIds ?? [])) ? 'selected' : '' }}>
+                                        {{ $trainingStyle->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
+                            @error('training_style_ids')
+                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                            @error('training_style_ids.*')
+                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Primary Muscle Groups
                             </label>
                             <select name="primary_muscle_group_ids[]"

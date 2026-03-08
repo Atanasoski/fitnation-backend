@@ -4,13 +4,14 @@
 
 @section('content')
 <div x-data="{
-    collapsedCategories: {},
+    collapsedEquipmentTypes: {},
     activePartnerFilter: 'all',
-    toggleCategory(categoryId) {
-        this.collapsedCategories[categoryId] = !this.collapsedCategories[categoryId];
+    visibleCounts: {},
+    toggleEquipmentType(equipmentTypeId) {
+        this.collapsedEquipmentTypes[equipmentTypeId] = !this.collapsedEquipmentTypes[equipmentTypeId];
     },
-    isCategoryCollapsed(categoryId) {
-        return this.collapsedCategories[categoryId] || false;
+    isEquipmentTypeCollapsed(equipmentTypeId) {
+        return this.collapsedEquipmentTypes[equipmentTypeId] || false;
     },
     setPartnerFilter(partnerId) {
         this.activePartnerFilter = partnerId;
@@ -29,7 +30,7 @@
     applyFilters() {
         const searchTerm = document.getElementById('exercise-search')?.value.toLowerCase().trim() || '';
         const exerciseRows = document.querySelectorAll('.exercise-row');
-        const categories = document.querySelectorAll('.exercise-category');
+        const equipmentTypeGroups = document.querySelectorAll('.equipment-type-group');
 
         exerciseRows.forEach(row => {
             const exerciseName = row.getAttribute('data-name');
@@ -47,19 +48,42 @@
             }
         });
 
-        categories.forEach(category => {
-            const tbody = category.querySelector('tbody');
+        equipmentTypeGroups.forEach(group => {
+            const tbody = group.querySelector('tbody');
             if (!tbody) return;
 
             const visibleRows = tbody.querySelectorAll('.exercise-row:not(.hidden)');
+            const equipmentTypeId = group.getAttribute('data-equipment-type-id');
+
+            // Update visible count for this equipment type
+            this.visibleCounts[equipmentTypeId] = visibleRows.length;
+
             if (visibleRows.length === 0) {
-                category.classList.add('hidden');
+                group.classList.add('hidden');
             } else {
-                category.classList.remove('hidden');
+                group.classList.remove('hidden');
             }
         });
+    },
+    getVisibleCount(equipmentTypeId) {
+        return this.visibleCounts[equipmentTypeId] ?? 0;
+    },
+    init() {
+        // Initialize counts by calculating from DOM
+        this.$nextTick(() => {
+            const equipmentTypeGroups = document.querySelectorAll('.equipment-type-group');
+            equipmentTypeGroups.forEach(group => {
+                const tbody = group.querySelector('tbody');
+                if (!tbody) return;
+                const equipmentTypeId = group.getAttribute('data-equipment-type-id');
+                const totalRows = tbody.querySelectorAll('.exercise-row');
+                this.visibleCounts[equipmentTypeId] = totalRows.length;
+            });
+            // Apply filters to update counts based on initial state
+            this.applyFilters();
+        });
     }
-}" class="space-y-6">
+}" class="space-y-6" x-init="init()">
     <!-- Breadcrumb -->
     <x-common.page-breadcrumb pageTitle="Exercise Library" />
 
@@ -97,52 +121,58 @@
     </div>
 
     <!-- Partner Filter -->
-    <div class="flex flex-wrap gap-2">
-        <button
-            @click="setPartnerFilter('all')"
-            :class="activePartnerFilter === 'all'
-                ? 'bg-brand-500 text-white border-brand-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 dark:bg-white/3 dark:text-gray-300 dark:border-gray-800'"
-            class="rounded-lg border px-4 py-2 text-sm font-medium transition">
-            All Partners
-        </button>
-        @foreach($partners as $partner)
-            <button
-                @click="setPartnerFilter('{{ $partner->id }}')"
-                :class="activePartnerFilter === '{{ $partner->id }}'
-                    ? 'bg-brand-500 text-white border-brand-500'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 dark:bg-white/3 dark:text-gray-300 dark:border-gray-800'"
-                class="rounded-lg border px-4 py-2 text-sm font-medium transition">
-                {{ $partner->name }}
-            </button>
-        @endforeach
+    <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+            Filter by Partner
+        </label>
+        <div x-data="{ isOptionSelected: false }" class="relative z-20 bg-transparent">
+            <select
+                x-model="activePartnerFilter"
+                @change="isOptionSelected = true; applyFilters()"
+                :class="isOptionSelected && 'text-gray-800 dark:text-white/90'"
+                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pr-11 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30">
+                <option value="all" class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                    All Partners
+                </option>
+                @foreach($partners as $partner)
+                    <option value="{{ $partner->id }}" class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                        {{ $partner->name }}
+                    </option>
+                @endforeach
+            </select>
+            <span class="pointer-events-none absolute top-1/2 right-4 z-30 -translate-y-1/2 text-gray-700 dark:text-gray-400">
+                <svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4.79175 7.396L10.0001 12.6043L15.2084 7.396" stroke="" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </span>
+        </div>
     </div>
 
-    <!-- Exercises by Category -->
-    @foreach($categories as $category)
-        @if($category->exercises->count() > 0)
-        <div class="exercise-category" data-category="{{ $category->name }}">
+    <!-- Exercises by Equipment Type -->
+    @foreach($equipmentTypes as $equipmentType)
+        @if($equipmentType->exercises->count() > 0)
+        <div class="equipment-type-group" data-equipment-type="{{ $equipmentType->name }}" data-equipment-type-id="{{ $equipmentType->id }}">
             <x-common.component-card>
                 <x-slot:title>
                     <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2" style="color: {{ $category->color }};">
-                            <span>{{ $category->icon }} {{ $category->name }}</span>
+                        <div class="flex items-center gap-2">
+                            <span>{{ $equipmentType->name }}</span>
                             <x-ui.badge variant="light" color="light" size="sm">
-                                {{ $category->exercises->count() }}
+                                <span x-text="getVisibleCount({{ $equipmentType->id }})">{{ $equipmentType->exercises->count() }}</span>
                             </x-ui.badge>
                         </div>
                         <x-ui.button
-                            @click="toggleCategory({{ $category->id }})"
+                            @click="toggleEquipmentType({{ $equipmentType->id }})"
                             variant="outline"
                             size="sm"
                             className="px-3! py-1.5!">
-                            <span x-text="isCategoryCollapsed({{ $category->id }}) ? 'Expand' : 'Collapse'"></span>
+                            <span x-text="isEquipmentTypeCollapsed({{ $equipmentType->id }}) ? 'Expand' : 'Collapse'"></span>
                         </x-ui.button>
                     </div>
                 </x-slot:title>
 
                 <!-- Exercises Table -->
-                <div x-show="!isCategoryCollapsed({{ $category->id }})"
+                <div x-show="!isEquipmentTypeCollapsed({{ $equipmentType->id }})"
                      x-transition:enter="transition ease-out duration-200"
                      x-transition:enter-start="opacity-0"
                      x-transition:enter-end="opacity-100"
@@ -207,7 +237,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($category->exercises as $exercise)
+                                @foreach($equipmentType->exercises as $exercise)
 
                                     <tr class="exercise-row border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/2"
                                         x-data="{

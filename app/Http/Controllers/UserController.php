@@ -153,7 +153,7 @@ class UserController extends Controller
 
         // Generate signup URLs with token
         $signupUrl = route('register', ['invitation' => $invitation->token]);
-        $appUrl = config('app.webapp_url').'/register?invitation='.$invitation->token;
+        $appUrl = $this->partnerAppUrl($partner, '/register?invitation='.$invitation->token);
 
         // Send the invitation email
         Mail::to($invitation->email)
@@ -190,7 +190,7 @@ class UserController extends Controller
 
         // Generate signup URLs with token
         $signupUrl = route('register', ['invitation' => $invitation->token]);
-        $appUrl = config('app.webapp_url').'/register?invitation='.$invitation->token;
+        $appUrl = $this->partnerAppUrl($partner, '/register?invitation='.$invitation->token);
 
         // Resend the invitation email
         Mail::to($invitation->email)
@@ -261,5 +261,25 @@ class UserController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * Build app URL with partner slug as subdomain.
+     *
+     * Examples:
+     * - Base: http://localhost:5173 -> http://localhost:5173 (no subdomain for localhost)
+     * - Base: https://fitnation.mk -> https://synergy.fitnation.mk
+     */
+    private function partnerAppUrl(Partner $partner, string $path = ''): string
+    {
+        $base = config('app.webapp_url', 'http://localhost:5173');
+        $parsed = parse_url($base);
+        $host = $parsed['host'] ?? 'localhost';
+
+        if (in_array($host, ['localhost', '127.0.0.1'])) {
+            return rtrim($base, '/').$path;
+        }
+
+        return ($parsed['scheme'] ?? 'https').'://'.$partner->slug.'.'.$host.$path;
     }
 }

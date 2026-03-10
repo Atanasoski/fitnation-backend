@@ -150,4 +150,17 @@ return [
 
     'max_sets_per_compound' => 4,
     'max_sets_per_isolation' => 3,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Beginner Equipment Preferences
+    |--------------------------------------------------------------------------
+    |
+    | Equipment types that should be prioritized for beginner users.
+    | Machine and cable exercises are safer and easier to learn, making them
+    | ideal for beginners who are still developing proper form.
+    |
+    */
+
+    'beginner_preferred_equipment' => ['MACHINE', 'CABLE'],
 ];

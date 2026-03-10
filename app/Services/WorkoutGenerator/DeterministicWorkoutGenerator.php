@@ -302,6 +302,15 @@ class DeterministicWorkoutGenerator
                 $basePriority += 0.5;
             }
 
+            // For beginners, prefer machine/cable (safer, guided movements)
+            if ($isBeginner) {
+                $beginnerPreferredEquipment = config('workout_generator.beginner_preferred_equipment', []);
+                $equipmentCode = $exercise->equipmentType?->code ?? '';
+                if (! in_array($equipmentCode, $beginnerPreferredEquipment)) {
+                    $basePriority += 0.3;
+                }
+            }
+
             return $basePriority;
         })->values();
     }

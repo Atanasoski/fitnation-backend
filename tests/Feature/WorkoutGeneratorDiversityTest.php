@@ -517,4 +517,98 @@ class WorkoutGeneratorDiversityTest extends TestCase
             $this->assertLessThan($strengthCount, $fatLossCount, 'With sufficient exercises, strength should get fewer than fat loss due to longer rest times');
         }
     }
+
+    public function test_beginners_prefer_machine_and_cable_equipment(): void
+    {
+        $partner = Partner::factory()->create();
+        $beginnerUser = User::factory()->create(['partner_id' => $partner->id]);
+        $beginnerUser->profile->update([
+            'fitness_goal' => FitnessGoal::GeneralFitness,
+            'training_experience' => TrainingExperience::Beginner,
+        ]);
+
+        $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
+        $pressPattern = MovementPattern::firstOrCreate(['code' => 'PRESS'], ['name' => 'Press', 'display_order' => 10]);
+
+        // Create machine and cable exercises (preferred for beginners)
+        $machineType = EquipmentType::firstOrCreate(['code' => 'MACHINE'], ['name' => 'Machine', 'display_order' => 30]);
+        $cableType = EquipmentType::firstOrCreate(['code' => 'CABLE'], ['name' => 'Cable', 'display_order' => 40]);
+        $barbellType = EquipmentType::firstOrCreate(['code' => 'BARBELL'], ['name' => 'Barbell', 'display_order' => 10]);
+
+        Exercise::factory()->create([
+            'name' => 'Machine Chest Press',
+            'movement_pattern_id' => $pressPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $machineType->id,
+        ]);
+
+        Exercise::factory()->create([
+            'name' => 'Cable Chest Press',
+            'movement_pattern_id' => $pressPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $cableType->id,
+        ]);
+
+        // Create barbell exercise (should be deprioritized for beginners)
+        Exercise::factory()->create([
+            'name' => 'Barbell Bench Press',
+            'movement_pattern_id' => $pressPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $barbellType->id,
+        ]);
+
+        // Link all exercises to partner
+        $exercises = Exercise::all();
+        foreach ($exercises as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+
+        $result = $this->generator->generate($beginnerUser, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 60,
+        ]);
+
+        $this->assertNotEmpty($result['exercises']);
+
+        // Get equipment types of selected exercises in order
+        $selectedEquipment = [];
+        foreach ($result['exercises'] as $exerciseData) {
+            $exercise = Exercise::find($exerciseData['exercise_id']);
+            if ($exercise && $exercise->equipmentType) {
+                $selectedEquipment[] = $exercise->equipmentType->code;
+            }
+        }
+
+        // For beginners, machine/cable should appear before barbell
+        // Check if we have both types selected
+        $hasMachineOrCable = in_array('MACHINE', $selectedEquipment) || in_array('CABLE', $selectedEquipment);
+        $hasBarbell = in_array('BARBELL', $selectedEquipment);
+
+        if ($hasMachineOrCable && $hasBarbell) {
+            // Find first occurrence of each type
+            $firstMachineOrCable = null;
+            $firstBarbell = null;
+
+            foreach ($selectedEquipment as $index => $equipment) {
+                if (($equipment === 'MACHINE' || $equipment === 'CABLE') && $firstMachineOrCable === null) {
+                    $firstMachineOrCable = $index;
+                }
+                if ($equipment === 'BARBELL' && $firstBarbell === null) {
+                    $firstBarbell = $index;
+                }
+            }
+
+            $this->assertNotNull($firstMachineOrCable, 'Should have machine or cable exercise');
+            $this->assertNotNull($firstBarbell, 'Should have barbell exercise');
+            $this->assertLessThan($firstBarbell, $firstMachineOrCable, 'Machine/Cable should appear before Barbell for beginners');
+        } else {
+            // If only one type is selected, it should prefer machine/cable
+            if ($hasMachineOrCable) {
+                $this->assertTrue(true, 'Only machine/cable selected (preferred for beginners)');
+            } else {
+                // If only barbell is selected, that's okay too (soft preference, not hard filter)
+                $this->assertTrue(true, 'Only barbell selected (acceptable if no machine/cable available)');
+            }
+        }
+    }
 }

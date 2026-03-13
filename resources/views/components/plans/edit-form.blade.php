@@ -71,7 +71,7 @@
                 />
             </div>
 
-            <input type="hidden" name="type" value="program">
+            <input type="hidden" name="type" :value="editingPlan.type ?? 'program'">
 
             <div>
                 <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">Duration (weeks)</label>

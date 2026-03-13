@@ -42,11 +42,11 @@ class UpdatePlanRequest extends FormRequest
     {
         if ($this->routeIs('partner.programs.update')) {
             $plan = $this->route('plan');
-            $redirect = redirect()->route('partner.programs.show', $plan)
-                ->withInput()
-                ->with('edit_plan_id', $plan->id);
 
-            throw (new ValidationException($validator))->redirectTo($redirect);
+            session()->flash('edit_plan_id', $plan->id);
+
+            throw (new ValidationException($validator))
+                ->redirectTo(route('partner.programs.show', $plan));
         }
 
         parent::failedValidation($validator);

@@ -22,7 +22,7 @@ class PlanService
             return [
                 'partner_id' => Auth::id() ? Auth::user()->partner_id : null,
                 'user_id' => null,
-                'type' => PlanType::Library,
+                'type' => PlanType::Program,
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
                 'duration_weeks' => $validated['duration_weeks'] ?? null,

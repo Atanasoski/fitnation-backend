@@ -16,13 +16,14 @@ This documentation provides complete information about all API resources and end
 9. [Exercise Classifications](#exercise-classifications)
 10. [Fitness Metrics](#fitness-metrics)
 11. [Plans](#plans)
-12. [Custom Plans](#custom-plans)
+12. [Routines](#routines)
 13. [Programs](#programs)
-14. [Workout Templates](#workout-templates)
-15. [Workout Planner](#workout-planner)
-16. [Workout Sessions](#workout-sessions)
-17. [Complete TypeScript Definitions](#complete-typescript-definitions)
-18. [Error Responses](#error-responses)
+14. [Browsable Routines](#browsable-routines)
+15. [Workout Templates](#workout-templates)
+16. [Workout Planner](#workout-planner)
+17. [Workout Sessions](#workout-sessions)
+18. [Complete TypeScript Definitions](#complete-typescript-definitions)
+19. [Error Responses](#error-responses)
 
 ---
 
@@ -314,7 +315,7 @@ interface CompleteOnboardingRequest {
 ```typescript
 interface CompleteOnboardingResponse {
   message: "Welcome plan created successfully";
-  data: CustomPlanResource;  // Full plan with workout_templates loaded
+  data: CustomPlanResource;  // Full plan with workout_templates loaded (type: 'routine')
 }
 ```
 
@@ -982,11 +983,11 @@ interface DeletePlanResponse {
 
 ---
 
-## Custom Plans
+## Routines
 
-Custom plans are user-created flexible workout collections. Users have full CRUD control over their custom plans. Custom plans differ from programs in that they are fully editable and don't have duration/progress tracking.
+Routines are user-created flexible workout collections. Users have full CRUD control over their routines. Routines differ from programs in that they are fully editable and don't have duration/progress tracking. Users can perform any workout from a routine as many times as they want.
 
-### List User's Custom Plans
+### List User's Routines
 ```
 GET /api/custom-plans
 ```
@@ -994,7 +995,7 @@ GET /api/custom-plans
 
 **Response:**
 ```typescript
-interface CustomPlanListResponse {
+interface RoutineListResponse {
   data: CustomPlanResource[];
 }
 
@@ -1003,7 +1004,7 @@ interface CustomPlanResource {
   name: string;
   description: string | null;
   is_active: boolean;
-  type: 'custom';
+  type: 'routine';
   workout_templates: WorkoutTemplateResource[] | null;
   created_at: string;
   updated_at: string;
@@ -1012,7 +1013,7 @@ interface CustomPlanResource {
 
 ---
 
-### Get Single Custom Plan
+### Get Single Routine
 ```
 GET /api/custom-plans/{id}
 ```
@@ -1020,14 +1021,14 @@ GET /api/custom-plans/{id}
 
 **Response:**
 ```typescript
-interface CustomPlanShowResponse {
+interface RoutineShowResponse {
   data: CustomPlanResource;
 }
 ```
 
 ---
 
-### Create Custom Plan
+### Create Routine
 ```
 POST /api/custom-plans
 ```
@@ -1044,15 +1045,15 @@ interface StoreCustomPlanRequest {
 
 **Response (201 Created):**
 ```typescript
-interface CreateCustomPlanResponse {
-  message: "Custom plan created successfully";
+interface CreateRoutineResponse {
+  message: "Routine created successfully";
   data: CustomPlanResource;
 }
 ```
 
 ---
 
-### Update Custom Plan
+### Update Routine
 ```
 PUT /api/custom-plans/{id}
 ```
@@ -1069,15 +1070,15 @@ interface UpdateCustomPlanRequest {
 
 **Response:**
 ```typescript
-interface UpdateCustomPlanResponse {
-  message: "Custom plan updated successfully";
+interface UpdateRoutineResponse {
+  message: "Routine updated successfully";
   data: CustomPlanResource;
 }
 ```
 
 ---
 
-### Delete Custom Plan
+### Delete Routine
 ```
 DELETE /api/custom-plans/{id}
 ```
@@ -1085,8 +1086,8 @@ DELETE /api/custom-plans/{id}
 
 **Response:**
 ```typescript
-interface DeleteCustomPlanResponse {
-  message: "Custom plan deleted successfully";
+interface DeleteRoutineResponse {
+  message: "Routine deleted successfully";
 }
 ```
 
@@ -1096,18 +1097,21 @@ interface DeleteCustomPlanResponse {
 
 Programs are structured workout plans with duration tracking and progress. There are two sources:
 
-1. **Library Programs** (`type: 'library'`) - Partner-designed programs available for users to clone
-2. **User Programs** (`type: 'program'`) - Programs that users have cloned from the library
+1. **Library Programs** (`type: 'program'`, `partner_id` set, `user_id` null) - Partner-designed programs available for users to clone
+2. **User Programs** (`type: 'program'`, `user_id` set) - Programs that users have cloned from the library
 
 Users can browse their partner's library and clone programs to their account. Programs track progress and provide next-workout suggestions.
 
 ### Plan Types
 
-| Type | Description | Editable | Has Duration |
-|------|-------------|----------|--------------|
-| `custom` | User-created flexible workout collection | Full CRUD | No |
-| `library` | Partner-designed program template | Read-only | Yes |
-| `program` | User's cloned program from library | Toggle active only | Yes |
+| Type | Description | Editable | Has Duration | Ownership |
+|------|-------------|----------|--------------|-----------|
+| `routine` | User-created flexible workout collection | Full CRUD | No | `user_id` set |
+| `routine` | Partner-provided browsable workouts | Read-only (browse & start) | No | `partner_id` set, `user_id` null |
+| `program` | Partner-designed program template | Read-only (browse & clone) | Yes | `partner_id` set, `user_id` null |
+| `program` | User's cloned program from library | Toggle active only | Yes | `user_id` set |
+
+**Note:** Ownership is determined by the `user_id` and `partner_id` fields. A plan with `partner_id` set and `user_id` null is partner-provided (library/browsable). A plan with `user_id` set is user-owned.
 
 ### List User's Programs
 ```
@@ -1147,26 +1151,15 @@ GET /api/programs/library
 ```
 *Requires authentication*
 
-Returns partner library programs (type: `library`) available for cloning. Empty array if user has no partner.
+Returns partner library programs (`type: 'program'`, `partner_id` set, `user_id` null) available for cloning. Empty array if user has no partner.
 
 **Response:**
 ```typescript
 interface ProgramLibraryResponse {
-  data: LibraryProgramResource[];
+  data: ProgramResource[];
 }
 
-interface LibraryProgramResource {
-  id: number;
-  name: string;
-  description: string | null;
-  duration_weeks: number | null;
-  is_active: boolean;
-  type: 'library';
-  is_library_plan: boolean;          // true for library programs
-  workout_templates: WorkoutTemplateResource[] | null;
-  created_at: string;
-  updated_at: string;
-}
+// ProgramResource with is_library_plan: true indicates partner-provided library program
 ```
 
 ---
@@ -1194,7 +1187,7 @@ POST /api/programs/{id}/clone
 ```
 *Requires authentication*
 
-Clones a partner library program (type: `library`) to the user's account with all workout templates and exercises. The cloned program becomes type: `program` and is owned by the user.
+Clones a partner library program (`type: 'program'`, `partner_id` set, `user_id` null) to the user's account with all workout templates and exercises. The cloned program remains `type: 'program'` but becomes owned by the user (`user_id` set, `partner_id` null).
 
 **Response (201 Created):**
 ```typescript
@@ -1264,6 +1257,65 @@ interface NextWorkoutResponse {
   data: WorkoutTemplateResource | null;  // null if all workouts completed
 }
 ```
+
+---
+
+## Browsable Routines
+
+Browsable routines are partner-provided repeatable workout collections. Users can browse these routines and start any workout from them as many times as they want without cloning or setting them as active. These routines are identified by `type: 'routine'` with `partner_id` set and `user_id` null.
+
+### List Partner Routines
+```
+GET /api/routines
+```
+*Requires authentication*
+
+Returns active partner-provided routine plans available for browsing. Empty array if user has no partner.
+
+**Response:**
+```typescript
+interface RoutinePlanListResponse {
+  data: RoutinePlanResource[];
+}
+
+interface RoutinePlanResource {
+  id: number;
+  name: string;
+  description: string | null;
+  cover_image: string | null;  // Full URL
+  is_active: boolean;
+  type: 'routine';
+  workout_templates: WorkoutTemplateResource[] | null;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+---
+
+### Get Single Browsable Routine
+```
+GET /api/routines/{routine}
+```
+*Requires authentication*
+
+Returns a single partner-provided routine plan with all workout templates. Users can start any workout from this routine directly without cloning.
+
+**Response:**
+```typescript
+interface RoutinePlanShowResponse {
+  data: RoutinePlanResource;
+}
+```
+
+**Error Responses:**
+- `403`: "Unauthorized" (routine belongs to different partner)
+- `400`: "Not a browsable routine" (not a partner-provided routine)
+
+**Notes:**
+- Users can start workouts from these routines using `POST /api/workout-sessions/start` with the `template_id` from any workout template in the routine
+- No cloning or activation needed - users can start workouts directly
+- Workouts can be performed multiple times without restrictions
 
 ---
 
@@ -2328,17 +2380,20 @@ interface PlanResource {
   description: string | null;
   cover_image: string | null;  // Full URL to cover image, or null if not set
   is_active: boolean;
-  type: 'custom' | 'library' | 'program';
-  duration_weeks: number | null;  // For library and program types only
+  type: 'routine' | 'program';
+  duration_weeks: number | null;  // For program type only
   workout_templates: WorkoutTemplateResource[] | null;
   created_at: string;
   updated_at: string;
 }
 
 // Plan Type Details:
-// - 'custom': User-created flexible workout collection (full CRUD, no duration)
-// - 'library': Partner-designed program template (read-only for users)
-// - 'program': User's cloned program from library (toggle active only)
+// - 'routine': Flexible workout collection (repeatable, no duration/progress tracking)
+//   - User-owned: user_id set, partner_id null (full CRUD)
+//   - Partner-provided: partner_id set, user_id null (browsable, start workouts directly)
+// - 'program': Structured workout plan with duration and progress tracking
+//   - Partner-provided: partner_id set, user_id null (browsable, clone to start)
+//   - User-owned: user_id set, partner_id null (cloned from library, toggle active only)
 
 // ============================================
 // WORKOUT TEMPLATE RESOURCES
@@ -2577,14 +2632,16 @@ interface ValidationError {
 | PUT/PATCH | `/api/plans/{id}` | Update custom plan |
 | DELETE | `/api/plans/{id}` | Delete custom plan |
 
-### Custom Plans
+### Routines
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/custom-plans` | List user's custom plans |
-| GET | `/api/custom-plans/{id}` | Get single custom plan |
-| POST | `/api/custom-plans` | Create custom plan |
-| PUT | `/api/custom-plans/{id}` | Update custom plan |
-| DELETE | `/api/custom-plans/{id}` | Delete custom plan |
+| GET | `/api/custom-plans` | List user's routines |
+| GET | `/api/custom-plans/{id}` | Get single routine |
+| POST | `/api/custom-plans` | Create routine |
+| PUT | `/api/custom-plans/{id}` | Update routine |
+| DELETE | `/api/custom-plans/{id}` | Delete routine |
+| GET | `/api/routines` | List partner browsable routines |
+| GET | `/api/routines/{routine}` | Get single browsable routine |
 
 ### Programs
 | Method | Endpoint | Description |

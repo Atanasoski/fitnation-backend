@@ -24,7 +24,7 @@ class PlanFactory extends Factory
             'name' => fake()->words(2, true).' Plan',
             'description' => fake()->sentence(),
             'is_active' => fake()->boolean(),
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
             'duration_weeks' => null,
         ];
     }
@@ -48,8 +48,21 @@ class PlanFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'partner_id' => $partner->id,
             'user_id' => null,
-            'type' => PlanType::Library,
+            'type' => PlanType::Program,
             'duration_weeks' => fake()->numberBetween(4, 12),
+        ]);
+    }
+
+    /**
+     * Indicate that the plan is a partner browsable routine.
+     */
+    public function partnerRoutine(Partner $partner): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'partner_id' => $partner->id,
+            'user_id' => null,
+            'type' => PlanType::Routine,
+            'is_active' => true,
         ]);
     }
 }

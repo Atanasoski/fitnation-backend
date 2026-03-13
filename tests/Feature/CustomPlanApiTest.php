@@ -27,7 +27,7 @@ class CustomPlanApiTest extends TestCase
         $this->assertDatabaseHas('plans', [
             'user_id' => $user->id,
             'name' => 'My Custom Plan',
-            'type' => PlanType::Custom->value,
+            'type' => PlanType::Routine->value,
         ]);
     }
 
@@ -39,7 +39,7 @@ class CustomPlanApiTest extends TestCase
         // Create routines for this user
         Plan::factory()->count(2)->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         // Create a program (should not appear)
@@ -51,7 +51,7 @@ class CustomPlanApiTest extends TestCase
         $otherUser = User::factory()->create();
         Plan::factory()->create([
             'user_id' => $otherUser->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         $response = $this->getJson('/api/custom-plans');
@@ -67,7 +67,7 @@ class CustomPlanApiTest extends TestCase
 
         $routine = Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
             'name' => 'Old Name',
         ]);
 
@@ -100,7 +100,7 @@ class CustomPlanApiTest extends TestCase
 
         $routine = Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         $response = $this->deleteJson("/api/custom-plans/{$routine->id}");
@@ -123,7 +123,7 @@ class CustomPlanApiTest extends TestCase
 
         $customPlan = Plan::factory()->create([
             'user_id' => $user2->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         // Try to view

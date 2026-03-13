@@ -67,7 +67,7 @@ class User extends Authenticatable
      */
     public function activePlan(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->hasOne(Plan::class)->where('is_active', true)->where('type', PlanType::Custom);
+        return $this->hasOne(Plan::class)->where('is_active', true)->where('type', PlanType::Routine);
     }
 
     /**

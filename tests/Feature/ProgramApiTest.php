@@ -28,7 +28,7 @@ class ProgramApiTest extends TestCase
         // Create a routine (should not appear)
         Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         // Create another user's program (should not appear)

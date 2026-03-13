@@ -4,7 +4,6 @@ namespace App\Enums;
 
 enum PlanType: string
 {
-    case Library = 'library';
-    case Custom = 'custom';
+    case Routine = 'routine';
     case Program = 'program';
 }

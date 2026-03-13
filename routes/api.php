@@ -97,6 +97,12 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
         Route::get('/{program}/next-workout', [PlanController::class, 'programsNextWorkout']);
     });
 
+    // Routines API - Partner-provided browsable repeatable workouts
+    Route::prefix('routines')->group(function () {
+        Route::get('/', [PlanController::class, 'routinesIndex']);
+        Route::get('/{routine}', [PlanController::class, 'routinesShow']);
+    });
+
     // Workout Templates CRUD
     Route::apiResource('workout-templates', WorkoutTemplateController::class);
 

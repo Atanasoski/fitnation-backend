@@ -15,17 +15,17 @@ class PlanTypesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_can_create_custom_plan(): void
+    public function test_can_create_routine_plan(): void
     {
         $user = User::factory()->create();
 
         $plan = Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
-            'name' => 'My Custom Plan',
+            'type' => PlanType::Routine,
+            'name' => 'My Routine',
         ]);
 
-        $this->assertTrue($plan->isCustom());
+        $this->assertTrue($plan->isRoutine());
         $this->assertFalse($plan->isProgram());
         $this->assertNull($plan->duration_weeks);
     }
@@ -40,7 +40,7 @@ class PlanTypesTest extends TestCase
         ]);
 
         $this->assertTrue($plan->isProgram());
-        $this->assertFalse($plan->isCustom());
+        $this->assertFalse($plan->isRoutine());
         $this->assertEquals(8, $plan->duration_weeks);
     }
 
@@ -50,7 +50,7 @@ class PlanTypesTest extends TestCase
 
         $plan = Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         $plan->update([
@@ -196,7 +196,9 @@ class PlanTypesTest extends TestCase
         $libraryPlan = Plan::factory()->partnerLibrary($partner)->create();
 
         $this->assertTrue($libraryPlan->isPartnerLibraryPlan());
+        $this->assertTrue($libraryPlan->isPartnerProvided());
         $this->assertNull($libraryPlan->user_id);
         $this->assertEquals($partner->id, $libraryPlan->partner_id);
+        $this->assertEquals(PlanType::Program, $libraryPlan->type);
     }
 }

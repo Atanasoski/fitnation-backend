@@ -11,6 +11,7 @@ use App\Http\Requests\UpdatePlanRequest;
 use App\Http\Resources\Api\CustomPlanResource;
 use App\Http\Resources\Api\PlanResource;
 use App\Http\Resources\Api\ProgramResource;
+use App\Http\Resources\Api\RoutinePlanResource;
 use App\Http\Resources\Api\WorkoutTemplateResource;
 use App\Models\Plan;
 use App\Services\PlanCloningService;
@@ -125,16 +126,16 @@ class PlanController extends Controller
     }
 
     // ===============================================
-    // CUSTOM PLANS API - User-created flexible workouts
+    // ROUTINES API - User-created flexible workouts
     // ===============================================
 
     /**
-     * Display a listing of the user's custom plans.
+     * Display a listing of the user's routines.
      */
     public function customPlansIndex(): AnonymousResourceCollection
     {
         $customPlans = Plan::where('user_id', auth()->id())
-            ->where('type', PlanType::Custom)
+            ->where('type', PlanType::Routine)
             ->with(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with('exercises.category')])
             ->latest()
             ->get();
@@ -143,7 +144,7 @@ class PlanController extends Controller
     }
 
     /**
-     * Store a newly created custom plan in storage.
+     * Store a newly created routine in storage.
      */
     public function customPlansStore(StoreCustomPlanRequest $request): JsonResponse
     {
@@ -158,17 +159,17 @@ class PlanController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'is_active' => $request->is_active ?? false,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         return response()->json([
-            'message' => 'Custom plan created successfully',
+            'message' => 'Routine created successfully',
             'data' => new CustomPlanResource($customPlan),
         ], 201);
     }
 
     /**
-     * Display the custom plan.
+     * Display the routine.
      */
     public function customPlansShow(Plan $customPlan): JsonResponse
     {
@@ -179,10 +180,10 @@ class PlanController extends Controller
             ], 403);
         }
 
-        // Verify it's a custom plan
-        if (! $customPlan->isCustom()) {
+        // Verify it's a routine
+        if (! $customPlan->isRoutine()) {
             return response()->json([
-                'message' => 'Not a custom plan',
+                'message' => 'Not a routine',
             ], 400);
         }
 
@@ -194,7 +195,7 @@ class PlanController extends Controller
     }
 
     /**
-     * Update the specified custom plan in storage.
+     * Update the specified routine in storage.
      */
     public function customPlansUpdate(UpdateCustomPlanRequest $request, Plan $customPlan): JsonResponse
     {
@@ -205,17 +206,17 @@ class PlanController extends Controller
             ], 403);
         }
 
-        // Verify it's a custom plan
-        if (! $customPlan->isCustom()) {
+        // Verify it's a routine
+        if (! $customPlan->isRoutine()) {
             return response()->json([
-                'message' => 'Not a custom plan',
+                'message' => 'Not a routine',
             ], 400);
         }
 
         // Deactivate all other plans if this one is being set as active
         if ($request->is_active) {
             Plan::where('user_id', auth()->id())
-                ->where('type', PlanType::Custom)
+                ->where('type', PlanType::Routine)
                 ->where('id', '!=', $customPlan->id)
                 ->update(['is_active' => false]);
         }
@@ -225,13 +226,13 @@ class PlanController extends Controller
         $customPlan->load(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with('exercises.category')]);
 
         return response()->json([
-            'message' => 'Custom plan updated successfully',
+            'message' => 'Routine updated successfully',
             'data' => new CustomPlanResource($customPlan),
         ]);
     }
 
     /**
-     * Remove the specified custom plan from storage.
+     * Remove the specified routine from storage.
      */
     public function customPlansDestroy(Plan $customPlan): JsonResponse
     {
@@ -242,17 +243,17 @@ class PlanController extends Controller
             ], 403);
         }
 
-        // Verify it's a custom plan
-        if (! $customPlan->isCustom()) {
+        // Verify it's a routine
+        if (! $customPlan->isRoutine()) {
             return response()->json([
-                'message' => 'Not a custom plan',
+                'message' => 'Not a routine',
             ], 400);
         }
 
         $customPlan->delete();
 
         return response()->json([
-            'message' => 'Custom plan deleted successfully',
+            'message' => 'Routine deleted successfully',
         ]);
     }
 
@@ -286,7 +287,7 @@ class PlanController extends Controller
         }
 
         $libraryPrograms = Plan::forPartner($partner->id)
-            ->where('type', PlanType::Library)
+            ->where('type', PlanType::Program)
             ->where('is_active', true)
             ->with(['workoutTemplates' => fn ($query) => $query->orderedByProgram()->with(['exercises.category', 'exercises.partners'])])
             ->latest()
@@ -438,6 +439,59 @@ class PlanController extends Controller
 
         return response()->json([
             'data' => $nextWorkout ? new WorkoutTemplateResource($nextWorkout) : null,
+        ]);
+    }
+
+    // =======================================================
+    // BROWSABLE ROUTINES API - Partner-provided repeatable workouts
+    // =======================================================
+
+    /**
+     * Display a listing of partner browsable routines.
+     */
+    public function routinesIndex(): AnonymousResourceCollection
+    {
+        $partner = auth()->user()->partner;
+
+        if (! $partner) {
+            return RoutinePlanResource::collection([]);
+        }
+
+        $routines = Plan::forPartner($partner->id)
+            ->where('type', PlanType::Routine)
+            ->where('is_active', true)
+            ->with(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with(['exercises.category', 'exercises.partners'])])
+            ->latest()
+            ->get();
+
+        return RoutinePlanResource::collection($routines);
+    }
+
+    /**
+     * Display the specified browsable routine.
+     */
+    public function routinesShow(Plan $routine): JsonResponse
+    {
+        // Verify user belongs to the same partner
+        $partner = auth()->user()->partner;
+
+        if (! $partner || $routine->partner_id !== $partner->id) {
+            return response()->json([
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        // Verify it's a routine and partner-provided
+        if (! $routine->isRoutine() || ! $routine->isPartnerProvided()) {
+            return response()->json([
+                'message' => 'Not a browsable routine',
+            ], 400);
+        }
+
+        $routine->load(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with(['exercises.category', 'exercises.partners'])]);
+
+        return response()->json([
+            'data' => new RoutinePlanResource($routine),
         ]);
     }
 }

@@ -26,7 +26,7 @@ class PlanWebTest extends TestCase
         );
     }
 
-    public function test_library_plan_creation_sets_type_library_and_partner_id(): void
+    public function test_library_plan_creation_sets_type_program_and_partner_id(): void
     {
         $partner = Partner::factory()->create();
         $admin = User::factory()->create([
@@ -45,10 +45,11 @@ class PlanWebTest extends TestCase
 
         $plan = Plan::where('name', 'Library Program')->first();
         $this->assertNotNull($plan);
-        $this->assertEquals(PlanType::Library, $plan->type);
+        $this->assertEquals(PlanType::Program, $plan->type);
         $this->assertEquals($partner->id, $plan->partner_id);
         $this->assertNull($plan->user_id);
         $this->assertEquals(6, $plan->duration_weeks);
+        $this->assertTrue($plan->isPartnerLibraryPlan());
     }
 
     public function test_user_plan_creation_sets_type_program_and_user_id(): void
@@ -87,11 +88,7 @@ class PlanWebTest extends TestCase
             'partner_id' => $partner->id,
         ]);
         $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
-        $plan = Plan::factory()->program()->create([
-            'user_id' => null,
-            'partner_id' => $partner->id,
-            'type' => PlanType::Library,
-        ]);
+        $plan = Plan::factory()->partnerLibrary($partner)->create();
 
         $response = $this->actingAs($admin)->post(route('workouts.store', $plan), [
             'plan_id' => $plan->id,

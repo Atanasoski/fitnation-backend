@@ -67,9 +67,9 @@ class Plan extends Model
     /**
      * Check if this plan is a routine
      */
-    public function isCustom(): bool
+    public function isRoutine(): bool
     {
-        return $this->type === PlanType::Custom;
+        return $this->type === PlanType::Routine;
     }
 
     /**
@@ -77,7 +77,15 @@ class Plan extends Model
      */
     public function isPartnerLibraryPlan(): bool
     {
-        return $this->type === PlanType::Library;
+        return $this->partner_id !== null && $this->user_id === null;
+    }
+
+    /**
+     * Check if this plan is partner-provided (library or browsable routine)
+     */
+    public function isPartnerProvided(): bool
+    {
+        return $this->partner_id !== null && $this->user_id === null;
     }
 
     /**

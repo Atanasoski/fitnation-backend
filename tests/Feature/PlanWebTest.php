@@ -37,7 +37,7 @@ class PlanWebTest extends TestCase
         $response = $this->actingAs($admin)->post(route('partner.programs.store'), [
             'name' => 'Library Program',
             'description' => 'A library program',
-            'type' => 'library',
+            'type' => 'program',
             'duration_weeks' => 6,
         ]);
 
@@ -182,7 +182,7 @@ class PlanWebTest extends TestCase
         $response = $this->actingAs($admin)->post(route('partner.programs.store'), [
             'name' => 'Program with Cover',
             'description' => 'Has a cover image',
-            'type' => 'library',
+            'type' => 'program',
             'duration_weeks' => 4,
             'cover_image' => $file,
         ]);

@@ -33,6 +33,7 @@ class UserResource extends JsonResource
                 ];
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,
+            'access_expires_at' => $this->access_expires_at,
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

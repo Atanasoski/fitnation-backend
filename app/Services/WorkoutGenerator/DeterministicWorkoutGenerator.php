@@ -51,6 +51,33 @@ class DeterministicWorkoutGenerator
             'limit' => 200,
         ], $user->partner);
 
+        $complementaryPatterns = config('workout_generator.complementary_patterns', []);
+        $complementaryMovementPatterns = collect($targetRegions)
+            ->flatMap(fn (string $region) => $complementaryPatterns[$region] ?? [])
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($complementaryMovementPatterns)) {
+            $complementary = $this->exerciseSelector->getAvailableExercises([
+                'target_regions' => null,
+                'equipment_types' => $preferences['equipment_types'] ?? null,
+                'movement_patterns' => $complementaryMovementPatterns,
+                'angles' => $preferences['angles'] ?? null,
+                'training_styles' => $preferences['training_styles'] ?? ['BODYBUILDING'],
+                'limit' => 200,
+            ], $user->partner);
+
+            foreach ($complementary as $exercise) {
+                $exercise->generator_target_region_code = $this->inferComplementaryRegion($exercise, $targetRegions, $complementaryPatterns);
+            }
+
+            $exercises = $exercises
+                ->concat($complementary)
+                ->unique('id')
+                ->values();
+        }
+
         if ($exercises->isEmpty()) {
             throw new \Exception('No exercises available matching the specified criteria');
         }
@@ -88,6 +115,7 @@ class DeterministicWorkoutGenerator
     {
         $durationMinutes = $preferences['duration_minutes'] ?? 60;
         $fitnessGoal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
+        $experience = $user->profile?->training_experience ?? TrainingExperience::Beginner;
 
         // Calculate total sets: duration ÷ 3 minutes per set
         $minutesPerSet = config('workout_generator.minutes_per_set', 3);
@@ -114,16 +142,41 @@ class DeterministicWorkoutGenerator
         $minExercises = config('workout_generator.min_total_exercises', 4);
         $targetExerciseCount = max($targetExerciseCount, $minExercises);
 
-        // Select diverse exercises (pattern|angle uniqueness)
+        if ($experience === TrainingExperience::Beginner) {
+            $excludedEquipment = config('workout_generator.beginner_excluded_equipment', []);
+            if (! empty($excludedEquipment)) {
+                $exercises = $exercises
+                    ->reject(function (Exercise $exercise) use ($excludedEquipment) {
+                        $equipmentCode = $exercise->equipmentType?->code;
+
+                        return $equipmentCode && in_array($equipmentCode, $excludedEquipment);
+                    })
+                    ->values();
+            }
+        }
+
         $selected = collect();
-        $seen = []; // Track movement_pattern|angle combinations
+        $selectedIds = [];
+
+        // Strict pass: enforce pattern|angle uniqueness
+        $seen = [];
         $compoundPatterns = config('workout_generator.compound_patterns', []);
+        $compoundCount = 0;
         $maxPerPattern = config('workout_generator.max_exercises_per_pattern', 4);
         $maxPerRegion = config('workout_generator.max_exercises_per_region', 4);
 
-        // Group exercises by target region
-        $byRegion = $exercises->groupBy(fn ($e) => $e->targetRegion?->code ?? 'UNKNOWN');
+        $byRegion = $exercises->groupBy(function (Exercise $exercise) {
+            return $exercise->generator_target_region_code
+                ?? $exercise->targetRegion?->code
+                ?? 'UNKNOWN';
+        });
         $preferredRegions = $preferences['target_regions'] ?? array_keys($byRegion->toArray());
+
+        $maxCompoundByRegion = config('workout_generator.max_compound_by_region', []);
+        $maxCompoundExercises = null;
+        if (count($preferredRegions) === 1) {
+            $maxCompoundExercises = $maxCompoundByRegion[$preferredRegions[0]] ?? null;
+        }
 
         // If only one region is targeted, allow more exercises from it
         if (count($preferredRegions) === 1) {
@@ -133,53 +186,83 @@ class DeterministicWorkoutGenerator
         $countByRegion = [];
         $countByPattern = [];
 
-        // Select exercises with diversity constraint
+        $regionPools = [];
+        $regionCursors = [];
         foreach ($preferredRegions as $region) {
             if (! $byRegion->has($region)) {
                 continue;
             }
 
-            if ($selected->count() >= $targetExerciseCount) {
-                break;
+            $countByRegion[$region] = 0;
+            $shuffled = $byRegion->get($region)->shuffle();
+            $regionPools[$region] = $this->sortByCompoundPriority($shuffled)->values();
+            $regionCursors[$region] = 0;
+        }
+
+        $activeRegions = array_keys($regionPools);
+
+        foreach ([false, true] as $relaxed) {
+            if ($relaxed) {
+                foreach ($activeRegions as $r) {
+                    $regionCursors[$r] = 0;
+                }
             }
 
-            $regionExercises = $byRegion->get($region);
-            $countByRegion[$region] = $countByRegion[$region] ?? 0;
+            while ($selected->count() < $targetExerciseCount) {
+                $addedThisRound = false;
 
-            // Shuffle for variety, then sort by compound-first priority
-            $shuffled = $regionExercises->shuffle();
-            $sorted = $this->sortByCompoundPriority($shuffled, $user);
+                foreach ($activeRegions as $region) {
+                    if ($selected->count() >= $targetExerciseCount) {
+                        break;
+                    }
+                    if (($countByRegion[$region] ?? 0) >= $maxPerRegion) {
+                        continue;
+                    }
 
-            foreach ($sorted as $exercise) {
-                if ($selected->count() >= $targetExerciseCount) {
-                    break 2;
+                    $pool = $regionPools[$region];
+                    while (($regionCursors[$region] ?? 0) < $pool->count()) {
+                        $cursor = $regionCursors[$region];
+                        /** @var \App\Models\Exercise $exercise */
+                        $exercise = $pool->get($cursor);
+                        $regionCursors[$region] = $cursor + 1;
+
+                        if (! $exercise || isset($selectedIds[$exercise->id])) {
+                            continue;
+                        }
+
+                        $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+                        $angle = $exercise->angle?->code ?? 'NO_ANGLE';
+                        $key = "{$pattern}|{$angle}";
+
+                        $isCompound = in_array($pattern, $compoundPatterns);
+                        if ($isCompound && $maxCompoundExercises !== null && $compoundCount >= $maxCompoundExercises) {
+                            continue;
+                        }
+                        if (! $relaxed && isset($seen[$key])) {
+                            continue;
+                        }
+                        if (($countByPattern[$pattern] ?? 0) >= $maxPerPattern) {
+                            continue;
+                        }
+
+                        $selected->push($exercise);
+                        $selectedIds[$exercise->id] = true;
+                        $countByRegion[$region] = ($countByRegion[$region] ?? 0) + 1;
+                        $countByPattern[$pattern] = ($countByPattern[$pattern] ?? 0) + 1;
+                        if (! $relaxed) {
+                            $seen[$key] = true;
+                        }
+                        if ($isCompound) {
+                            $compoundCount++;
+                        }
+                        $addedThisRound = true;
+                        break;
+                    }
                 }
 
-                // Check region limit
-                if ($countByRegion[$region] >= $maxPerRegion) {
+                if (! $addedThisRound) {
                     break;
                 }
-
-                // Create diversity key
-                $movementPattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
-                $angle = $exercise->angle?->code ?? 'NO_ANGLE';
-                $key = "{$movementPattern}|{$angle}";
-
-                // Skip if we already have this pattern+angle combination
-                if (isset($seen[$key])) {
-                    continue;
-                }
-
-                // Check pattern limit
-                $patternCount = $countByPattern[$movementPattern] ?? 0;
-                if ($patternCount >= $maxPerPattern) {
-                    continue;
-                }
-
-                $selected->push($exercise);
-                $seen[$key] = true;
-                $countByRegion[$region]++;
-                $countByPattern[$movementPattern] = ($countByPattern[$movementPattern] ?? 0) + 1;
             }
         }
 
@@ -187,6 +270,23 @@ class DeterministicWorkoutGenerator
         $this->distributeSets($selected, $totalSets, $compoundPatterns);
 
         return $selected;
+    }
+
+    private function inferComplementaryRegion(Exercise $exercise, array $targetRegions, array $complementaryPatterns): ?string
+    {
+        $movementPattern = $exercise->movementPattern?->code;
+        if (! $movementPattern) {
+            return null;
+        }
+
+        foreach ($targetRegions as $region) {
+            $patterns = $complementaryPatterns[$region] ?? [];
+            if (in_array($movementPattern, $patterns)) {
+                return $region;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -281,37 +381,14 @@ class DeterministicWorkoutGenerator
      * Sort exercises by compound-first priority while preserving shuffle order within priority groups
      * For beginners, deprioritize complex compound patterns
      */
-    private function sortByCompoundPriority(Collection $exercises, User $user): Collection
+    private function sortByCompoundPriority(Collection $exercises): Collection
     {
         $compoundPatterns = config('workout_generator.compound_patterns', []);
-        $experience = $user->profile?->training_experience ?? TrainingExperience::Beginner;
 
-        // Complex patterns that beginners should deprioritize
-        $complexPatterns = ['HINGE', 'PULL_VERTICAL'];
-        $isBeginner = $experience === TrainingExperience::Beginner;
-
-        // Use stable sort to preserve shuffle order within same priority
-        return $exercises->sortBy(function ($exercise) use ($compoundPatterns, $complexPatterns, $isBeginner) {
+        return $exercises->sortBy(function ($exercise) use ($compoundPatterns) {
             $pattern = $exercise->movementPattern?->code;
 
-            // Compound movements get priority 0, isolation gets 1
-            $basePriority = in_array($pattern, $compoundPatterns) ? 0 : 1;
-
-            // For beginners, deprioritize complex patterns (add 0.5 to push them after simple compounds)
-            if ($isBeginner && in_array($pattern, $complexPatterns)) {
-                $basePriority += 0.5;
-            }
-
-            // For beginners, prefer machine/cable (safer, guided movements)
-            if ($isBeginner) {
-                $beginnerPreferredEquipment = config('workout_generator.beginner_preferred_equipment', []);
-                $equipmentCode = $exercise->equipmentType?->code ?? '';
-                if (! in_array($equipmentCode, $beginnerPreferredEquipment)) {
-                    $basePriority += 0.3;
-                }
-            }
-
-            return $basePriority;
+            return in_array($pattern, $compoundPatterns) ? 0 : 1;
         })->values();
     }
 
@@ -372,7 +449,7 @@ class DeterministicWorkoutGenerator
 
             // Combine: muscle group (0-100) * 10 + compound priority (0-1)
             // This ensures muscle group order takes precedence, then compound/isolation within each group
-            return ($muscleGroupPriority * 10) + $compoundPriority;
+            return ($muscleGroupPriority * 10) + $compoundPriority + (mt_rand(0, 99) / 100);
         })->values();
     }
 

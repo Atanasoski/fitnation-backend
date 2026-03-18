@@ -36,6 +36,7 @@ return [
         'FACE_PULL',
         'PULLOVER_STRAIGHT_ARM',
         'HIP_ABDUCTION',
+        'BACK_EXTENSION',
         'TRUNK_FLEXION',
         'ROTATION',
     ],
@@ -108,6 +109,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Composition Rules
+    |--------------------------------------------------------------------------
+    |
+    | Guardrails to prevent overly compound-dominant sessions.
+    |
+    */
+
+    'max_compound_by_region' => [
+        'LOWER' => 2,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Complementary Patterns
+    |--------------------------------------------------------------------------
+    |
+    | When a target region is selected, we can optionally pull in complementary
+    | movement patterns from other regions to round out the session.
+    |
+    */
+
+    'complementary_patterns' => [
+        'UPPER_PULL' => ['ELBOW_FLEXION'],
+        'UPPER_PUSH' => ['ELBOW_EXTENSION'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Fitness Goal Defaults
     |--------------------------------------------------------------------------
     |
@@ -153,14 +182,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Beginner Equipment Preferences
+    | Beginner Equipment Exclusions
     |--------------------------------------------------------------------------
     |
-    | Equipment types that should be prioritized for beginner users.
-    | Machine and cable exercises are safer and easier to learn, making them
-    | ideal for beginners who are still developing proper form.
+    | Equipment types that should be excluded entirely for beginner users.
     |
     */
 
-    'beginner_preferred_equipment' => ['MACHINE', 'CABLE'],
+    'beginner_excluded_equipment' => ['SMITH'],
 ];

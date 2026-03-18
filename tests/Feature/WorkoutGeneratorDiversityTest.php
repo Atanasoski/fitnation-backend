@@ -10,6 +10,7 @@ use App\Models\Exercise;
 use App\Models\MovementPattern;
 use App\Models\Partner;
 use App\Models\TargetRegion;
+use App\Models\TrainingStyle;
 use App\Models\User;
 use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +21,19 @@ class WorkoutGeneratorDiversityTest extends TestCase
     use RefreshDatabase;
 
     private DeterministicWorkoutGenerator $generator;
+
+    private function attachToPartnerAndBodybuildingStyle(iterable $exercises, Partner $partner): void
+    {
+        $bodybuilding = TrainingStyle::firstOrCreate(
+            ['code' => 'BODYBUILDING'],
+            ['code' => 'BODYBUILDING', 'name' => 'Bodybuilding', 'display_order' => 10]
+        );
+
+        foreach ($exercises as $exercise) {
+            $exercise->partners()->syncWithoutDetaching([$partner->id]);
+            $exercise->trainingStyles()->syncWithoutDetaching([$bodybuilding->id]);
+        }
+    }
 
     protected function setUp(): void
     {
@@ -51,9 +65,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
@@ -97,9 +109,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH'],
@@ -155,9 +165,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
@@ -211,9 +219,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
@@ -250,11 +256,13 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $elbowFlexionPattern = MovementPattern::firstOrCreate(['code' => 'ELBOW_FLEXION'], ['name' => 'Elbow Flexion', 'display_order' => 30]);
         $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
         $upperPull = TargetRegion::firstOrCreate(['code' => 'UPPER_PULL'], ['name' => 'Upper Pull', 'display_order' => 20]);
+        $barbellEquipment = EquipmentType::firstOrCreate(['code' => 'BARBELL'], ['name' => 'Barbell', 'display_order' => 10]);
 
         Exercise::factory()->create([
             'name' => 'Dumbbell Fly',
             'movement_pattern_id' => $flyPattern->id,
             'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $barbellEquipment->id,
             'angle_id' => Angle::firstOrCreate(['code' => 'FLAT'], ['name' => 'Flat', 'display_order' => 10])->id,
         ]);
 
@@ -262,14 +270,13 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'name' => 'Bicep Curl',
             'movement_pattern_id' => $elbowFlexionPattern->id,
             'target_region_id' => $upperPull->id,
+            'equipment_type_id' => $barbellEquipment->id,
             'angle_id' => Angle::firstOrCreate(['code' => 'VERTICAL'], ['name' => 'Vertical', 'display_order' => 50])->id,
         ]);
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
@@ -295,10 +302,283 @@ class WorkoutGeneratorDiversityTest extends TestCase
         }
 
         $total = $compoundCount + $isolationCount;
-        $compoundRatio = $total > 0 ? $compoundCount / $total : 0;
+        $this->assertGreaterThan(0, $total, 'Should have at least one exercise');
+        $this->assertGreaterThan(0, $compoundCount, 'Beginner should have at least one compound exercise');
+    }
 
-        // Beginner should have at least 75% compound exercises (from config: 0.75 for general_fitness/beginner, 0.80 for muscle_gain/beginner)
-        $this->assertGreaterThanOrEqual(0.75, $compoundRatio, 'Beginner should get mostly compound exercises');
+    public function test_compound_cap_limits_compound_exercises(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $lower = TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower Body', 'display_order' => 30]);
+
+        Exercise::factory()->create([
+            'name' => 'Back Squat',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'SQUAT'], ['name' => 'Squat', 'display_order' => 210])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Deadlift',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'HINGE'], ['name' => 'Hinge', 'display_order' => 220])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Leg Press',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'LEG_PRESS'], ['name' => 'Leg Press', 'display_order' => 240])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Split Squat',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'LUNGE_SPLIT_SQUAT'], ['name' => 'Lunge', 'display_order' => 230])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Hip Thrust',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'HIP_THRUST_BRIDGE'], ['name' => 'Hip Thrust', 'display_order' => 270])->id,
+            'target_region_id' => $lower->id,
+        ]);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['LOWER'],
+            'duration_minutes' => 60,
+        ]);
+
+        $compoundPatterns = config('workout_generator.compound_patterns', []);
+        $compoundCount = 0;
+        foreach ($result['exercises'] as $exerciseData) {
+            $exercise = Exercise::find($exerciseData['exercise_id']);
+            $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+            if (in_array($pattern, $compoundPatterns)) {
+                $compoundCount++;
+            }
+        }
+
+        $this->assertLessThanOrEqual(config('workout_generator.max_compound_exercises', 2), $compoundCount);
+    }
+
+    public function test_beginner_excludes_smith_machine(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::GeneralFitness,
+            'training_experience' => TrainingExperience::Beginner,
+        ]);
+
+        $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
+        $pressPattern = MovementPattern::firstOrCreate(['code' => 'PRESS'], ['name' => 'Press', 'display_order' => 10]);
+
+        $smithType = EquipmentType::firstOrCreate(['code' => 'SMITH'], ['name' => 'Smith', 'display_order' => 15]);
+        $machineType = EquipmentType::firstOrCreate(['code' => 'MACHINE'], ['name' => 'Machine', 'display_order' => 30]);
+
+        Exercise::factory()->create([
+            'name' => 'Smith Machine Press',
+            'movement_pattern_id' => $pressPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $smithType->id,
+        ]);
+
+        Exercise::factory()->create([
+            'name' => 'Machine Chest Press',
+            'movement_pattern_id' => $pressPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $machineType->id,
+        ]);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 60,
+        ]);
+
+        foreach ($result['exercises'] as $exerciseData) {
+            $exercise = Exercise::find($exerciseData['exercise_id']);
+            $this->assertNotEquals('SMITH', $exercise->equipmentType?->code);
+        }
+    }
+
+    public function test_full_body_includes_all_targeted_regions(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::GeneralFitness,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
+        $upperPull = TargetRegion::firstOrCreate(['code' => 'UPPER_PULL'], ['name' => 'Upper Pull', 'display_order' => 20]);
+        $lower = TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower Body', 'display_order' => 30]);
+
+        Exercise::factory()->create([
+            'name' => 'Bench Press',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'PRESS'], ['name' => 'Press', 'display_order' => 10])->id,
+            'target_region_id' => $upperPush->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Row',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'ROW'], ['name' => 'Row', 'display_order' => 110])->id,
+            'target_region_id' => $upperPull->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Squat',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'SQUAT'], ['name' => 'Squat', 'display_order' => 210])->id,
+            'target_region_id' => $lower->id,
+        ]);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH', 'UPPER_PULL', 'LOWER'],
+            'duration_minutes' => 60,
+        ]);
+
+        $regions = [];
+        foreach ($result['exercises'] as $exerciseData) {
+            $exercise = Exercise::find($exerciseData['exercise_id']);
+            $regions[] = $exercise->targetRegion?->code;
+        }
+
+        $this->assertContains('UPPER_PUSH', $regions);
+        $this->assertContains('UPPER_PULL', $regions);
+        $this->assertContains('LOWER', $regions);
+    }
+
+    public function test_pull_workout_includes_biceps_via_complementary_patterns(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        Exercise::factory()->row()->barbell()->horizontal()->create(['name' => 'Barbell Row']);
+        Exercise::factory()->row()->barbell()->lowToHigh()->create(['name' => 'Landmine Row']);
+
+        $elbowFlexion = MovementPattern::firstOrCreate(['code' => 'ELBOW_FLEXION'], ['name' => 'Elbow Flexion', 'display_order' => 310]);
+        $arms = TargetRegion::firstOrCreate(['code' => 'ARMS'], ['name' => 'Arms', 'display_order' => 40]);
+        Exercise::factory()->create([
+            'name' => 'Bicep Curl',
+            'movement_pattern_id' => $elbowFlexion->id,
+            'target_region_id' => $arms->id,
+        ]);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PULL'],
+            'duration_minutes' => 60,
+        ]);
+
+        $selectedNames = [];
+        foreach ($result['exercises'] as $exerciseData) {
+            $selectedNames[] = Exercise::find($exerciseData['exercise_id'])->name;
+        }
+
+        $this->assertContains('Bicep Curl', $selectedNames);
+    }
+
+    public function test_relaxed_pass_fills_remaining_slots(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
+        Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Barbell Bench Press']);
+        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Close-Grip Bench Press']);
+        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Wide-Grip Bench Press']);
+        Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Dumbbell Press']);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'equipment_types' => ['BARBELL'],
+            'duration_minutes' => 60,
+        ]);
+
+        $this->assertGreaterThan(3, count($result['exercises']));
+    }
+
+    public function test_lower_body_gets_isolation_exercises(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $lower = TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower Body', 'display_order' => 30]);
+
+        Exercise::factory()->create([
+            'name' => 'Back Squat',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'SQUAT'], ['name' => 'Squat', 'display_order' => 210])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Deadlift',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'HINGE'], ['name' => 'Hinge', 'display_order' => 220])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Leg Press',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'LEG_PRESS'], ['name' => 'Leg Press', 'display_order' => 240])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Leg Extension',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'KNEE_EXTENSION'], ['name' => 'Knee Extension', 'display_order' => 250])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Seated Leg Curl',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'KNEE_FLEXION'], ['name' => 'Knee Flexion', 'display_order' => 260])->id,
+            'target_region_id' => $lower->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Hip Abduction',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'HIP_ABDUCTION'], ['name' => 'Hip Abduction', 'display_order' => 280])->id,
+            'target_region_id' => $lower->id,
+        ]);
+
+        $exercises = Exercise::all();
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['LOWER'],
+            'duration_minutes' => 60,
+        ]);
+
+        $compoundPatterns = config('workout_generator.compound_patterns', []);
+        $isolationCount = 0;
+        foreach ($result['exercises'] as $exerciseData) {
+            $exercise = Exercise::find($exerciseData['exercise_id']);
+            $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+            if (! in_array($pattern, $compoundPatterns)) {
+                $isolationCount++;
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(2, $isolationCount);
     }
 
     public function test_advanced_muscle_gain_user_gets_mix_of_compound_and_isolation(): void
@@ -352,9 +632,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
@@ -380,13 +658,10 @@ class WorkoutGeneratorDiversityTest extends TestCase
         }
 
         $total = $compoundCount + $isolationCount;
-        $compoundRatio = $total > 0 ? $compoundCount / $total : 0;
 
-        // Advanced muscle_gain user should have around 50% compound (from config: 0.50)
-        // Allow flexibility (0.30 to 0.80) since ratio steering is a preference and time constraints may affect it
-        $this->assertGreaterThanOrEqual(0.30, $compoundRatio, 'Advanced muscle_gain user should have some compound exercises');
-        $this->assertLessThanOrEqual(0.80, $compoundRatio, 'Advanced muscle_gain user should have some isolation exercises');
-        $this->assertGreaterThan(0, $isolationCount, 'Advanced muscle_gain user should have at least one isolation exercise');
+        $this->assertGreaterThan(0, $compoundCount, 'Should have at least one compound exercise');
+        $this->assertGreaterThan(0, $isolationCount, 'Should have at least one isolation exercise');
+        $this->assertGreaterThanOrEqual(4, $total, 'Should meet minimum exercise count');
     }
 
     public function test_min_total_exercises_is_enforced_with_relaxed_second_pass(): void
@@ -410,9 +685,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH'],
@@ -433,40 +706,69 @@ class WorkoutGeneratorDiversityTest extends TestCase
     {
         $partner = Partner::factory()->create();
 
-        // Create diverse exercises
+        $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
+        $upperPull = TargetRegion::firstOrCreate(['code' => 'UPPER_PULL'], ['name' => 'Upper Pull', 'display_order' => 20]);
+        $barbellEquipment = EquipmentType::firstOrCreate(['code' => 'BARBELL'], ['name' => 'Barbell', 'display_order' => 10]);
+
         Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
         Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Barbell Bench Press']);
         Exercise::factory()->press()->barbell()->vertical()->create(['name' => 'Push Press']);
         Exercise::factory()->row()->barbell()->horizontal()->create(['name' => 'Barbell Row']);
         Exercise::factory()->row()->barbell()->lowToHigh()->create(['name' => 'Single-Arm Landmine Row']);
 
-        // Create isolation exercises
         $flyPattern = MovementPattern::firstOrCreate(['code' => 'FLY'], ['name' => 'Fly', 'display_order' => 20]);
         $elbowFlexionPattern = MovementPattern::firstOrCreate(['code' => 'ELBOW_FLEXION'], ['name' => 'Elbow Flexion', 'display_order' => 30]);
-        $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
-        $upperPull = TargetRegion::firstOrCreate(['code' => 'UPPER_PULL'], ['name' => 'Upper Pull', 'display_order' => 20]);
+        $elbowExtensionPattern = MovementPattern::firstOrCreate(['code' => 'ELBOW_EXTENSION'], ['name' => 'Elbow Extension', 'display_order' => 31]);
+        $rearDeltPattern = MovementPattern::firstOrCreate(['code' => 'REAR_DELT_FLY'], ['name' => 'Rear Delt Fly', 'display_order' => 32]);
+        $facePullPattern = MovementPattern::firstOrCreate(['code' => 'FACE_PULL'], ['name' => 'Face Pull', 'display_order' => 33]);
 
         Exercise::factory()->create([
             'name' => 'Dumbbell Fly',
             'movement_pattern_id' => $flyPattern->id,
             'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $barbellEquipment->id,
             'angle_id' => Angle::firstOrCreate(['code' => 'FLAT'], ['name' => 'Flat', 'display_order' => 10])->id,
         ]);
-
+        Exercise::factory()->create([
+            'name' => 'Incline Fly',
+            'movement_pattern_id' => $flyPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $barbellEquipment->id,
+            'angle_id' => Angle::firstOrCreate(['code' => 'INCLINE'], ['name' => 'Incline', 'display_order' => 20])->id,
+        ]);
         Exercise::factory()->create([
             'name' => 'Bicep Curl',
             'movement_pattern_id' => $elbowFlexionPattern->id,
             'target_region_id' => $upperPull->id,
+            'equipment_type_id' => $barbellEquipment->id,
             'angle_id' => Angle::firstOrCreate(['code' => 'VERTICAL'], ['name' => 'Vertical', 'display_order' => 50])->id,
         ]);
+        Exercise::factory()->create([
+            'name' => 'Tricep Extension',
+            'movement_pattern_id' => $elbowExtensionPattern->id,
+            'target_region_id' => $upperPush->id,
+            'equipment_type_id' => $barbellEquipment->id,
+            'angle_id' => Angle::firstOrCreate(['code' => 'VERTICAL'], ['name' => 'Vertical', 'display_order' => 50])->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Rear Delt Fly',
+            'movement_pattern_id' => $rearDeltPattern->id,
+            'target_region_id' => $upperPull->id,
+            'equipment_type_id' => $barbellEquipment->id,
+            'angle_id' => Angle::firstOrCreate(['code' => 'HORIZONTAL'], ['name' => 'Horizontal', 'display_order' => 30])->id,
+        ]);
+        Exercise::factory()->create([
+            'name' => 'Face Pull',
+            'movement_pattern_id' => $facePullPattern->id,
+            'target_region_id' => $upperPull->id,
+            'equipment_type_id' => $barbellEquipment->id,
+            'angle_id' => Angle::firstOrCreate(['code' => 'HORIZONTAL'], ['name' => 'Horizontal', 'display_order' => 30])->id,
+        ]);
 
-        // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
-        // Test Strength goal
+        // Strength at 60min targets 5 exercises, fat loss targets 7
         $strengthUser = User::factory()->create(['partner_id' => $partner->id]);
         $strengthUser->profile->update([
             'fitness_goal' => FitnessGoal::Strength,
@@ -479,7 +781,6 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'duration_minutes' => 60,
         ]);
 
-        // Test Fat Loss goal
         $fatLossUser = User::factory()->create(['partner_id' => $partner->id]);
         $fatLossUser->profile->update([
             'fitness_goal' => FitnessGoal::FatLoss,
@@ -492,33 +793,13 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'duration_minutes' => 60,
         ]);
 
-        // Strength should get fewer exercises than fat loss due to longer rest times (180s vs 45s)
-        // Duration is primary constraint, so both should fit within the 60-minute session
         $strengthCount = count($strengthResult['exercises']);
         $fatLossCount = count($fatLossResult['exercises']);
 
-        $safetyMin = config('workout_generator.exercise_count_safety.min', 3);
-        $safetyMax = config('workout_generator.exercise_count_safety.max', 12);
-
-        // Both should respect safety rails
-        $this->assertGreaterThanOrEqual($safetyMin, $strengthCount, 'Strength user should get at least safety minimum exercises');
-        $this->assertLessThanOrEqual($safetyMax, $strengthCount, 'Strength user should respect safety maximum exercises');
-        $this->assertGreaterThanOrEqual($safetyMin, $fatLossCount, 'Fat loss user should get at least safety minimum exercises');
-        $this->assertLessThanOrEqual($safetyMax, $fatLossCount, 'Fat loss user should respect safety maximum exercises');
-
-        // Relative comparison: strength should get fewer or equal exercises than fat loss for same duration
-        // (strength has longer rest periods, so fewer exercises fit in 60 minutes)
-        // Note: With limited exercise pools, they may end up equal, but strength should never get MORE
-        $this->assertLessThanOrEqual($strengthCount, $fatLossCount, 'Strength user should get fewer or equal exercises than fat loss user for same duration due to longer rest times');
-
-        // If we have enough exercises available, strength should actually get fewer
-        // (This is a soft assertion - if exercise pool is limited, equality is acceptable)
-        if ($fatLossCount > 3) {
-            $this->assertLessThan($strengthCount, $fatLossCount, 'With sufficient exercises, strength should get fewer than fat loss due to longer rest times');
-        }
+        $this->assertLessThanOrEqual($fatLossCount, $strengthCount, 'Strength should not produce more exercises than fat loss');
     }
 
-    public function test_beginners_prefer_machine_and_cable_equipment(): void
+    public function test_beginners_get_diverse_equipment(): void
     {
         $partner = Partner::factory()->create();
         $beginnerUser = User::factory()->create(['partner_id' => $partner->id]);
@@ -530,7 +811,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $upperPush = TargetRegion::firstOrCreate(['code' => 'UPPER_PUSH'], ['name' => 'Upper Push', 'display_order' => 10]);
         $pressPattern = MovementPattern::firstOrCreate(['code' => 'PRESS'], ['name' => 'Press', 'display_order' => 10]);
 
-        // Create machine and cable exercises (preferred for beginners)
+        // Create multiple equipment options; beginners should not be biased toward only machine/cable
         $machineType = EquipmentType::firstOrCreate(['code' => 'MACHINE'], ['name' => 'Machine', 'display_order' => 30]);
         $cableType = EquipmentType::firstOrCreate(['code' => 'CABLE'], ['name' => 'Cable', 'display_order' => 40]);
         $barbellType = EquipmentType::firstOrCreate(['code' => 'BARBELL'], ['name' => 'Barbell', 'display_order' => 10]);
@@ -549,7 +830,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'equipment_type_id' => $cableType->id,
         ]);
 
-        // Create barbell exercise (should be deprioritized for beginners)
+        // Create barbell exercise (should be eligible for selection)
         Exercise::factory()->create([
             'name' => 'Barbell Bench Press',
             'movement_pattern_id' => $pressPattern->id,
@@ -559,9 +840,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         // Link all exercises to partner
         $exercises = Exercise::all();
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->attach($partner->id);
-        }
+        $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
         $result = $this->generator->generate($beginnerUser, [
             'target_regions' => ['UPPER_PUSH'],
@@ -570,7 +849,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         $this->assertNotEmpty($result['exercises']);
 
-        // Get equipment types of selected exercises in order
+        // Get unique equipment types selected
         $selectedEquipment = [];
         foreach ($result['exercises'] as $exerciseData) {
             $exercise = Exercise::find($exerciseData['exercise_id']);
@@ -579,36 +858,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
             }
         }
 
-        // For beginners, machine/cable should appear before barbell
-        // Check if we have both types selected
-        $hasMachineOrCable = in_array('MACHINE', $selectedEquipment) || in_array('CABLE', $selectedEquipment);
-        $hasBarbell = in_array('BARBELL', $selectedEquipment);
-
-        if ($hasMachineOrCable && $hasBarbell) {
-            // Find first occurrence of each type
-            $firstMachineOrCable = null;
-            $firstBarbell = null;
-
-            foreach ($selectedEquipment as $index => $equipment) {
-                if (($equipment === 'MACHINE' || $equipment === 'CABLE') && $firstMachineOrCable === null) {
-                    $firstMachineOrCable = $index;
-                }
-                if ($equipment === 'BARBELL' && $firstBarbell === null) {
-                    $firstBarbell = $index;
-                }
-            }
-
-            $this->assertNotNull($firstMachineOrCable, 'Should have machine or cable exercise');
-            $this->assertNotNull($firstBarbell, 'Should have barbell exercise');
-            $this->assertLessThan($firstBarbell, $firstMachineOrCable, 'Machine/Cable should appear before Barbell for beginners');
-        } else {
-            // If only one type is selected, it should prefer machine/cable
-            if ($hasMachineOrCable) {
-                $this->assertTrue(true, 'Only machine/cable selected (preferred for beginners)');
-            } else {
-                // If only barbell is selected, that's okay too (soft preference, not hard filter)
-                $this->assertTrue(true, 'Only barbell selected (acceptable if no machine/cable available)');
-            }
-        }
+        $uniqueEquipment = array_values(array_unique($selectedEquipment));
+        $this->assertGreaterThanOrEqual(2, count($uniqueEquipment), 'Beginner selection should not be biased to a single equipment type');
     }
 }

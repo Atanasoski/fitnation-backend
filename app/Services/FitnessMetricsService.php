@@ -100,17 +100,7 @@ class FitnessMetricsService
         }
 
         // Ensure we have all required muscle groups (granular)
-        $requiredGroups = [
-            // Upper body
-            'chest', 'lats', 'upper back', 'lower back',
-            'front delts', 'side delts', 'rear delts', 'traps',
-            'biceps', 'triceps', 'forearms',
-            // Lower body
-            'quadriceps', 'hamstrings', 'glutes', 'calves',
-            // Core
-            'abs', 'obliques',
-        ];
-        foreach ($requiredGroups as $group) {
+        foreach ($this->getRequiredMuscleGroups() as $group) {
             if (! isset($muscleGroups[$group])) {
                 $muscleGroups[$group] = 0;
             }
@@ -355,26 +345,58 @@ class FitnessMetricsService
     }
 
     /**
-     * Calculate balance percentage based on how evenly distributed the training is.
+     * Calculate balance percentage using coverage and evenness (geometric mean).
+     *
+     * Coverage measures what fraction of the 17 tracked muscle groups have been
+     * trained. Evenness uses normalized Shannon entropy to measure how uniformly
+     * volume is distributed among the trained groups. The geometric mean ensures
+     * both factors must be reasonably high for a good score, while avoiding the
+     * old formula's problem of demanding perfect uniformity across all 17 groups.
      */
     private function calculateBalancePercentage(array $muscleGroupPercentages): float
     {
-        if (empty($muscleGroupPercentages)) {
+        $totalGroups = count($this->getRequiredMuscleGroups());
+
+        $trainedPercentages = array_filter($muscleGroupPercentages, fn ($p) => $p > 0);
+        $trainedCount = count($trainedPercentages);
+
+        if ($trainedCount === 0) {
             return 0;
         }
 
-        $idealPercentage = 100 / count($muscleGroupPercentages);
-        $totalDeviation = 0;
+        $coverage = $trainedCount / $totalGroups;
 
-        foreach ($muscleGroupPercentages as $percentage) {
-            $totalDeviation += abs($percentage - $idealPercentage);
+        $evenness = 0.0;
+        if ($trainedCount >= 2) {
+            $total = array_sum($trainedPercentages);
+            $entropy = 0.0;
+            foreach ($trainedPercentages as $pct) {
+                $proportion = $pct / $total;
+                if ($proportion > 0) {
+                    $entropy -= $proportion * log($proportion);
+                }
+            }
+            $maxEntropy = log($trainedCount);
+            $evenness = $maxEntropy > 0 ? $entropy / $maxEntropy : 0.0;
         }
 
-        // Convert deviation to balance score (lower deviation = higher balance)
-        $maxPossibleDeviation = $idealPercentage * count($muscleGroupPercentages);
-        $balanceScore = 100 - (($totalDeviation / $maxPossibleDeviation) * 100);
+        $balance = sqrt($coverage * $evenness) * 100;
 
-        return max(0, $balanceScore);
+        return min(100.0, max(0.0, $balance));
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getRequiredMuscleGroups(): array
+    {
+        return [
+            'chest', 'lats', 'upper back', 'lower back',
+            'front delts', 'side delts', 'rear delts', 'traps',
+            'biceps', 'triceps', 'forearms',
+            'quadriceps', 'hamstrings', 'glutes', 'calves',
+            'abs', 'obliques',
+        ];
     }
 
     /**
@@ -424,14 +446,20 @@ class FitnessMetricsService
 
     /**
      * Determine balance level based on percentage.
+     *
+     * Thresholds are calibrated against the coverage × evenness formula:
+     * - EXCELLENT (≥80): 14+ groups with good evenness, or all 17 moderately even
+     * - GOOD (≥60): ~10-13 groups with reasonable evenness (typical PPL split)
+     * - FAIR (≥40): 6-9 groups, or more groups with skewed distribution
+     * - NEEDS_IMPROVEMENT (<40): fewer than 6 groups, or extreme concentration
      */
     private function determineBalanceLevel(float $percentage): string
     {
         if ($percentage >= 80) {
             return 'EXCELLENT';
-        } elseif ($percentage >= 65) {
+        } elseif ($percentage >= 60) {
             return 'GOOD';
-        } elseif ($percentage >= 50) {
+        } elseif ($percentage >= 40) {
             return 'FAIR';
         } else {
             return 'NEEDS_IMPROVEMENT';

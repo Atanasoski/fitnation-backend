@@ -411,6 +411,177 @@ class FitnessMetricsTest extends TestCase
         $this->assertEquals(1, $mondayData['workouts']);
     }
 
+    public function test_strength_balance_rewards_coverage_across_many_muscle_groups(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['weight' => 80.0]);
+
+        $muscleGroupConfigs = [
+            ['name' => 'Chest', 'region' => 'upper', 'exercise' => 'Bench Press', 'sets' => 6],
+            ['name' => 'Lower Back', 'region' => 'upper', 'exercise' => 'Deadlift', 'sets' => 3],
+            ['name' => 'Hamstrings', 'region' => 'lower', 'exercise' => 'Romanian Deadlift', 'sets' => 3],
+            ['name' => 'Glutes', 'region' => 'lower', 'exercise' => 'Hip Thrust', 'sets' => 3],
+            ['name' => 'Front Delts', 'region' => 'upper', 'exercise' => 'Overhead Press', 'sets' => 2],
+            ['name' => 'Lats', 'region' => 'upper', 'exercise' => 'Lat Pulldown', 'sets' => 2],
+            ['name' => 'Upper Back', 'region' => 'upper', 'exercise' => 'Barbell Row', 'sets' => 2],
+            ['name' => 'Abs', 'region' => 'core', 'exercise' => 'Cable Crunch', 'sets' => 1],
+            ['name' => 'Triceps', 'region' => 'upper', 'exercise' => 'Tricep Pushdown', 'sets' => 1],
+            ['name' => 'Side Delts', 'region' => 'upper', 'exercise' => 'Lateral Raise', 'sets' => 1],
+            ['name' => 'Obliques', 'region' => 'core', 'exercise' => 'Woodchop', 'sets' => 1],
+        ];
+
+        $this->createVariedWorkoutData($user, $muscleGroupConfigs);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/user/fitness-metrics');
+
+        $response->assertOk();
+
+        $balance = $response->json('data.strength_balance');
+        $this->assertGreaterThanOrEqual(60, $balance['percentage'], 'Training 11/17 muscle groups should score at least GOOD (60%)');
+        $this->assertContains($balance['level'], ['GOOD', 'EXCELLENT']);
+    }
+
+    public function test_strength_balance_low_for_single_muscle_group(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['weight' => 80.0]);
+
+        $muscleGroupConfigs = [
+            ['name' => 'Chest', 'region' => 'upper', 'exercise' => 'Bench Press', 'sets' => 10],
+        ];
+
+        $this->createVariedWorkoutData($user, $muscleGroupConfigs);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/user/fitness-metrics');
+
+        $response->assertOk();
+
+        $balance = $response->json('data.strength_balance');
+        $this->assertLessThan(20, $balance['percentage'], 'Training only 1 muscle group should score below 20%');
+        $this->assertEquals('NEEDS_IMPROVEMENT', $balance['level']);
+    }
+
+    public function test_strength_balance_ppl_split_scores_good_or_better(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['weight' => 80.0]);
+
+        $muscleGroupConfigs = [
+            ['name' => 'Chest', 'region' => 'upper', 'exercise' => 'Bench Press', 'sets' => 4],
+            ['name' => 'Front Delts', 'region' => 'upper', 'exercise' => 'Overhead Press', 'sets' => 3],
+            ['name' => 'Triceps', 'region' => 'upper', 'exercise' => 'Tricep Pushdown', 'sets' => 3],
+            ['name' => 'Side Delts', 'region' => 'upper', 'exercise' => 'Lateral Raise', 'sets' => 2],
+            ['name' => 'Lats', 'region' => 'upper', 'exercise' => 'Lat Pulldown', 'sets' => 4],
+            ['name' => 'Upper Back', 'region' => 'upper', 'exercise' => 'Barbell Row', 'sets' => 3],
+            ['name' => 'Rear Delts', 'region' => 'upper', 'exercise' => 'Face Pull', 'sets' => 2],
+            ['name' => 'Biceps', 'region' => 'upper', 'exercise' => 'Barbell Curl', 'sets' => 3],
+            ['name' => 'Traps', 'region' => 'upper', 'exercise' => 'Shrug', 'sets' => 2],
+            ['name' => 'Quadriceps', 'region' => 'lower', 'exercise' => 'Squat', 'sets' => 4],
+            ['name' => 'Hamstrings', 'region' => 'lower', 'exercise' => 'Romanian Deadlift', 'sets' => 3],
+            ['name' => 'Glutes', 'region' => 'lower', 'exercise' => 'Hip Thrust', 'sets' => 3],
+            ['name' => 'Calves', 'region' => 'lower', 'exercise' => 'Calf Raise', 'sets' => 2],
+            ['name' => 'Abs', 'region' => 'core', 'exercise' => 'Cable Crunch', 'sets' => 2],
+        ];
+
+        $this->createVariedWorkoutData($user, $muscleGroupConfigs);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/user/fitness-metrics');
+
+        $response->assertOk();
+
+        $balance = $response->json('data.strength_balance');
+        $this->assertGreaterThanOrEqual(60, $balance['percentage'], 'A full PPL split covering 14/17 groups should score GOOD or better');
+        $this->assertContains($balance['level'], ['GOOD', 'EXCELLENT']);
+    }
+
+    public function test_strength_balance_zero_for_no_training_data(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['weight' => 80.0]);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/user/fitness-metrics');
+
+        $response->assertOk();
+
+        $balance = $response->json('data.strength_balance');
+        $this->assertEquals(0, $balance['percentage']);
+        $this->assertEquals('NEEDS_IMPROVEMENT', $balance['level']);
+    }
+
+    public function test_strength_balance_needs_improvement_for_two_or_three_groups(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['weight' => 80.0]);
+
+        $muscleGroupConfigs = [
+            ['name' => 'Chest', 'region' => 'upper', 'exercise' => 'Bench Press', 'sets' => 5],
+            ['name' => 'Biceps', 'region' => 'upper', 'exercise' => 'Barbell Curl', 'sets' => 5],
+            ['name' => 'Triceps', 'region' => 'upper', 'exercise' => 'Tricep Pushdown', 'sets' => 5],
+        ];
+
+        $this->createVariedWorkoutData($user, $muscleGroupConfigs);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/user/fitness-metrics');
+
+        $response->assertOk();
+
+        $balance = $response->json('data.strength_balance');
+        $this->assertLessThan(45, $balance['percentage'], 'Training only 3 groups should not score FAIR or above');
+    }
+
+    /**
+     * Create workout data across varied muscle groups for a user.
+     *
+     * @param  array<int, array{name: string, region: string, exercise: string, sets: int}>  $muscleGroupConfigs
+     */
+    private function createVariedWorkoutData(User $user, array $muscleGroupConfigs): void
+    {
+        $recent30Days = Carbon::now()->subDays(15);
+
+        $session = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => $recent30Days,
+            'completed_at' => $recent30Days->copy()->addHours(1),
+        ]);
+
+        foreach ($muscleGroupConfigs as $config) {
+            $muscleGroup = MuscleGroup::firstOrCreate(
+                ['name' => $config['name']],
+                ['body_region' => $config['region']]
+            );
+
+            $exercise = Exercise::firstOrCreate(
+                ['name' => $config['exercise']],
+                ['description' => $config['exercise'].' exercise']
+            );
+
+            $exercise->muscleGroups()->syncWithoutDetaching([
+                $muscleGroup->id => ['is_primary' => true],
+            ]);
+
+            for ($s = 1; $s <= $config['sets']; $s++) {
+                SetLog::create([
+                    'workout_session_id' => $session->id,
+                    'exercise_id' => $exercise->id,
+                    'set_number' => $s,
+                    'weight' => 60.0,
+                    'reps' => 10,
+                    'rest_seconds' => 60,
+                ]);
+            }
+        }
+    }
+
     /**
      * Helper method to create workout data for a user.
      */

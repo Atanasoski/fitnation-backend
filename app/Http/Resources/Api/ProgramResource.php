@@ -22,6 +22,7 @@ class ProgramResource extends JsonResource
             'cover_image' => $this->cover_image ? Storage::url($this->cover_image) : null,
             'duration_weeks' => $this->duration_weeks,
             'is_active' => $this->is_active,
+            'is_auto_generated' => $this->is_auto_generated,
             'is_library_plan' => $this->isPartnerLibraryPlan(),
             'cover_image' => $this->cover_image ? Storage::url($this->cover_image) : null,
             'progress_percentage' => $this->when(

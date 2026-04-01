@@ -331,23 +331,23 @@ interface CompleteOnboardingResponse {
 **422 Unprocessable Entity:**
 ```typescript
 {
-  message: "User profile is required for welcome plan generation"
+  message: "User profile is required for personalized plan generation"
 }
 // OR
 {
-  message: "Fitness goal is required for welcome plan generation"
+  message: "Fitness goal is required for personalized plan generation"
 }
 // OR
 {
-  message: "Training experience is required for welcome plan generation"
+  message: "Training experience is required for personalized plan generation"
 }
 // OR
 {
-  message: "Training days per week is required for welcome plan generation"
+  message: "Training days per week is required for personalized plan generation"
 }
 // OR
 {
-  message: "Workout duration is required for welcome plan generation"
+  message: "Workout duration is required for personalized plan generation"
 }
 ```
 
@@ -360,7 +360,7 @@ interface CompleteOnboardingResponse {
 
 **Notes:**
 - This endpoint can only be called once per user. If `onboarding_completed_at` is already set, it will return a 409 Conflict error.
-- The generated plan is automatically set as active (`is_active: true`).
+- The generated plan is automatically set as active (`is_active: true`) and marked as auto-generated (`is_auto_generated: true`).
 - The workout split is automatically determined based on `training_days_per_week`:
   - 1 day: Full Body
   - 2 days: Full Body, Full Body
@@ -941,6 +941,46 @@ interface CreatePlanResponse {
 }
 ```
 
+### Regenerate Personalized Plan
+```
+POST /api/plans/regenerate
+```
+*Requires authentication*
+
+Creates a new 12-week personalized program from the user's profile (same algorithm as onboarding). Any **active** plan with `is_auto_generated: true` for this user is deactivated (`is_active` set to `false`); templates and workout history on older plans remain in the database for calendars and history. The new plan is set active with `is_auto_generated: true`.
+
+Requires onboarding to be complete and the same profile fields as plan generation (fitness goal, training experience, training days per week, workout duration).
+
+**Request Body (optional):**
+```typescript
+interface RegeneratePlanRequest {
+  plan_name?: string;  // Optional display name (defaults to "Your Personalized Plan")
+}
+```
+
+**Response (201 Created):**
+```typescript
+interface RegeneratePlanResponse {
+  message: "Personalized plan created successfully";
+  data: CustomPlanResource;  // Full plan with workout_templates loaded
+}
+```
+
+**Error Responses:**
+
+**422 Unprocessable Entity:** Same profile validation messages as [Complete Onboarding](#complete-onboarding) (`"… required for personalized plan generation"`).
+
+**500 Internal Server Error:**
+```typescript
+{
+  message: "Failed to regenerate plan. Please try again later."
+}
+```
+
+**Notes:**
+- Does not change `onboarding_completed_at`.
+- Users may still have another plan type (e.g. cloned PT program) active depending on earlier actions; only auto-generated active plans are deactivated by this endpoint before creating the new one.
+
 ### Update Plan
 ```
 PUT /api/plans/{id}
@@ -1004,6 +1044,7 @@ interface CustomPlanResource {
   name: string;
   description: string | null;
   is_active: boolean;
+  is_auto_generated: boolean;
   type: 'routine';
   workout_templates: WorkoutTemplateResource[] | null;
   created_at: string;
@@ -1133,6 +1174,7 @@ interface ProgramResource {
   description: string | null;
   duration_weeks: number | null;
   is_active: boolean;
+  is_auto_generated: boolean;        // true for profile-generated programs (onboarding/regenerate)
   type: 'program';
   is_library_plan: boolean;          // false for user's cloned programs
   progress_percentage: number | null; // Calculated from completed workouts
@@ -2380,6 +2422,7 @@ interface PlanResource {
   description: string | null;
   cover_image: string | null;  // Full URL to cover image, or null if not set
   is_active: boolean;
+  is_auto_generated: boolean;
   type: 'routine' | 'program';
   duration_weeks: number | null;  // For program type only
   workout_templates: WorkoutTemplateResource[] | null;
@@ -2629,6 +2672,7 @@ interface ValidationError {
 | GET | `/api/plans` | List user's custom plans |
 | GET | `/api/plans/{id}` | Get single custom plan |
 | POST | `/api/plans` | Create custom plan |
+| POST | `/api/plans/regenerate` | Regenerate personalized program from profile |
 | PUT/PATCH | `/api/plans/{id}` | Update custom plan |
 | DELETE | `/api/plans/{id}` | Delete custom plan |
 

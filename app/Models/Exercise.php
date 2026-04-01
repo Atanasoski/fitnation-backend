@@ -28,6 +28,7 @@ class Exercise extends Model
         'video',
         'default_rest_sec',
         'difficulty',
+        'selection_priority',
     ];
 
     protected function casts(): array

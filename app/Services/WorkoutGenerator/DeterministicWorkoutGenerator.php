@@ -387,8 +387,10 @@ class DeterministicWorkoutGenerator
 
         return $exercises->sortBy(function ($exercise) use ($compoundPatterns) {
             $pattern = $exercise->movementPattern?->code;
+            $compoundPriority = in_array($pattern, $compoundPatterns) ? 0 : 1;
+            $selectionPriority = (int) ($exercise->selection_priority ?? 100);
 
-            return in_array($pattern, $compoundPatterns) ? 0 : 1;
+            return ($compoundPriority * 1000) + (1000 - $selectionPriority);
         })->values();
     }
 

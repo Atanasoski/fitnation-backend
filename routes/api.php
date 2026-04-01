@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::prefix('plans')->group(function () {
         Route::get('/', [PlanController::class, 'index']);
         Route::post('/', [PlanController::class, 'store']);
+        Route::post('/regenerate', [PlanController::class, 'regenerate']);
         Route::get('/{plan}', [PlanController::class, 'show']);
         Route::put('/{plan}', [PlanController::class, 'update']);
         Route::delete('/{plan}', [PlanController::class, 'destroy']);

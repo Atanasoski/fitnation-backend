@@ -24,7 +24,10 @@ class ExerciseController extends Controller
     {
         $exercises = Exercise::with('category', 'muscleGroups', 'partners', 'angle', 'movementPattern', 'targetRegion', 'equipmentType')
             ->forPartner(auth()->user()?->partner)
-            ->latest()
+            ->leftJoin('equipment_types', 'workout_exercises.equipment_type_id', '=', 'equipment_types.id')
+            ->orderBy('equipment_types.display_order')
+            // ->latest('workout_exercises.created_at')
+            ->select('workout_exercises.*')
             ->get();
 
         return ExerciseResource::collection($exercises);

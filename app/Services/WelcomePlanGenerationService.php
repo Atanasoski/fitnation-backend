@@ -20,21 +20,23 @@ class WelcomePlanGenerationService
         private DeterministicWorkoutGenerator $workoutGenerator
     ) {}
 
+    const DURATION_WEEKS = 5;
+
     /**
-     * Generate a welcome plan for a user based on their profile
+     * Generate a personalized program from the user's profile.
+     * Deactivates any existing active auto-generated plan for this user.
      */
-    public function generateWelcomePlan(User $user, ?string $planName = null): Plan
+    public function generatePlan(User $user, ?string $planName = null): Plan
     {
-        // Validate user profile
         $this->validateUserProfile($user);
 
-        // Check if onboarding already completed
-        if ($user->onboarding_completed_at !== null) {
-            throw new \Exception('Onboarding has already been completed for this user');
-        }
-
         return DB::transaction(function () use ($user, $planName) {
-            // Determine workout split based on training days and gender
+            Plan::query()
+                ->where('user_id', $user->id)
+                ->where('is_auto_generated', true)
+                ->where('is_active', true)
+                ->update(['is_active' => false]);
+
             $splitFocus = match ($user->profile->gender) {
                 Gender::Female => SplitFocus::LowerFocus,
                 default => SplitFocus::Balanced,
@@ -42,28 +44,26 @@ class WelcomePlanGenerationService
 
             $split = $this->determineSplit($user->profile->training_days_per_week, $splitFocus);
 
-            // Create the plan
             $plan = Plan::create([
                 'user_id' => $user->id,
                 'partner_id' => $user->partner_id,
                 'name' => $planName ?? 'Your Personalized Plan',
-                'description' => 'Auto-generated 12-week program based on your profile',
+                'description' => 'Auto-generated '.self::DURATION_WEEKS.'-week program based on your profile',
                 'type' => PlanType::Program,
-                'duration_weeks' => 12,
+                'duration_weeks' => self::DURATION_WEEKS,
                 'is_active' => true,
+                'is_auto_generated' => true,
             ]);
 
-            Log::info('Welcome plan created', [
+            Log::info('Personalized plan created', [
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'training_days' => $user->profile->training_days_per_week,
-                'duration_weeks' => 12,
+                'duration_weeks' => self::DURATION_WEEKS,
             ]);
 
-            // Generate workout templates for 12 weeks
-            // Each week gets variety through exercise shuffling in the generator
             $orderIndex = 0;
-            for ($week = 1; $week <= 12; $week++) {
+            for ($week = 1; $week <= 5; $week++) {
                 $dayIndex = 0;
                 foreach ($split as $targetRegions) {
                     $this->createWorkoutTemplate($plan, $dayIndex, $targetRegions, $user, $week, $orderIndex);
@@ -72,12 +72,7 @@ class WelcomePlanGenerationService
                 }
             }
 
-            // Mark onboarding as complete
-            $user->update([
-                'onboarding_completed_at' => now(),
-            ]);
-
-            Log::info('Welcome plan generation completed', [
+            Log::info('Personalized plan generation completed', [
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'templates_count' => $plan->workoutTemplates()->count(),
@@ -85,6 +80,24 @@ class WelcomePlanGenerationService
 
             return $plan->load(['workoutTemplates.exercises']);
         });
+    }
+
+    /**
+     * Generate a welcome plan for a user based on their profile (onboarding).
+     */
+    public function generateWelcomePlan(User $user, ?string $planName = null): Plan
+    {
+        if ($user->onboarding_completed_at !== null) {
+            throw new \Exception('Onboarding has already been completed for this user');
+        }
+
+        $plan = $this->generatePlan($user, $planName);
+
+        $user->update([
+            'onboarding_completed_at' => now(),
+        ]);
+
+        return $plan;
     }
 
     /**
@@ -110,14 +123,11 @@ class WelcomePlanGenerationService
     {
         $workoutName = $this->getWorkoutName($targetRegions, $dayIndex);
 
-        // Generate workout using existing generator
-        // The generator shuffles exercises, so each call will produce variety
         $generatedWorkout = $this->workoutGenerator->generate($user, [
             'target_regions' => $targetRegions,
             'duration_minutes' => $user->profile->workout_duration_minutes,
         ]);
 
-        // Create workout template
         $template = WorkoutTemplate::create([
             'plan_id' => $plan->id,
             'name' => $workoutName,
@@ -127,7 +137,6 @@ class WelcomePlanGenerationService
             'order_index' => $orderIndex,
         ]);
 
-        // Attach exercises to template
         $order = 1;
         foreach ($generatedWorkout['exercises'] as $exerciseData) {
             WorkoutTemplateExercise::create([
@@ -157,19 +166,16 @@ class WelcomePlanGenerationService
      */
     private function getWorkoutName(array $targetRegions, int $dayIndex): string
     {
-        // Check for special multi-region combinations first
         $regionSet = array_unique($targetRegions);
         sort($regionSet);
         $regionKey = implode('|', $regionSet);
 
-        // Check if it's a full body workout (all three main regions)
         $isFullBody = count($regionSet) === 3
             && in_array('UPPER_PUSH', $regionSet)
             && in_array('UPPER_PULL', $regionSet)
             && in_array('LOWER', $regionSet);
 
         if ($isFullBody) {
-            // Determine focus based on first region in the array (order matters for exercise selection)
             $firstRegion = $targetRegions[0];
             $focus = match ($firstRegion) {
                 'UPPER_PUSH' => 'Push',
@@ -192,7 +198,6 @@ class WelcomePlanGenerationService
             return $specialNames[$regionKey];
         }
 
-        // Single region or other combinations
         $regionNames = [
             'UPPER_PUSH' => 'Push',
             'UPPER_PULL' => 'Pull',
@@ -227,23 +232,23 @@ class WelcomePlanGenerationService
         $profile = $user->profile;
 
         if (! $profile) {
-            throw new \Exception('User profile is required for welcome plan generation');
+            throw new \Exception('User profile is required for personalized plan generation');
         }
 
         if (! $profile->fitness_goal) {
-            throw new \Exception('Fitness goal is required for welcome plan generation');
+            throw new \Exception('Fitness goal is required for personalized plan generation');
         }
 
         if (! $profile->training_experience) {
-            throw new \Exception('Training experience is required for welcome plan generation');
+            throw new \Exception('Training experience is required for personalized plan generation');
         }
 
         if (! $profile->training_days_per_week) {
-            throw new \Exception('Training days per week is required for welcome plan generation');
+            throw new \Exception('Training days per week is required for personalized plan generation');
         }
 
         if (! $profile->workout_duration_minutes) {
-            throw new \Exception('Workout duration is required for welcome plan generation');
+            throw new \Exception('Workout duration is required for personalized plan generation');
         }
     }
 }

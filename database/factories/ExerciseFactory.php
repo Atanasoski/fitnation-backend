@@ -183,4 +183,14 @@ class ExerciseFactory extends Factory
             ];
         });
     }
+
+    /**
+     * Set an explicit selection priority for deterministic generator ordering.
+     */
+    public function withPriority(int $priority): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'selection_priority' => $priority,
+        ]);
+    }
 }

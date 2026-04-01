@@ -15,9 +15,11 @@ use App\Http\Resources\Api\RoutinePlanResource;
 use App\Http\Resources\Api\WorkoutTemplateResource;
 use App\Models\Plan;
 use App\Services\PlanCloningService;
+use App\Services\WelcomePlanGenerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Log;
 
 class PlanController extends Controller
 {
@@ -32,6 +34,41 @@ class PlanController extends Controller
             ->get();
 
         return PlanResource::collection($plans);
+    }
+
+    /**
+     * Regenerate the user's personalized (auto-generated) program from their profile.
+     */
+    public function regenerate(Request $request, WelcomePlanGenerationService $planGenerationService): JsonResponse
+    {
+        try {
+            $plan = $planGenerationService->generatePlan(
+                $request->user()
+            );
+
+            return response()->json([
+                'message' => 'Personalized plan created successfully',
+                'data' => new CustomPlanResource($plan->load(['workoutTemplates.exercises.category', 'workoutTemplates.exercises.muscleGroups'])),
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Plan regeneration failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $message = $e->getMessage();
+
+            if (str_contains($message, 'is required')) {
+                return response()->json([
+                    'message' => $message,
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Failed to regenerate plan. Please try again later.',
+            ], 500);
+        }
     }
 
     /**

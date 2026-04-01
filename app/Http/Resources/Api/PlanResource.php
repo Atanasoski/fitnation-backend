@@ -23,6 +23,7 @@ class PlanResource extends JsonResource
             'description' => $this->description,
             'cover_image' => $this->cover_image ? Storage::url($this->cover_image) : null,
             'is_active' => $this->is_active,
+            'is_auto_generated' => $this->is_auto_generated,
             'type' => $this->type?->value,
             'duration_weeks' => $this->duration_weeks,
             'workout_templates' => $this->whenLoaded('workoutTemplates', function () {

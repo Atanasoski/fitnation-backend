@@ -19,6 +19,7 @@ class CustomPlanResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'is_auto_generated' => $this->is_auto_generated,
             'workout_templates' => WorkoutTemplateResource::collection($this->whenLoaded('workoutTemplates')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

@@ -364,6 +364,74 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $this->assertLessThanOrEqual(config('workout_generator.max_compound_exercises', 2), $compoundCount);
     }
 
+    public function test_generator_prefers_higher_selection_priority_for_same_pattern_angle(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $lower = TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower Body', 'display_order' => 30]);
+        $flatAngle = Angle::firstOrCreate(['code' => 'FLAT'], ['name' => 'Flat', 'display_order' => 10]);
+
+        $squatPattern = MovementPattern::firstOrCreate(['code' => 'SQUAT'], ['name' => 'Squat', 'display_order' => 210]);
+        $hingePattern = MovementPattern::firstOrCreate(['code' => 'HINGE'], ['name' => 'Hinge', 'display_order' => 220]);
+        $legPressPattern = MovementPattern::firstOrCreate(['code' => 'LEG_PRESS'], ['name' => 'Leg Press', 'display_order' => 240]);
+        $kneeExtensionPattern = MovementPattern::firstOrCreate(['code' => 'KNEE_EXTENSION'], ['name' => 'Knee Extension', 'display_order' => 250]);
+
+        Exercise::factory()->withPriority(100)->create([
+            'name' => 'Back Squat',
+            'movement_pattern_id' => $squatPattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        Exercise::factory()->withPriority(50)->create([
+            'name' => 'Front Squat',
+            'movement_pattern_id' => $squatPattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        Exercise::factory()->create([
+            'name' => 'Deadlift',
+            'movement_pattern_id' => $hingePattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        Exercise::factory()->create([
+            'name' => 'Leg Press',
+            'movement_pattern_id' => $legPressPattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        Exercise::factory()->create([
+            'name' => 'Leg Extension',
+            'movement_pattern_id' => $kneeExtensionPattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['LOWER'],
+            'duration_minutes' => 30,
+        ]);
+
+        $selectedNames = [];
+        foreach ($result['exercises'] as $exerciseData) {
+            $selectedNames[] = Exercise::find($exerciseData['exercise_id'])?->name;
+        }
+
+        $this->assertContains('Back Squat', $selectedNames);
+        $this->assertNotContains('Front Squat', $selectedNames);
+    }
+
     public function test_beginner_excludes_smith_machine(): void
     {
         $partner = Partner::factory()->create();

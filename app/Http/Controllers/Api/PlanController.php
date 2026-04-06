@@ -312,6 +312,21 @@ class PlanController extends Controller
         return ProgramResource::collection($programs);
     }
 
+    public function activeProgram()
+    {
+        $program = Plan::where('user_id', auth()->id())
+            ->where('type', PlanType::Program)
+            ->where('is_active', true)
+            ->with(['workoutTemplates' => fn ($query) => $query->orderedByProgram()->with(['exercises.category', 'exercises.partners'])])
+            ->latest()
+            ->first();
+            // dd($program);
+
+        return response()->json([
+            'data' => [new ProgramResource($program)],
+        ]);
+    }
+
     /**
      * Display a listing of partner library programs.
      */

@@ -91,6 +91,7 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::prefix('programs')->group(function () {
         Route::get('/', [PlanController::class, 'programsIndex']);
         Route::get('/library', [PlanController::class, 'programsLibrary']);
+        Route::get('/active', [PlanController::class, 'activeProgram']);
         Route::get('/{program}', [PlanController::class, 'programsShow']);
         Route::patch('/{program}', [PlanController::class, 'programsUpdate']);
         Route::delete('/{program}', [PlanController::class, 'programsDestroy']);

@@ -1989,6 +1989,15 @@ interface CompleteSessionRequest {
 interface CompleteSessionResponse {
   data: WorkoutSessionResource;
   message: "Workout completed! Great job! 💪";
+  new_prs: NewPrResource[];  // Personal records set in this session vs. all prior completed sessions (empty if none)
+}
+
+interface NewPrResource {
+  exercise_id: number;
+  exercise_name: string;
+  pr_type: 'weight' | 'reps';
+  previous_best: number;  // 0 if first time logging this exercise in completed sessions
+  new_best: number;       // Session max weight (kg) or max single-set reps, depending on pr_type
 }
 ```
 

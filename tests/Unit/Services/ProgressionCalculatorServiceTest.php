@@ -434,14 +434,34 @@ class ProgressionCalculatorServiceTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        // 50kg * 1.025 (intermediate) = 51.25kg, min 50 + 2.5 = 52.5
-        // Barbell rounds to 2.5kg = 52.5kg
-        \App\Models\SetLog::create([
-            'workout_session_id' => $session->id,
-            'exercise_id' => $exercise->id,
-            'set_number' => 1,
-            'weight' => 50,
-            'reps' => 8,
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 50,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 50,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 3,
+                'weight' => 50,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Intermediate);
@@ -460,14 +480,34 @@ class ProgressionCalculatorServiceTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        // 45kg * 1.025 = 46.125, min 45 + 5 = 50
-        // Machine rounds to 5kg = 50kg
-        \App\Models\SetLog::create([
-            'workout_session_id' => $session->id,
-            'exercise_id' => $exercise->id,
-            'set_number' => 1,
-            'weight' => 45,
-            'reps' => 10,
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 45,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 45,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 3,
+                'weight' => 45,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Intermediate);
@@ -486,19 +526,165 @@ class ProgressionCalculatorServiceTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        // 24kg * 1.05 (beginner) = 25.2, min 24 + 2 = 26
-        // Dumbbell rounds to 2kg = 26kg per dumbbell
-        \App\Models\SetLog::create([
-            'workout_session_id' => $session->id,
-            'exercise_id' => $exercise->id,
-            'set_number' => 1,
-            'weight' => 24,
-            'reps' => 10,
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 24,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 24,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 3,
+                'weight' => 24,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
 
         $this->assertEquals(26.0, $targets['target_weight']);
+    }
+
+    public function test_progressive_overload_keeps_weight_when_not_all_sets_hit_max_reps(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
+
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'status' => WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 50,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 50,
+                'reps' => 11,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Intermediate);
+
+        $this->assertEquals(50.0, $targets['target_weight']);
+    }
+
+    public function test_progressive_overload_keeps_mode_weight_when_user_drops_load_in_later_sets(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
+
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'status' => WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 50,
+                'reps' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 50,
+                'reps' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 3,
+                'weight' => 45,
+                'reps' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Intermediate);
+
+        $this->assertEquals(50.0, $targets['target_weight']);
+    }
+
+    public function test_progression_status_is_no_history_when_no_last_performance_exists(): void
+    {
+        $status = $this->service->getProgressionStatus(null, 8, 12);
+
+        $this->assertSame('no_history', $status);
+    }
+
+    public function test_progression_status_is_ready_when_all_sets_hit_max_reps_at_same_weight(): void
+    {
+        $lastPerformance = [
+            'reps' => [12, 12, 12],
+            'weights' => [50.0, 50.0, 50.0],
+        ];
+
+        $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
+
+        $this->assertSame('ready', $status);
+    }
+
+    public function test_progression_status_is_below_min_when_any_set_is_under_min_reps(): void
+    {
+        $lastPerformance = [
+            'reps' => [12, 6, 10],
+            'weights' => [50.0, 50.0, 50.0],
+        ];
+
+        $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
+
+        $this->assertSame('below_min', $status);
+    }
+
+    public function test_progression_status_is_working_when_sets_meet_min_but_not_ready_to_progress(): void
+    {
+        $lastPerformance = [
+            'reps' => [10, 11, 9],
+            'weights' => [50.0, 50.0, 50.0],
+        ];
+
+        $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
+
+        $this->assertSame('working', $status);
     }
 
     private function createExercise(string $movementCode, string $equipmentCode = 'BARBELL', ?string $angleCode = null): Exercise

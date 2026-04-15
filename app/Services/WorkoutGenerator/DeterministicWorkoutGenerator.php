@@ -475,9 +475,10 @@ class DeterministicWorkoutGenerator
             // Sets come from distribution (stored on exercise object)
             $distributedSets = $exercise->target_sets ?? 0;
 
-            // If no history (weight = 0), use fitness goal defaults for reps/rest
+            // If no history (weight = 0), use fitness goal defaults for rep range/rest
             if ($targets['target_weight'] == 0) {
-                $targets['target_reps'] = $defaults['reps'];
+                $targets['min_target_reps'] = $defaults['min_reps'];
+                $targets['max_target_reps'] = $defaults['max_reps'];
                 $targets['rest_seconds'] = $defaults['rest_seconds'];
             }
 
@@ -485,7 +486,8 @@ class DeterministicWorkoutGenerator
                 'exercise_id' => $exercise->id,
                 'order' => $order++,
                 'target_sets' => $distributedSets > 0 ? $distributedSets : $defaults['sets'], // Fallback to defaults if distribution failed
-                'target_reps' => $targets['target_reps'],
+                'min_target_reps' => $targets['min_target_reps'],
+                'max_target_reps' => $targets['max_target_reps'],
                 'target_weight' => $targets['target_weight'],
                 'rest_seconds' => $targets['rest_seconds'],
             ];
@@ -503,7 +505,8 @@ class DeterministicWorkoutGenerator
 
         return $defaults[$goal->value] ?? [
             'sets' => 3,
-            'reps' => 10,
+            'min_reps' => 8,
+            'max_reps' => 12,
             'rest_seconds' => 90,
         ];
     }

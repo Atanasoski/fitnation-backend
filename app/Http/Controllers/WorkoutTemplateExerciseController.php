@@ -26,7 +26,8 @@ class WorkoutTemplateExerciseController extends Controller
             'exercise_id' => $request->exercise_id,
             'order' => $order,
             'target_sets' => $request->target_sets ?? 3,
-            'target_reps' => $request->target_reps ?? 10,
+            'min_target_reps' => $request->min_target_reps ?? 8,
+            'max_target_reps' => $request->max_target_reps ?? 12,
             'target_weight' => $request->target_weight ?? 0,
             'rest_seconds' => $request->rest_seconds ?? 120,
         ]);
@@ -69,7 +70,8 @@ class WorkoutTemplateExerciseController extends Controller
         $workoutTemplateExercise->update([
             'order' => $validated['order'] ?? $workoutTemplateExercise->order,
             'target_sets' => $validated['target_sets'] ?? 3,
-            'target_reps' => $validated['target_reps'] ?? 10,
+            'min_target_reps' => $validated['min_target_reps'] ?? 8,
+            'max_target_reps' => $validated['max_target_reps'] ?? 12,
             'target_weight' => $validated['target_weight'] ?? 0,
             'rest_seconds' => $validated['rest_seconds'] ?? 120,
         ]);

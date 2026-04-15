@@ -144,7 +144,8 @@ class WelcomePlanGenerationService
                 'exercise_id' => $exerciseData['exercise_id'],
                 'order' => $order++,
                 'target_sets' => $exerciseData['target_sets'],
-                'target_reps' => $exerciseData['target_reps'],
+                'min_target_reps' => $exerciseData['min_target_reps'],
+                'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
             ]);

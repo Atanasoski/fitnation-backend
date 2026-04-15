@@ -12,7 +12,8 @@ class WorkoutSessionExercise extends Model
         'exercise_id',
         'order',
         'target_sets',
-        'target_reps',
+        'min_target_reps',
+        'max_target_reps',
         'target_weight',
         'rest_seconds',
     ];

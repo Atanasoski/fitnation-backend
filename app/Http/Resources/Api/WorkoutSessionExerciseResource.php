@@ -18,28 +18,48 @@ class WorkoutSessionExerciseResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $progressionCalculator = new ProgressionCalculatorService();
-        $targets = $progressionCalculator->calculateTargets($this->exercise, auth()->user(), auth()->user()->profile?->training_experience);
+        $user = $request->user();
+        $progressionCalculator = new ProgressionCalculatorService;
+        $lastPerformance = null;
+        $targets = [
+            'target_sets' => 3,
+            'min_target_reps' => 8,
+            'max_target_reps' => 12,
+            'target_weight' => 0,
+            'rest_seconds' => $this->exercise->default_rest_sec ?? 90,
+        ];
+        $progressionStatus = 'no_history';
+
+        if ($user) {
+            $lastPerformance = $progressionCalculator->getLastPerformance($this->exercise, $user);
+            $targets = $progressionCalculator->calculateTargets($this->exercise, $user, $user->profile?->training_experience);
+        }
 
         $targetSets = $this->target_sets;
-        $targetReps = $this->target_reps;
+        $minTargetReps = $this->min_target_reps;
+        $maxTargetReps = $this->max_target_reps;
         $targetWeight = $this->formatWeight($this->target_weight);
         $restSeconds = $this->rest_seconds;
 
-        //We want the default targets to have presidence over the progressive targets
-        //in order to allow for Personal Trainers to overide the progressive targets
+        // Session-level targets should override progression defaults.
 
-        if(!$targetSets) {
+        if (! $targetSets) {
             $targetSets = $targets['target_sets'];
         }
-        if(!$targetReps) {
-            $targetReps = $targets['target_reps'];
+        if (! $minTargetReps) {
+            $minTargetReps = $targets['min_target_reps'];
         }
-        if(!$targetWeight) {
+        if (! $maxTargetReps) {
+            $maxTargetReps = $targets['max_target_reps'];
+        }
+        if (! $targetWeight) {
             $targetWeight = $targets['target_weight'];
         }
-        if(!$restSeconds) {
+        if (! $restSeconds) {
             $restSeconds = $targets['rest_seconds'];
+        }
+        if ($user) {
+            $progressionStatus = $progressionCalculator->getProgressionStatus($lastPerformance, $minTargetReps, $maxTargetReps);
         }
 
         return [
@@ -51,7 +71,9 @@ class WorkoutSessionExerciseResource extends JsonResource
             }),
             'order' => $this->order,
             'target_sets' => $targetSets,
-            'target_reps' => $targetReps,
+            'min_target_reps' => $minTargetReps,
+            'max_target_reps' => $maxTargetReps,
+            'progression_status' => $progressionStatus,
             'target_weight' => $this->formatWeight($targetWeight),
             'rest_seconds' => $restSeconds,
             'created_at' => $this->created_at,

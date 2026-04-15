@@ -215,7 +215,7 @@
                                                     {{ $muscleGroups }}
                                                 </td>
                                                 <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                                    {{ $exerciseData['target_sets'] }} × {{ $exerciseData['target_reps'] }}
+                                                    {{ $exerciseData['target_sets'] }} × {{ $exerciseData['min_target_reps'] }}-{{ $exerciseData['max_target_reps'] }}
                                                 </td>
                                                 <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                                     {{ $exerciseData['target_weight'] ? number_format($exerciseData['target_weight'], 1) . ' kg' : 'N/A' }}

@@ -148,22 +148,26 @@ return [
     'fitness_goal_defaults' => [
         'strength' => [
             'sets' => 4,
-            'reps' => 5,
+            'min_reps' => 3,
+            'max_reps' => 5,
             'rest_seconds' => 180,
         ],
         'muscle_gain' => [
             'sets' => 4,
-            'reps' => 10,
+            'min_reps' => 8,
+            'max_reps' => 12,
             'rest_seconds' => 90,
         ],
         'fat_loss' => [
             'sets' => 3,
-            'reps' => 15,
+            'min_reps' => 12,
+            'max_reps' => 15,
             'rest_seconds' => 45,
         ],
         'general_fitness' => [
             'sets' => 3,
-            'reps' => 12,
+            'min_reps' => 8,
+            'max_reps' => 12,
             'rest_seconds' => 60,
         ],
     ],

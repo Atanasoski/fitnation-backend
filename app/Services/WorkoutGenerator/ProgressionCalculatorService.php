@@ -14,19 +14,20 @@ class ProgressionCalculatorService
      */
     public function calculateTargets(Exercise $exercise, User $user, ?TrainingExperience $experience = null): array
     {
+        $experience ??= TrainingExperience::Beginner;
         $lastPerformance = $this->getLastPerformance($exercise, $user);
 
         if (! $lastPerformance) {
-            // No history - return defaults based on experience level
-            return $this->getDefaultTargets($experience ?? TrainingExperience::Beginner, $exercise, $user);
+            return $this->getDefaultTargets($experience, $exercise, $user);
         }
 
-        // Apply progressive overload with equipment-based rounding
-        $targets = $this->applyProgressiveOverload($lastPerformance, $experience ?? TrainingExperience::Beginner, $exercise);
+        $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
+        $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $defaultTargets['max_target_reps']);
 
         return [
             'target_sets' => $targets['sets'],
-            'target_reps' => $targets['reps'],
+            'min_target_reps' => $defaultTargets['min_target_reps'],
+            'max_target_reps' => $defaultTargets['max_target_reps'],
             'target_weight' => $targets['weight'],
             'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
         ];
@@ -44,7 +45,7 @@ class ProgressionCalculatorService
             })
             ->with(['setLogs' => function ($q) use ($exercise) {
                 $q->where('exercise_id', $exercise->id)
-                    ->orderBy('set_number', 'desc');
+                    ->orderBy('set_number');
             }])
             ->orderBy('completed_at', 'desc')
             ->first();
@@ -53,20 +54,36 @@ class ProgressionCalculatorService
             return null;
         }
 
-        // Get the best set (highest weight × reps)
-        $bestSet = $lastSetLog->setLogs->max(function ($set) {
-            return $set->weight * $set->reps;
-        });
+        $weights = $lastSetLog->setLogs
+            ->pluck('weight')
+            ->map(fn ($weight) => (float) $weight)
+            ->all();
 
-        $bestSet = $lastSetLog->setLogs->first(function ($set) use ($bestSet) {
-            return ($set->weight * $set->reps) === $bestSet;
-        });
+        $normalizedWeightKeys = array_map(
+            fn (float $weight) => number_format($weight, 2, '.', ''),
+            $weights
+        );
+        $weightCounts = array_count_values($normalizedWeightKeys);
+        arsort($weightCounts);
+        $mostCommonWeight = (float) array_key_first($weightCounts);
+
+        $reps = $lastSetLog->setLogs
+            ->pluck('reps')
+            ->map(fn ($repCount) => (int) $repCount)
+            ->all();
+
+        $restSeconds = $lastSetLog->setLogs
+            ->pluck('rest_seconds')
+            ->filter(fn ($rest) => $rest !== null)
+            ->map(fn ($rest) => (int) $rest)
+            ->first();
 
         return [
-            'weight' => $bestSet->weight,
-            'reps' => $bestSet->reps,
+            'weight' => $mostCommonWeight,
             'sets' => $lastSetLog->setLogs->count(),
-            'rest_seconds' => $bestSet->rest_seconds ?? $exercise->default_rest_sec ?? 90,
+            'rest_seconds' => $restSeconds ?? $exercise->default_rest_sec ?? 90,
+            'weights' => $weights,
+            'reps' => $reps,
         ];
     }
 
@@ -90,44 +107,66 @@ class ProgressionCalculatorService
     /**
      * Apply progressive overload based on last performance
      */
-    public function applyProgressiveOverload(array $lastPerformance, TrainingExperience $experience, ?Exercise $exercise = null): array
+    public function applyProgressiveOverload(array $lastPerformance, ?Exercise $exercise = null, int $maxTargetReps = 12): array
     {
         $weight = $lastPerformance['weight'];
-        $reps = $lastPerformance['reps'];
         $sets = $lastPerformance['sets'] ?? 3;
-
-        // Calculate progression percentage based on experience
-        $progressionPercent = match ($experience) {
-            TrainingExperience::Beginner => 0.05, // 5% increase
-            TrainingExperience::Intermediate => 0.025, // 2.5% increase
-            TrainingExperience::Advanced => 0.02, // 2% increase
-        };
-
-        // Calculate new weight with progression
-        $rawNewWeight = $weight * (1 + $progressionPercent);
-
-        // Get the equipment increment
+        $lastReps = $lastPerformance['reps'] ?? [];
+        $lastWeights = $lastPerformance['weights'] ?? [];
         $increment = $exercise ? $this->getWeightIncrement($exercise) : 2.5;
+        $targetWeight = $weight;
 
-        // Ensure at least one increment increase (if weight > 0)
-        if ($weight > 0 && $increment > 0) {
-            $rawNewWeight = max($rawNewWeight, $weight + $increment);
+        if (
+            $this->shouldProgressWeight($lastReps, $lastWeights, $maxTargetReps)
+            && $weight > 0
+            && $increment > 0
+        ) {
+            $targetWeight = $this->roundToEquipmentIncrement($weight + $increment, $exercise);
         }
 
-        // Round to realistic weight increments based on equipment type
-        $newWeight = $this->roundToEquipmentIncrement($rawNewWeight, $exercise);
-
-        // Maintain or slightly increase reps
-        $newReps = $reps;
-
-        // Maintain sets
-        $newSets = $sets;
-
         return [
-            'weight' => $newWeight,
-            'reps' => $newReps,
-            'sets' => $newSets,
+            'weight' => $targetWeight,
+            'sets' => $sets,
         ];
+    }
+
+    /**
+     * Determine if the user should progress by weight.
+     */
+    public function shouldProgressWeight(array $lastReps, array $lastWeights, int $maxTargetReps): bool
+    {
+        if ($lastReps === [] || $lastWeights === []) {
+            return false;
+        }
+
+        $allSetsAtMaxReps = collect($lastReps)
+            ->every(fn (int $reps) => $reps >= $maxTargetReps);
+
+        $allSetsSameWeight = count(array_unique($lastWeights, SORT_NUMERIC)) === 1;
+
+        return $allSetsAtMaxReps && $allSetsSameWeight;
+    }
+
+    /**
+     * Determine current progression status for frontend messaging.
+     */
+    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps): string
+    {
+        if (! $lastPerformance) {
+            return 'no_history';
+        }
+
+        $lastReps = $lastPerformance['reps'] ?? [];
+        $lastWeights = $lastPerformance['weights'] ?? [];
+
+        if ($this->shouldProgressWeight($lastReps, $lastWeights, $maxTargetReps)) {
+            return 'ready';
+        }
+
+        $anyBelowMin = collect($lastReps)
+            ->contains(fn (int $reps) => $reps < $minTargetReps);
+
+        return $anyBelowMin ? 'below_min' : 'working';
     }
 
     /**
@@ -164,19 +203,22 @@ class ProgressionCalculatorService
         return match ($experience) {
             TrainingExperience::Beginner => [
                 'target_sets' => 3,
-                'target_reps' => 10,
+                'min_target_reps' => 8,
+                'max_target_reps' => 12,
                 'target_weight' => $targetWeight,
                 'rest_seconds' => 90,
             ],
             TrainingExperience::Intermediate => [
                 'target_sets' => 4,
-                'target_reps' => 8,
+                'min_target_reps' => 8,
+                'max_target_reps' => 12,
                 'target_weight' => $targetWeight,
                 'rest_seconds' => 90,
             ],
             TrainingExperience::Advanced => [
                 'target_sets' => 4,
-                'target_reps' => 6,
+                'min_target_reps' => 6,
+                'max_target_reps' => 10,
                 'target_weight' => $targetWeight,
                 'rest_seconds' => 120,
             ],

@@ -17,7 +17,8 @@
         selectedMuscles: [],
         selectedExerciseId: null,
         targetSets: 3,
-        targetReps: 10,
+        minTargetReps: 8,
+        maxTargetReps: 12,
         targetWeight: 0,
         restSeconds: 120,
         init() {
@@ -28,7 +29,8 @@
                     this.selectedMuscles = [];
                     this.selectedExerciseId = null;
                     this.targetSets = 3;
-                    this.targetReps = 10;
+                    this.minTargetReps = 8;
+                    this.maxTargetReps = 12;
                     this.targetWeight = 0;
                     this.restSeconds = 120;
                 }
@@ -217,8 +219,12 @@
                                     <input type="number" name="target_sets" x-model="targetSets" min="0" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10" />
                                 </div>
                                 <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Reps</label>
-                                    <input type="number" name="target_reps" x-model="targetReps" min="0" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10" />
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Min Reps</label>
+                                    <input type="number" name="min_target_reps" x-model="minTargetReps" min="1" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10" />
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Max Reps</label>
+                                    <input type="number" name="max_target_reps" x-model="maxTargetReps" min="1" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10" />
                                 </div>
                                 <div>
                                     <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Weight (kg)</label>

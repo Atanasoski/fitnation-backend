@@ -25,7 +25,8 @@ class AddSessionExerciseRequest extends FormRequest
             'exercise_id' => 'required|exists:workout_exercises,id',
             'order' => 'nullable|integer|min:0',
             'target_sets' => 'nullable|integer|min:1',
-            'target_reps' => 'nullable|integer|min:1',
+            'min_target_reps' => 'nullable|integer|min:1',
+            'max_target_reps' => 'nullable|integer|min:1|gte:min_target_reps',
             'target_weight' => 'nullable|numeric|min:0',
             'rest_seconds' => 'nullable|integer|min:0',
         ];
@@ -42,7 +43,9 @@ class AddSessionExerciseRequest extends FormRequest
             'exercise_id.required' => 'An exercise must be selected.',
             'exercise_id.exists' => 'The selected exercise does not exist.',
             'target_sets.min' => 'Target sets must be at least 1.',
-            'target_reps.min' => 'Target reps must be at least 1.',
+            'min_target_reps.min' => 'Minimum target reps must be at least 1.',
+            'max_target_reps.min' => 'Maximum target reps must be at least 1.',
+            'max_target_reps.gte' => 'Maximum target reps must be greater than or equal to minimum target reps.',
             'target_weight.min' => 'Target weight cannot be negative.',
             'rest_seconds.min' => 'Rest seconds cannot be negative.',
         ];

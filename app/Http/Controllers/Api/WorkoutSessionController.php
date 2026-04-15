@@ -128,7 +128,8 @@ class WorkoutSessionController extends Controller
                                 'exercise_id' => $templateExercise->exercise_id,
                                 'order' => $templateExercise->order,
                                 'target_sets' => $templateExercise->target_sets,
-                                'target_reps' => $templateExercise->target_reps,
+                                'min_target_reps' => $templateExercise->min_target_reps,
+                                'max_target_reps' => $templateExercise->max_target_reps,
                                 'target_weight' => $templateExercise->target_weight,
                                 'rest_seconds' => $templateExercise->rest_seconds,
                                 'created_at' => $now,
@@ -362,7 +363,8 @@ class WorkoutSessionController extends Controller
             'exercise_id' => $request->exercise_id,
             'order' => $order,
             'target_sets' => $request->target_sets ?? 3,
-            'target_reps' => $request->target_reps ?? 10,
+            'min_target_reps' => $request->min_target_reps ?? 8,
+            'max_target_reps' => $request->max_target_reps ?? 12,
             'target_weight' => $request->target_weight ?? 0,
             'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec ?? 90,
         ]);
@@ -413,7 +415,8 @@ class WorkoutSessionController extends Controller
         $exercise->update($request->only([
             'order',
             'target_sets',
-            'target_reps',
+            'min_target_reps',
+            'max_target_reps',
             'target_weight',
             'rest_seconds',
         ]));

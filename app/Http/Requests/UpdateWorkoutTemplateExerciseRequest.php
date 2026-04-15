@@ -24,7 +24,8 @@ class UpdateWorkoutTemplateExerciseRequest extends FormRequest
         return [
             'order' => 'nullable|integer|min:0',
             'target_sets' => 'nullable|integer|min:0',
-            'target_reps' => 'nullable|integer|min:0',
+            'min_target_reps' => 'nullable|integer|min:1',
+            'max_target_reps' => 'nullable|integer|min:1|gte:min_target_reps',
             'target_weight' => 'nullable|numeric|min:0',
             'rest_seconds' => 'nullable|integer|min:0',
         ];

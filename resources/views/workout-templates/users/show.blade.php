@@ -80,7 +80,7 @@
                                     {{ $exercise->target_sets ?? '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                    {{ $exercise->target_reps ?? '-' }}
+                                    {{ $exercise->min_target_reps && $exercise->max_target_reps ? $exercise->min_target_reps . '-' . $exercise->max_target_reps : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                     {{ $exercise->target_weight ? number_format($exercise->target_weight, 1) . ' kg' : '-' }}

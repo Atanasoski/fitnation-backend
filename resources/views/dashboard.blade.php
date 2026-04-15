@@ -109,7 +109,7 @@
                                                 <div class="flex-grow-1">
                                                     <div class="fw-semibold">{{ $templateExercise->exercise->name }}</div>
                                                     <small class="text-muted">
-                                                        <span class="fw-bold" style="color: #ff6b35;">{{ $templateExercise->target_sets }}×{{ $templateExercise->target_reps }}</span>
+                                                        <span class="fw-bold" style="color: #ff6b35;">{{ $templateExercise->target_sets }}×{{ $templateExercise->min_target_reps }}-{{ $templateExercise->max_target_reps }}</span>
                                                         @if($templateExercise->target_weight)
                                                             @ <span class="fw-bold" style="color: #ff6b35;">{{ $templateExercise->target_weight }}kg</span>
                                                         @endif

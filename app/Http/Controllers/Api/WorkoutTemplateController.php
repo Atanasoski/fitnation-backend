@@ -182,7 +182,8 @@ class WorkoutTemplateController extends Controller
 
         $validated = $request->validate([
             'target_sets' => 'nullable|integer|min:1',
-            'target_reps' => 'nullable|integer|min:1',
+            'min_target_reps' => 'nullable|integer|min:1',
+            'max_target_reps' => 'nullable|integer|min:1|gte:min_target_reps',
             'target_weight' => 'nullable|numeric|min:0',
             'rest_seconds' => 'nullable|integer|min:0',
         ]);

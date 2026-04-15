@@ -61,13 +61,15 @@ class PlanCloningTest extends TestCase
         $template1->exercises()->attach($exercise1->id, [
             'order' => 1,
             'target_sets' => 3,
-            'target_reps' => 10,
+            'min_target_reps' => 8,
+            'max_target_reps' => 10,
         ]);
 
         $template2->exercises()->attach($exercise2->id, [
             'order' => 1,
             'target_sets' => 4,
-            'target_reps' => 12,
+            'min_target_reps' => 10,
+            'max_target_reps' => 12,
         ]);
 
         $service = new PlanCloningService;
@@ -92,7 +94,8 @@ class PlanCloningTest extends TestCase
         $clonedExercise1 = $clonedTemplate1->workoutTemplateExercises->first();
         $this->assertEquals($exercise1->id, $clonedExercise1->exercise_id);
         $this->assertEquals(3, $clonedExercise1->target_sets);
-        $this->assertEquals(10, $clonedExercise1->target_reps);
+        $this->assertEquals(8, $clonedExercise1->min_target_reps);
+        $this->assertEquals(10, $clonedExercise1->max_target_reps);
     }
 
     public function test_cloning_partner_plan_clears_partner_id(): void

@@ -81,23 +81,44 @@
                             @enderror
                         </div>
 
-                        <!-- Target Reps -->
+                        <!-- Min Target Reps -->
                         <div>
                             <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                                Reps
+                                Min Reps
                             </label>
                             <div class="relative">
                                 <input type="number"
-                                    name="target_reps"
-                                    id="target_reps"
-                                    value="{{ old('target_reps', $workoutTemplateExercise->target_reps) }}"
-                                    min="0"
+                                    name="min_target_reps"
+                                    id="min_target_reps"
+                                    value="{{ old('min_target_reps', $workoutTemplateExercise->min_target_reps) }}"
+                                    min="1"
                                     step="1"
-                                    placeholder="reps"
-                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 pr-10 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('target_reps') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                                    placeholder="min reps"
+                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 pr-10 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('min_target_reps') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
                                 <span class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">reps</span>
                             </div>
-                            @error('target_reps')
+                            @error('min_target_reps')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Max Target Reps -->
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Max Reps
+                            </label>
+                            <div class="relative">
+                                <input type="number"
+                                    name="max_target_reps"
+                                    id="max_target_reps"
+                                    value="{{ old('max_target_reps', $workoutTemplateExercise->max_target_reps) }}"
+                                    min="1"
+                                    step="1"
+                                    placeholder="max reps"
+                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 pr-10 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('max_target_reps') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                                <span class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">reps</span>
+                            </div>
+                            @error('max_target_reps')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>

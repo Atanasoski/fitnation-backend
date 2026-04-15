@@ -1474,7 +1474,8 @@ POST /api/workout-templates/{workoutTemplate}/exercises
 interface AddTemplateExerciseRequest {
   exercise_id: number;       // required, must exist
   target_sets?: number;      // optional, min 1
-  target_reps?: number;      // optional, min 1
+  min_target_reps?: number;  // optional, min 1
+  max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
   target_weight?: number;    // optional, min 0
   rest_seconds?: number;     // optional, min 0
 }
@@ -1502,7 +1503,8 @@ PUT /api/workout-templates/{workoutTemplate}/exercises/{exercise}
 ```typescript
 interface UpdateTemplateExerciseRequest {
   target_sets?: number;      // optional, min 1
-  target_reps?: number;      // optional, min 1
+  min_target_reps?: number;  // optional, min 1
+  max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
   target_weight?: number;    // optional, min 0
   rest_seconds?: number;     // optional, min 0
 }
@@ -2100,7 +2102,8 @@ interface AddSessionExerciseRequest {
   exercise_id: number;       // required, must exist
   order?: number;            // optional, min 0, defaults to end
   target_sets?: number;      // optional, min 1, defaults to 3
-  target_reps?: number;      // optional, min 1, defaults to 10
+  min_target_reps?: number;  // optional, min 1, defaults to 8
+  max_target_reps?: number;  // optional, min 1, defaults to 12, must be >= min_target_reps
   target_weight?: number;    // optional, min 0, defaults to 0
   rest_seconds?: number;     // optional, min 0, uses exercise default
 }
@@ -2129,7 +2132,8 @@ PUT /api/workout-sessions/{session}/exercises/{exercise}
 interface UpdateSessionExerciseRequest {
   order?: number;            // optional, min 0
   target_sets?: number;      // optional, min 1
-  target_reps?: number;      // optional, min 1
+  min_target_reps?: number;  // optional, min 1
+  max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
   target_weight?: number;    // optional, min 0
   rest_seconds?: number;     // optional, min 0
 }
@@ -2182,6 +2186,34 @@ interface ReorderSessionExercisesResponse {
   message: "Exercises reordered successfully";
 }
 ```
+
+---
+
+### Double Progression Contract
+
+The session payload contains two different pieces of guidance and they should be used differently in the frontend:
+
+- `previous_sets`: actual set logs from the user's previous completed session for that exercise
+- `session_exercise` targets: `target_sets`, `min_target_reps`, `max_target_reps`, and `target_weight`
+
+Frontend behavior:
+
+1. Prefill input fields (`weight`, `reps`) from `previous_sets` whenever available.
+2. Use session targets as goal badges/instructions (`3 sets`, `8-12 reps`, goal weight).
+3. If there are more sets than available `previous_sets`, prefill extra sets with `target_weight` and `min_target_reps`.
+4. If no `previous_sets` exist, prefill all sets with `target_weight` and `min_target_reps`.
+
+Progression behavior:
+
+- Weight increases only when all logged sets in the previous completed session hit `max_target_reps` at the same weight.
+- Otherwise, the target weight stays at the previous working weight.
+
+`progression_status` values (on `WorkoutSessionExerciseResource`):
+
+- `no_history`: user has no completed session logs for this exercise yet.
+- `below_min`: at least one set in the previous completed session was below `min_target_reps`.
+- `working`: previous session did not progress, but all sets met `min_target_reps`.
+- `ready`: all sets in the previous completed session hit `max_target_reps` at the same weight, so weight can increase.
 
 ---
 
@@ -2482,7 +2514,8 @@ interface TemplateExercisePivot {
   id: number;              // WorkoutTemplateExercise ID (pivot record)
   order: number;
   target_sets: number | null;
-  target_reps: number | null;
+  min_target_reps: number | null;
+  max_target_reps: number | null;
   target_weight: number | null;
   rest_seconds: number | null;
 }
@@ -2527,7 +2560,9 @@ interface WorkoutSessionExerciseResource {
   exercise: ExerciseResource | null;
   order: number;
   target_sets: number | null;
-  target_reps: number | null;
+  min_target_reps: number | null;
+  max_target_reps: number | null;
+  progression_status: 'no_history' | 'below_min' | 'working' | 'ready';
   target_weight: number | null;
   rest_seconds: number | null;
   created_at: string;
@@ -2852,7 +2887,8 @@ await fetch(`/api/workout-templates/${pushTemplate.data.id}/exercises`, {
   body: JSON.stringify({
     exercise_id: 1,  // Bench Press
     target_sets: 4,
-    target_reps: 8,
+    min_target_reps: 8,
+    max_target_reps: 12,
     target_weight: 80
   })
 });

@@ -38,10 +38,11 @@ class WorkoutSessionExerciseResource extends JsonResource
         $targetSets = $this->target_sets;
         $minTargetReps = $this->min_target_reps;
         $maxTargetReps = $this->max_target_reps;
-        $targetWeight = $this->formatWeight($this->target_weight);
         $restSeconds = $this->rest_seconds;
 
-        // Session-level targets should override progression defaults.
+        // target_weight is always taken from the progression calculator so it
+        // reflects the user's latest completed session, not a stale stored value.
+        $targetWeight = $targets['target_weight'];
 
         if (! $targetSets) {
             $targetSets = $targets['target_sets'];
@@ -51,9 +52,6 @@ class WorkoutSessionExerciseResource extends JsonResource
         }
         if (! $maxTargetReps) {
             $maxTargetReps = $targets['max_target_reps'];
-        }
-        if (! $targetWeight) {
-            $targetWeight = $targets['target_weight'];
         }
         if (! $restSeconds) {
             $restSeconds = $targets['rest_seconds'];

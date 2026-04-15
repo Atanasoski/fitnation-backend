@@ -2194,14 +2194,20 @@ interface ReorderSessionExercisesResponse {
 The session payload contains two different pieces of guidance and they should be used differently in the frontend:
 
 - `previous_sets`: actual set logs from the user's previous completed session for that exercise
-- `session_exercise` targets: `target_sets`, `min_target_reps`, `max_target_reps`, and `target_weight`
+- `session_exercise` targets:
+  - For weighted exercises (`progression_mode = double_progression`): `target_sets`, `min_target_reps`, `max_target_reps`, `target_weight`
+  - For bodyweight/TRX/band exercises (`progression_mode = total_reps`): `target_sets`, `total_reps_previous`, `total_reps_target`
 
 Frontend behavior:
 
 1. Prefill input fields (`weight`, `reps`) from `previous_sets` whenever available.
-2. Use session targets as goal badges/instructions (`3 sets`, `8-12 reps`, goal weight).
+2. Use session targets as goal badges/instructions:
+   - `double_progression`: show rep range + goal weight
+   - `total_reps`: show total reps target (`last: N`, `goal: N+1`)
 3. If there are more sets than available `previous_sets`, prefill extra sets with `target_weight` and `min_target_reps`.
-4. If no `previous_sets` exist, prefill all sets with `target_weight` and `min_target_reps`.
+4. If no `previous_sets` exist:
+   - `double_progression`: prefill with `target_weight` and `min_target_reps`
+   - `total_reps`: prefill reps with 0 (or empty), and display total reps target when available
 
 Progression behavior:
 
@@ -2214,6 +2220,11 @@ Progression behavior:
 - `below_min`: at least one set in the previous completed session was below `min_target_reps`.
 - `working`: previous session did not progress, but all sets met `min_target_reps`.
 - `ready`: all sets in the previous completed session hit `max_target_reps` at the same weight, so weight can increase.
+
+`progression_mode` values (on `WorkoutSessionExerciseResource`):
+
+- `double_progression`: weighted progression with rep range and target weight.
+- `total_reps`: bodyweight progression using summed reps from last completed session.
 
 ---
 
@@ -2559,11 +2570,14 @@ interface WorkoutSessionExerciseResource {
   exercise_id: number;
   exercise: ExerciseResource | null;
   order: number;
+  progression_mode: 'double_progression' | 'total_reps';
   target_sets: number | null;
   min_target_reps: number | null;
   max_target_reps: number | null;
   progression_status: 'no_history' | 'below_min' | 'working' | 'ready';
   target_weight: number | null;
+  total_reps_previous: number | null;
+  total_reps_target: number | null;
   rest_seconds: number | null;
   created_at: string;
   updated_at: string;

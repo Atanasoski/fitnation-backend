@@ -16,19 +16,47 @@ class ProgressionCalculatorService
     {
         $experience ??= TrainingExperience::Beginner;
         $lastPerformance = $this->getLastPerformance($exercise, $user);
+        $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
 
-        if (! $lastPerformance) {
-            return $this->getDefaultTargets($experience, $exercise, $user);
+        if ($this->isBodyweight($exercise)) {
+            $totalRepsPrevious = $lastPerformance ? array_sum($lastPerformance['reps'] ?? []) : null;
+            $totalRepsTarget = $totalRepsPrevious !== null ? $totalRepsPrevious + 1 : null;
+
+            return [
+                'progression_mode' => 'total_reps',
+                'target_sets' => $lastPerformance['sets'] ?? $defaultTargets['target_sets'],
+                'min_target_reps' => null,
+                'max_target_reps' => null,
+                'target_weight' => null,
+                'total_reps_previous' => $totalRepsPrevious,
+                'total_reps_target' => $totalRepsTarget,
+                'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
+            ];
         }
 
-        $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
+        if (! $lastPerformance) {
+            return [
+                'progression_mode' => 'double_progression',
+                'target_sets' => $defaultTargets['target_sets'],
+                'min_target_reps' => $defaultTargets['min_target_reps'],
+                'max_target_reps' => $defaultTargets['max_target_reps'],
+                'target_weight' => $defaultTargets['target_weight'],
+                'total_reps_previous' => null,
+                'total_reps_target' => null,
+                'rest_seconds' => $defaultTargets['rest_seconds'],
+            ];
+        }
+
         $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $defaultTargets['max_target_reps']);
 
         return [
+            'progression_mode' => 'double_progression',
             'target_sets' => $targets['sets'],
             'min_target_reps' => $defaultTargets['min_target_reps'],
             'max_target_reps' => $defaultTargets['max_target_reps'],
             'target_weight' => $targets['weight'],
+            'total_reps_previous' => null,
+            'total_reps_target' => null,
             'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
         ];
     }
@@ -150,8 +178,12 @@ class ProgressionCalculatorService
     /**
      * Determine current progression status for frontend messaging.
      */
-    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps): string
+    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps, ?Exercise $exercise = null): string
     {
+        if ($exercise && $this->isBodyweight($exercise)) {
+            return $lastPerformance ? 'working' : 'no_history';
+        }
+
         if (! $lastPerformance) {
             return 'no_history';
         }
@@ -167,6 +199,14 @@ class ProgressionCalculatorService
             ->contains(fn (int $reps) => $reps < $minTargetReps);
 
         return $anyBelowMin ? 'below_min' : 'working';
+    }
+
+    /**
+     * Determine if exercise progression should use total reps mode.
+     */
+    public function isBodyweight(Exercise $exercise): bool
+    {
+        return $this->getWeightIncrement($exercise) <= 0;
     }
 
     /**
@@ -284,7 +324,7 @@ class ProgressionCalculatorService
      * Cable/Machine: Usually 2.5kg or 5kg pin increments
      * Kettlebell: Fixed weights, typically 4kg jumps
      */
-    private function getWeightIncrement(Exercise $exercise): float
+    public function getWeightIncrement(Exercise $exercise): float
     {
         $equipmentCode = $exercise->equipmentType?->code ?? $exercise->equipmentType?->name ?? 'UNKNOWN';
 

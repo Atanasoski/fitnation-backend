@@ -22,10 +22,13 @@ class WorkoutSessionExerciseResource extends JsonResource
         $progressionCalculator = new ProgressionCalculatorService;
         $lastPerformance = null;
         $targets = [
+            'progression_mode' => 'double_progression',
             'target_sets' => 3,
             'min_target_reps' => 8,
             'max_target_reps' => 12,
             'target_weight' => 0,
+            'total_reps_previous' => null,
+            'total_reps_target' => null,
             'rest_seconds' => $this->exercise->default_rest_sec ?? 90,
         ];
         $progressionStatus = 'no_history';
@@ -56,8 +59,17 @@ class WorkoutSessionExerciseResource extends JsonResource
         if (! $restSeconds) {
             $restSeconds = $targets['rest_seconds'];
         }
+        if (($targets['progression_mode'] ?? 'double_progression') === 'total_reps') {
+            $minTargetReps = null;
+            $maxTargetReps = null;
+        }
         if ($user) {
-            $progressionStatus = $progressionCalculator->getProgressionStatus($lastPerformance, $minTargetReps, $maxTargetReps);
+            $progressionStatus = $progressionCalculator->getProgressionStatus(
+                $lastPerformance,
+                (int) ($minTargetReps ?? 0),
+                (int) ($maxTargetReps ?? 0),
+                $this->exercise
+            );
         }
 
         return [
@@ -71,8 +83,11 @@ class WorkoutSessionExerciseResource extends JsonResource
             'target_sets' => $targetSets,
             'min_target_reps' => $minTargetReps,
             'max_target_reps' => $maxTargetReps,
+            'progression_mode' => $targets['progression_mode'],
             'progression_status' => $progressionStatus,
             'target_weight' => $this->formatWeight($targetWeight),
+            'total_reps_previous' => $targets['total_reps_previous'],
+            'total_reps_target' => $targets['total_reps_target'],
             'rest_seconds' => $restSeconds,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

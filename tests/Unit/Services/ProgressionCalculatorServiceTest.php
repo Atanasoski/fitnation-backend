@@ -687,6 +687,94 @@ class ProgressionCalculatorServiceTest extends TestCase
         $this->assertSame('working', $status);
     }
 
+    public function test_bodyweight_exercise_returns_total_reps_mode(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('PUSHUP', 'BODYWEIGHT');
+
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'status' => WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+
+        \App\Models\SetLog::insert([
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 0,
+                'reps' => 6,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 2,
+                'weight' => 0,
+                'reps' => 5,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'workout_session_id' => $session->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 3,
+                'weight' => 0,
+                'reps' => 4,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
+
+        $this->assertSame('total_reps', $targets['progression_mode']);
+        $this->assertSame(15, $targets['total_reps_previous']);
+        $this->assertSame(16, $targets['total_reps_target']);
+        $this->assertNull($targets['target_weight']);
+        $this->assertNull($targets['min_target_reps']);
+        $this->assertNull($targets['max_target_reps']);
+    }
+
+    public function test_bodyweight_exercise_returns_null_totals_when_no_history(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('PUSHUP', 'BODYWEIGHT');
+
+        $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
+
+        $this->assertSame('total_reps', $targets['progression_mode']);
+        $this->assertNull($targets['total_reps_previous']);
+        $this->assertNull($targets['total_reps_target']);
+    }
+
+    public function test_bodyweight_progression_status_is_working_when_history_exists(): void
+    {
+        $exercise = $this->createExercise('PUSHUP', 'BODYWEIGHT');
+        $lastPerformance = [
+            'reps' => [6, 5, 4],
+            'weights' => [0.0, 0.0, 0.0],
+        ];
+
+        $status = $this->service->getProgressionStatus($lastPerformance, 8, 12, $exercise);
+
+        $this->assertSame('working', $status);
+    }
+
+    public function test_weighted_exercise_returns_double_progression_mode(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
+
+        $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
+
+        $this->assertSame('double_progression', $targets['progression_mode']);
+        $this->assertNull($targets['total_reps_previous']);
+        $this->assertNull($targets['total_reps_target']);
+    }
+
     private function createExercise(string $movementCode, string $equipmentCode = 'BARBELL', ?string $angleCode = null): Exercise
     {
         $movementPattern = MovementPattern::firstOrCreate(

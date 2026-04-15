@@ -509,7 +509,6 @@ interface ExerciseHistoryStats {
   best_weight: number;         // Highest weight ever used (kg)
   current_best_set_reps: number; // Best single-set reps from most recent session (useful for bodyweight exercises)
   best_set_reps: number;       // All-time best single-set reps (useful for bodyweight exercises)
-  progress_percentage: number; // Percentage change from first to most recent (+28 means +28%)
   total_sessions: number;       // Total number of completed sessions with this exercise
   first_session_date: string | null; // ISO date string of first session (YYYY-MM-DD)
   last_session_date: string | null; // ISO date string of most recent session (YYYY-MM-DD)
@@ -537,7 +536,6 @@ interface PerformanceDataPoint {
       "best_weight": 32,
       "current_best_set_reps": 12,
       "best_set_reps": 12,
-      "progress_percentage": 28,
       "total_sessions": 5,
       "first_session_date": "2024-01-01",
       "last_session_date": "2024-01-15"
@@ -2375,7 +2373,6 @@ interface ExerciseHistoryStats {
   best_weight: number;         // Highest weight ever used (kg)
   current_best_set_reps: number; // Best single-set reps from most recent session
   best_set_reps: number;       // All-time best single-set reps
-  progress_percentage: number; // Percentage change from first to most recent
   total_sessions: number;      // Total number of completed sessions
   first_session_date: string | null; // ISO date string (YYYY-MM-DD)
   last_session_date: string | null; // ISO date string (YYYY-MM-DD)

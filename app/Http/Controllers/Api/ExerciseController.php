@@ -202,18 +202,11 @@ class ExerciseController extends Controller
         $currentBestSetReps = (int) $lastSession['best_set_reps'];
         $bestSetReps = max(array_column($performanceData, 'best_set_reps'));
 
-        // Calculate progress percentage
-        $progressPercentage = 0;
-        if ($firstWeight > 0) {
-            $progressPercentage = (int) round((($currentWeight - $firstWeight) / $firstWeight) * 100);
-        }
-
         return [
             'current_weight' => $currentWeight,
             'best_weight' => (float) $bestWeight,
             'current_best_set_reps' => $currentBestSetReps,
             'best_set_reps' => $bestSetReps,
-            'progress_percentage' => $progressPercentage,
             'total_sessions' => $totalSessions,
             'first_session_date' => $firstSession['date'],
             'last_session_date' => $lastSession['date'],

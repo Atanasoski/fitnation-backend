@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Partner extends Model
@@ -64,6 +65,29 @@ class Partner extends Model
     public function plans(): HasMany
     {
         return $this->hasMany(Plan::class);
+    }
+
+    /**
+     * Subscription billing plans offered by this partner.
+     */
+    public function subscriptionPlans(): HasMany
+    {
+        return $this->hasMany(SubscriptionPlan::class);
+    }
+
+    /**
+     * All member subscriptions for users belonging to this partner.
+     */
+    public function subscriptions(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Subscription::class,
+            User::class,
+            'partner_id',
+            'user_id',
+            'id',
+            'id'
+        );
     }
 
     /**

@@ -4,7 +4,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\PlanType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -124,5 +126,65 @@ class User extends Authenticatable
     public function profile(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(UserProfile::class);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Subscription, $this>
+     */
+    public function subscriptions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<Subscription, $this>
+     */
+    public function activeSubscription(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Subscription::class)
+            ->whereNull('cancelled_at')
+            ->where('starts_at', '<=', now())
+            ->where(function (Builder $q): void {
+                $q->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', now());
+            });
+    }
+
+    /**
+     * Queued subscription that has not started yet (renewal / future period).
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<Subscription, $this>
+     */
+    public function upcomingSubscription(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Subscription::class)
+            ->whereNull('cancelled_at')
+            ->where('starts_at', '>', now());
+    }
+
+    /**
+     * Latest subscription regardless of status.
+     *
+     * @return HasOne<Subscription, $this>
+     */
+    public function latestSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->latestOfMany('starts_at');
+    }
+
+    /**
+     * Subscription state for member-list filters (active, upcoming, expired, cancelled, none).
+     */
+    public function memberSubscriptionFilterStatus(): string
+    {
+        return $this->latestSubscription?->derivedState() ?? 'none';
+    }
+
+    /**
+     * Tailwind classes for the latest subscription status pill on the members table.
+     */
+    public function memberSubscriptionStatusBadgeClasses(): string
+    {
+        return Subscription::badgeClassesForDerivedState($this->memberSubscriptionFilterStatus());
     }
 }

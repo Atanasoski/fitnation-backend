@@ -29,7 +29,7 @@ class MenuHelper
         if ($user && $user->hasRole('partner_admin')) {
             $items[] = [
                 'icon' => 'members',
-                'name' => 'Users',
+                'name' => 'Members',
                 'path' => '/users',
             ];
         }

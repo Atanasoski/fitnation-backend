@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Partner;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use Carbon\Carbon;
@@ -101,6 +102,40 @@ class DashboardController extends Controller
             abort(403, 'No partner associated with your account.');
         }
 
-        return view('dashboard.partner', compact('partner'));
+        $partner->loadCount(['users', 'subscriptionPlans']);
+
+        $activeSubscriptions = Subscription::query()
+            ->forPartnerUsers($partner->id)
+            ->active();
+
+        $activeSubscriptionsCount = $activeSubscriptions->count();
+
+        $monthlyRecurringRevenue = Subscription::query()
+            ->forPartnerUsers($partner->id)
+            ->active()
+            ->join('subscription_plans', 'subscriptions.subscription_plan_id', '=', 'subscription_plans.id')
+            ->sum('subscription_plans.price');
+
+        $expiringSoonCount = Subscription::query()
+            ->forPartnerUsers($partner->id)
+            ->active()
+            ->whereNotNull('ends_at')
+            ->whereBetween('ends_at', [now(), now()->addDays(7)])
+            ->count();
+
+        $recentSubscriptions = Subscription::query()
+            ->forPartnerUsers($partner->id)
+            ->with(['user', 'subscriptionPlan' => fn ($q) => $q->withTrashed()])
+            ->orderByDesc('updated_at')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('dashboard.partner', compact(
+            'partner',
+            'activeSubscriptionsCount',
+            'monthlyRecurringRevenue',
+            'expiringSoonCount',
+            'recentSubscriptions',
+        ));
     }
 }

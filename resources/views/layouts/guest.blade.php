@@ -80,6 +80,7 @@
                     </a>
                 </div>
                 <div class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
+                    <x-flash-messages />
                     {{ $slot }}
                 </div>
             </div>

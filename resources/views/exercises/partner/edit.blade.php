@@ -16,17 +16,6 @@
         </div>
     </div>
 
-    @if (session('success'))
-        <div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
-        </div>
-    @endif
-    @if (session('error'))
-        <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-            <p class="text-sm text-red-800 dark:text-red-400">{{ session('error') }}</p>
-        </div>
-    @endif
-
     <!-- Edit Form -->
     <form action="{{ route('exercises.updatePartner', $exercise) }}"
         method="POST"

@@ -13,12 +13,6 @@
         :items="[]"
     />
 
-    @if (session('success'))
-        <div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
-        </div>
-    @endif
-
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <div class="text-xl font-semibold text-gray-900 dark:text-white">Programs Library</div>

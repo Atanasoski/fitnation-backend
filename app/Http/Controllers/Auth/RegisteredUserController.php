@@ -34,17 +34,21 @@ class RegisteredUserController extends Controller
                 $partner = $invitation->partner;
             } elseif ($invitation && $invitation->isAccepted()) {
                 return redirect()->route('register')
-                    ->with('error', 'This invitation has already been used.');
+                    ->with('error', 'This invitation has already been used.')
+                    ->with('alert_title', 'Invitation issue');
             } elseif ($invitation && $invitation->isExpired()) {
                 return redirect()->route('register')
-                    ->with('error', 'This invitation has expired. Please contact your gym for a new invitation.');
+                    ->with('error', 'This invitation has expired. Please contact your gym for a new invitation.')
+                    ->with('alert_title', 'Invitation issue');
             } elseif (! $invitation) {
                 // Invitation not found - likely cancelled or never existed
                 return redirect()->route('register')
-                    ->with('error', 'This invitation is no longer valid. It may have been cancelled by your gym. Please contact them for assistance.');
+                    ->with('error', 'This invitation is no longer valid. It may have been cancelled by your gym. Please contact them for assistance.')
+                    ->with('alert_title', 'Invitation issue');
             } else {
                 return redirect()->route('register')
-                    ->with('error', 'Invalid invitation link.');
+                    ->with('error', 'Invalid invitation link.')
+                    ->with('alert_title', 'Invitation issue');
             }
         }
 
@@ -67,7 +71,8 @@ class RegisteredUserController extends Controller
             // Validate invitation still valid
             if (! $invitation || ! $invitation->isValid()) {
                 return redirect()->route('register')
-                    ->with('error', 'The invitation is no longer valid.');
+                    ->with('error', 'The invitation is no longer valid.')
+                    ->with('alert_title', 'Invitation issue');
             }
         }
 

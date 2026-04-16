@@ -124,7 +124,8 @@
             <!-- app header start -->
             @include('layouts.app-header')
             <!-- app header end -->
-            <div class="p-4 mx-auto max-w-7xl w-full md:p-6">
+            <div class="p-4 mx-auto w-full md:p-6 max-w-7xl">
+                <x-flash-messages />
                 @yield('content')
             </div>
         </div>

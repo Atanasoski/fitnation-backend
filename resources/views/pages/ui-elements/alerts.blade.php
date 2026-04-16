@@ -102,7 +102,7 @@
                         <li>Including lists and formatting</li>
                         <li>Perfect for complex messages</li>
                     </ul>
-                </x-alert>
+                </x-ui.alert>
 
                 {{-- Minimal Alert --}}
                 <x-ui.alert
@@ -138,7 +138,7 @@
                     <a href="/orders" class="inline-block mt-3 text-sm font-medium text-green-600 dark:text-green-400 underline hover:text-green-700">
                         View Order Details
                     </a>
-                </x-alert>
+                </x-ui.alert>
 
                 {{-- Account Warning --}}
                 <x-ui.alert
@@ -157,7 +157,7 @@
                         <li>Password must be at least 8 characters</li>
                         <li>Please accept the terms and conditions</li>
                     </ul>
-                </x-alert>
+                </x-ui.alert>
 
                 {{-- System Info --}}
                 <x-ui.alert

@@ -6,12 +6,6 @@
     <div>
     <x-common.page-breadcrumb :pageTitle="$workoutTemplate->name" :items="[['label' => 'Programs', 'url' => route('partner.programs.index')], ['label' => $workoutTemplate->plan->name, 'url' => route('partner.programs.show', $workoutTemplate->plan)]]" />
 
-    @if (session('success'))
-        <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
-        </div>
-    @endif
-
     <!-- Workout Template Header Card -->
     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30 mb-6">
         <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">

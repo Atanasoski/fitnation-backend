@@ -56,12 +56,6 @@
         @endforeach
     </div>
 
-    @if(session('success'))
-        <div class="rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-800">
-            <p class="text-sm text-green-800 dark:text-green-200">{{ session('success') }}</p>
-        </div>
-    @endif
-
     <!-- Splits grouped by focus and days per week -->
     @forelse($splits as $focus => $focusGroups)
         @foreach($focusGroups as $daysPerWeek => $splitDays)

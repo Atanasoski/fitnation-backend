@@ -14,20 +14,6 @@
             </div>
 
             <div class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
-                <!-- Error Messages -->
-                @if(session('error'))
-                    <div class="mb-6 rounded-lg bg-red-50 border-l-4 border-red-500 p-4 dark:bg-red-900/20">
-                        <div class="flex items-start">
-                            <svg class="w-5 h-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <div>
-                                <h3 class="font-semibold text-red-800 dark:text-red-200 mb-1">Invitation Issue</h3>
-                                <p class="text-sm text-red-700 dark:text-red-300">{{ session('error') }}</p>
-                            </div>
-                        </div>
-                    </div>
-                @else
                     @if(isset($invitation) && isset($partner))
                         <!-- Gym Branding Header -->
                         <div class="mb-6 text-center">
@@ -127,7 +113,6 @@
                         </p>
                     </div>
                 </form>
-                @endif
             </div>
         </div>
 

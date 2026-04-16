@@ -488,7 +488,7 @@ class DeterministicWorkoutGenerator
                 'target_sets' => $distributedSets > 0 ? $distributedSets : $defaults['sets'], // Fallback to defaults if distribution failed
                 'min_target_reps' => $targets['min_target_reps'],
                 'max_target_reps' => $targets['max_target_reps'],
-                'target_weight' => $targets['target_weight'],
+                'target_weight' => $targets['target_weight'] ?? 0,
                 'rest_seconds' => $targets['rest_seconds'],
             ];
         }

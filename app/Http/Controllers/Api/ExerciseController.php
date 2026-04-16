@@ -183,7 +183,6 @@ class ExerciseController extends Controller
                 'best_weight' => 0,
                 'current_best_set_reps' => 0,
                 'best_set_reps' => 0,
-                'progress_percentage' => 0,
                 'total_sessions' => 0,
                 'first_session_date' => null,
                 'last_session_date' => null,

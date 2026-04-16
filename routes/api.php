@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SubscriptionController as ApiSubscriptionController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WorkoutGeneratorController;
 use App\Http\Controllers\Api\WorkoutPlannerController;
@@ -41,6 +42,10 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // User endpoints
     Route::get('/user', [UserController::class, 'show']);
     Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
+
+    Route::get('/subscription', [ApiSubscriptionController::class, 'current']);
+    Route::get('/subscription/history', [ApiSubscriptionController::class, 'history']);
+    Route::get('/subscription-plans', [ApiSubscriptionController::class, 'availablePlans']);
 
     // Profile endpoints
     Route::get('/profile', [ProfileController::class, 'show']);

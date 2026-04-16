@@ -7,6 +7,7 @@ use App\Enums\WorkoutSessionStatus;
 use App\Http\Requests\InviteUserRequest;
 use App\Mail\UserInvitationMail;
 use App\Models\Partner;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Models\UserInvitation;
 use App\Models\WorkoutSession;
@@ -29,16 +30,26 @@ class UserController extends Controller
 
         // Get all users of this partner with basic stats
         $users = $partner->users()
-            ->with('profile')
+            ->whereHas('roles', fn ($q) => $q->where('slug', 'user'))
+            ->with([
+                'profile',
+                'activeProgram',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q2) => $q2->withTrashed()]),
+                'latestSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q2) => $q2->withTrashed()]),
+            ])
             ->withCount([
                 'workoutSessions as total_workouts',
                 'plans as total_plans',
             ])
-            ->with(relations: 'activeProgram')
             ->latest()
-            ->paginate(15);
+            ->get();
 
-        return view('users.index', compact('partner', 'users'));
+        $plans = SubscriptionPlan::withTrashed()
+            ->where('partner_id', $user->partner_id)
+            ->orderBy('name')
+            ->get();
+
+        return view('users.index', compact('partner', 'users', 'plans'));
     }
 
     /**

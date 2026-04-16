@@ -68,7 +68,11 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => new UserResource($user->load(['partner', 'profile'])),
+            'user' => new UserResource($user->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
             'token' => $token,
         ], 201);
     }
@@ -94,7 +98,11 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful',
-            'user' => new UserResource($user->load(['partner', 'profile'])),
+            'user' => new UserResource($user->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
             'token' => $token,
         ]);
     }

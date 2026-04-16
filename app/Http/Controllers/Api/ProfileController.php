@@ -17,7 +17,11 @@ class ProfileController extends Controller
     public function show(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => new UserResource($request->user()->load(['partner', 'profile'])),
+            'user' => new UserResource($request->user()->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
         ]);
     }
 
@@ -76,7 +80,11 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user' => new UserResource($user->load(['partner', 'profile'])),
+            'user' => new UserResource($user->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
         ]);
     }
 
@@ -96,7 +104,11 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Profile photo deleted successfully',
-            'user' => new UserResource($user->load(['partner', 'profile'])),
+            'user' => new UserResource($user->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
         ]);
     }
 }

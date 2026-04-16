@@ -20,9 +20,15 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'profile_photo' => asset($this->profile_photo),
             'profile' => $this->whenLoaded('profile', function () {
-                return new UserProfileResource($this->profile);
+                return $this->profile !== null
+                    ? new UserProfileResource($this->profile)
+                    : null;
             }),
             'partner' => $this->whenLoaded('partner', function () {
+                if ($this->partner === null) {
+                    return null;
+                }
+
                 return [
                     'id' => $this->partner->id,
                     'name' => $this->partner->name,
@@ -32,6 +38,18 @@ class UserResource extends JsonResource
                         : null,
                 ];
             }),
+            'active_subscription' => $this->when(
+                $this->relationLoaded('activeSubscription'),
+                function () {
+                    if ($this->activeSubscription === null) {
+                        return null;
+                    }
+
+                    return new SubscriptionResource(
+                        $this->activeSubscription->loadMissing(['subscriptionPlan' => fn ($q) => $q->withTrashed()])
+                    );
+                }
+            ),
             'onboarding_completed_at' => $this->onboarding_completed_at,
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,

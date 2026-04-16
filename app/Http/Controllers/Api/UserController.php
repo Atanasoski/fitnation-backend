@@ -15,7 +15,11 @@ class UserController extends Controller
     public function show(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => new UserResource($request->user()->load(['partner', 'profile'])),
+            'user' => new UserResource($request->user()->load([
+                'partner',
+                'profile',
+                'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q) => $q->withTrashed()]),
+            ])),
         ]);
     }
 }

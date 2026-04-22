@@ -34,6 +34,15 @@ class MenuHelper
             ];
         }
 
+        // Subscription plans - For partner admins
+        if ($user && $user->hasRole('partner_admin')) {
+            $items[] = [
+                'icon' => 'ecommerce',
+                'name' => 'Subscription plans',
+                'path' => '/subscription-plans',
+            ];
+        }
+
         // Programs - Partner library for partner admins
         if ($user && $user->hasRole('partner_admin')) {
             $items[] = [

@@ -13,9 +13,6 @@
             </p>
         </div>
         <div class="flex flex-wrap items-center justify-end gap-2">
-            <a href="{{ route('subscription-plans.index') }}" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-transparent dark:text-white dark:hover:bg-white/5">
-                Subscription plans
-            </a>
             <a href="{{ route('user-invitations.index') }}" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100">
                 User Invitations
             </a>

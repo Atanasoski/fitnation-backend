@@ -61,7 +61,7 @@
 
                 rows.forEach(row => {
                     const memberSearch = row.getAttribute('data-member-search') || '';
-                    const rowStatus = row.getAttribute('data-subscription-status') || '';
+                    const rowStatus = row.getAttribute('data-membership-status') || '';
 
                     const matchesSearch = q === '' || memberSearch.includes(q);
                     const matchesStatus = this.subscriptionStatus === '' || rowStatus === this.subscriptionStatus;
@@ -130,12 +130,9 @@
                             @change="page = 1; applyFilters()"
                             class="appearance-none block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-transparent dark:text-white"
                         >
-                            <option value="">All subscriptions</option>
-                            <option value="active">Active</option>
-                            <option value="upcoming">Upcoming</option>
-                            <option value="expired">Expired</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="none">No subscription</option>
+                            <option value="">All members</option>
+                            <option value="active">Active membership</option>
+                            <option value="inactive">No active membership</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +162,7 @@
                                 <th class="w-[9%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Last Login</th>
                                 <th class="w-[8%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Workouts</th>
                                 <th class="w-[9%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Active Program</th>
-                                <th class="w-[18%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Subscription</th>
+                                <th class="w-[14%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Membership</th>
                                 <th class="w-[5%] px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
                             </tr>
                         </thead>
@@ -174,7 +171,7 @@
                                 <tr
                                     class="user-row hover:bg-gray-50 dark:hover:bg-gray-700"
                                     data-member-search="{{ str($user->name.' '.$user->email)->lower() }}"
-                                    data-subscription-status="{{ $user->memberSubscriptionFilterStatus() }}"
+                                    data-membership-status="{{ $user->memberSubscriptionFilterStatus() }}"
                                 >
                                     <td class="px-4 py-4">
                                         <div class="flex min-w-0 items-center">
@@ -220,24 +217,14 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-4">
-                                        @if ($user->latestSubscription)
-                                            <div class="flex flex-col gap-1">
-                                                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                    {{ $user->latestSubscription->subscriptionPlan?->name ?? '—' }}
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->memberSubscriptionStatusBadgeClasses() }}">
-                                                        {{ $user->latestSubscription->derivedStateLabel() }}
-                                                    </span>
-                                                    @if ($user->latestSubscription->ends_at)
-                                                        <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                            ends {{ $user->latestSubscription->ends_at->format('M d') }}
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                            </div>
+                                        @if ($user->activeSubscription)
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ \App\Models\Subscription::badgeClassesForDerivedState('active') }}">
+                                                Active
+                                            </span>
                                         @else
-                                            <span class="text-sm text-gray-500 dark:text-gray-400">No subscription</span>
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ \App\Models\Subscription::badgeClassesForDerivedState('inactive') }}">
+                                                Inactive
+                                            </span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-4 text-right text-sm font-medium">

@@ -117,7 +117,7 @@ class Subscription extends Model
     /**
      * Tailwind classes for a status pill (members table and subscription history).
      *
-     * @param  'active'|'cancelled'|'expired'|'upcoming'|'none'  $state
+     * @param  'active'|'cancelled'|'expired'|'inactive'|'upcoming'|'none'  $state
      */
     public static function badgeClassesForDerivedState(string $state): string
     {
@@ -125,7 +125,7 @@ class Subscription extends Model
             'active' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
             'upcoming' => 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
             'cancelled' => 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
-            'expired' => 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
+            'expired', 'inactive' => 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
             default => 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
         };
     }

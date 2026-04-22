@@ -173,18 +173,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Subscription state for member-list filters (active, upcoming, expired, cancelled, none).
+     * Whether the member currently has an active subscription window (for member-list column / filters).
      */
-    public function memberSubscriptionFilterStatus(): string
+    public function hasActiveMembership(): bool
     {
-        return $this->latestSubscription?->derivedState() ?? 'none';
+        return $this->activeSubscription !== null;
     }
 
     /**
-     * Tailwind classes for the latest subscription status pill on the members table.
+     * Filter value for member list: "active" or "inactive" (no active membership).
      */
-    public function memberSubscriptionStatusBadgeClasses(): string
+    public function memberSubscriptionFilterStatus(): string
     {
-        return Subscription::badgeClassesForDerivedState($this->memberSubscriptionFilterStatus());
+        return $this->hasActiveMembership() ? 'active' : 'inactive';
     }
 }

@@ -35,7 +35,6 @@ class UserController extends Controller
                 'profile',
                 'activeProgram',
                 'activeSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q2) => $q2->withTrashed()]),
-                'latestSubscription' => fn ($q) => $q->with(['subscriptionPlan' => fn ($q2) => $q2->withTrashed()]),
             ])
             ->withCount([
                 'workoutSessions as total_workouts',

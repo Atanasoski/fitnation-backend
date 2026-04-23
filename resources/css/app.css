@@ -311,6 +311,13 @@
     display: none;
     -webkit-appearance: none;
   }
+
+  /* Partner dashboard (and similar): restore native picker — global rule above hides it everywhere */
+  input[type='date'].dashboard-date-filter::-webkit-calendar-picker-indicator {
+    display: block;
+    cursor: pointer;
+    opacity: 1;
+  }
 }
 
 .sidebar:hover {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ExerciseHistoryRequest;
+use App\Http\Requests\ExerciseIndexRequest;
 use App\Http\Requests\StoreExerciseRequest;
 use App\Http\Requests\UpdateExerciseRequest;
 use App\Http\Resources\Api\ExerciseHistoryResource;
@@ -20,17 +21,37 @@ class ExerciseController extends Controller
     /**
      * Display a listing of exercises.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(ExerciseIndexRequest $request): AnonymousResourceCollection
     {
-        $exercises = Exercise::with('category', 'muscleGroups', 'partners', 'angle', 'movementPattern', 'targetRegion', 'equipmentType')
+        $searchTerm = $request->validated('search');
+        $tokens = Exercise::tokenize($searchTerm);
+        $hasSearch = $tokens !== [];
+
+        $query = Exercise::with('category', 'muscleGroups', 'partners', 'angle', 'movementPattern', 'targetRegion', 'equipmentType')
             ->forPartner(auth()->user()?->partner)
             ->leftJoin('equipment_types', 'workout_exercises.equipment_type_id', '=', 'equipment_types.id')
-            ->orderBy('equipment_types.display_order')
-            // ->latest('workout_exercises.created_at')
-            ->select('workout_exercises.*')
-            ->get();
+            ->select('workout_exercises.*');
 
-        return ExerciseResource::collection($exercises);
+        if ($hasSearch) {
+            $booleanQuery = implode(' ', array_map(
+                fn (string $token) => '+'.$token.'*',
+                $tokens
+            ));
+
+            $query
+                ->search($searchTerm)
+                ->selectRaw(
+                    'MATCH(workout_exercises.name) AGAINST(? IN BOOLEAN MODE) as _relevance',
+                    [$booleanQuery]
+                )
+                ->orderByDesc('_relevance')
+                ->orderByRaw('LENGTH(workout_exercises.name) ASC')
+                ->orderBy('workout_exercises.name');
+        } else {
+            $query->orderBy('equipment_types.display_order');
+        }
+
+        return ExerciseResource::collection($query->get());
     }
 
     /**

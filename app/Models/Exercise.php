@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ExerciseDifficulty;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -144,6 +145,55 @@ class Exercise extends Model
     {
         return $query->whereHas('partners', function ($q) use ($partner) {
             $q->where('partners.id', $partner->id);
+        });
+    }
+
+    /**
+     * Tokenize a search term into a list of lowercase, alphanumeric tokens.
+     *
+     * Strips characters that are unsafe for FULLTEXT boolean syntax and trims
+     * whitespace. Returns an empty array for blank input so callers can short-circuit.
+     *
+     * @return array<int, string>
+     */
+    public static function tokenize(?string $term): array
+    {
+        if ($term === null) {
+            return [];
+        }
+
+        $normalized = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $term) ?? '';
+        $normalized = trim(preg_replace('/\s+/u', ' ', $normalized) ?? '');
+
+        if ($normalized === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map('mb_strtolower', explode(' ', $normalized)),
+            fn (string $token) => $token !== ''
+        ));
+    }
+
+    /**
+     * Scope: Filter exercises whose name contains every token in $term (AND).
+     *
+     * Uses LIKE per-token rather than FULLTEXT MATCH so short tokens and
+     * stopwords still match. FULLTEXT is reserved for relevance ordering
+     * in the controller.
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        $tokens = self::tokenize($term);
+
+        if ($tokens === []) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($tokens) {
+            foreach ($tokens as $token) {
+                $q->where('workout_exercises.name', 'like', '%'.$token.'%');
+            }
         });
     }
 

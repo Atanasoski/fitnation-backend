@@ -127,7 +127,7 @@ class ExerciseController extends Controller
         $query = DB::table('workout_sessions as ws')
             ->join('workout_session_set_logs as sl', 'ws.id', '=', 'sl.workout_session_id')
             ->where('ws.user_id', $userId)
-            // ->whereNotNull('ws.completed_at')
+            ->whereNotNull('ws.completed_at')
             ->where('sl.exercise_id', $exercise->id)
             ->select([
                 'ws.id as session_id',

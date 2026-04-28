@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PlanType;
+use App\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -52,6 +53,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_login_at' => 'datetime',
             'onboarding_completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Send the custom branded email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmail());
     }
 
     /**

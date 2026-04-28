@@ -20,7 +20,7 @@ class VerifyEmailMail extends Mailable
         public User $user,
         public string $verificationUrl
     ) {
-        //
+        $this->to($user->email, $user->name);
     }
 
     /**

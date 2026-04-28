@@ -30,6 +30,9 @@ Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']
 // Public invitation validation
 Route::get('/invitations/{token}', [InvitationController::class, 'show']);
 
+Route::get('/partners', [PartnerController::class, 'activeList'])
+    ->middleware('throttle:30,1');
+
 Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'])
     ->middleware('throttle:6,1');
 
@@ -37,6 +40,9 @@ Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'
 Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // Auth endpoints
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])
+        ->middleware('throttle:6,1')
+        ->name('api.verification.send');
 
     // User endpoints
     Route::get('/user', [UserController::class, 'show']);

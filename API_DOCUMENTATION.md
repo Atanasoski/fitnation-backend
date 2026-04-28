@@ -5,7 +5,7 @@ This documentation provides complete information about all API resources and end
 ## Table of Contents
 
 1. [Base Configuration](#base-configuration)
-2. [Authentication](#authentication)
+2. [Authentication & Partners](#authentication--partners)
 3. [User Management](#user-management)
 4. [User Profile](#user-profile)
 
@@ -48,7 +48,48 @@ All protected endpoints require Laravel Sanctum Bearer token authentication.
 
 ---
 
-## Authentication
+## Authentication & Partners
+
+### List Active Partners
+```
+GET /api/partners
+```
+*Public endpoint - No authentication required*
+
+Returns all active partners for use in the mobile registration dropdown. Throttled to 30 requests/minute.
+
+**Response (200 OK):**
+```typescript
+interface ActivePartnersResponse {
+  data: PartnerListResource[];
+}
+
+interface PartnerListResource {
+  id: number;
+  name: string;
+  slug: string;
+  visual_identity: PartnerVisualIdentityResource | null;
+}
+```
+
+**Example Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Fit Nation Central",
+      "slug": "fit-nation-central",
+      "visual_identity": {
+        "logo": "https://example.com/storage/partners/logo.png",
+        "primary_color": "#1a1a2e"
+      }
+    }
+  ]
+}
+```
+
+---
 
 ### Validate Invitation Token
 ```
@@ -109,7 +150,7 @@ POST /api/register
 ```
 *Public endpoint - No authentication required*
 
-**IMPORTANT:** Registration is invite-only. Users must have a valid invitation token received via email from a partner.
+Registers a new user under the specified partner. A verification email is sent immediately after registration. The `email_verified_at` field on `UserResource` will be `null` until the user clicks the verification link. The token is issued immediately so the app can display a "check your email" screen while optionally blocking access to protected features until verified.
 
 **Request Body:**
 ```typescript
@@ -118,14 +159,14 @@ interface RegisterRequest {
   email: string;                 // required, unique, lowercase email
   password: string;              // required, min 8 chars
   password_confirmation: string; // required, must match password
-  invitation_token: string;      // required, 64-char token from invitation email
+  partner_id: number;            // required, ID from GET /api/partners
 }
 ```
 
 **Response (201 Created):**
 ```typescript
 interface RegisterResponse {
-  message: "User registered successfully";
+  message: "User registered successfully. Please check your email to verify your account.";
   user: UserResource;
   token: string;
 }
@@ -136,21 +177,47 @@ interface RegisterResponse {
 **422 Unprocessable Entity:**
 ```typescript
 {
-  message: "Invalid invitation token"
+  message: "The selected partner is not currently active."
 }
-// OR
+// OR standard Laravel validation errors, e.g.:
 {
-  message: "This invitation has already been used"
-}
-// OR
-{
-  message: "This invitation has expired"
-}
-// OR
-{
-  message: "Email does not match the invitation"
+  message: "The given data was invalid.",
+  errors: {
+    email: ["The email has already been taken."],
+    partner_id: ["The selected partner id is invalid."]
+  }
 }
 ```
+
+---
+
+### Resend Verification Email
+```
+POST /api/email/verification-notification
+```
+*Requires authentication (Sanctum token)*
+
+Resends the email verification link to the authenticated user. Useful when the user did not receive the original email sent at registration. Throttled to 6 requests/minute.
+
+**Request Body:** None
+
+**Response (200 OK):**
+```typescript
+interface ResendVerificationResponse {
+  message: "Verification link sent.";
+}
+```
+
+**Error Response (422 Unprocessable Entity):**
+```typescript
+{
+  message: "Email is already verified."
+}
+```
+
+**Notes:**
+- Call `GET /api/user` after the user returns to the app from the verification link to check whether `email_verified_at` is now set.
+- The token issued at registration remains valid regardless of verification status.
 
 ---
 
@@ -2298,6 +2365,13 @@ interface UserPartner {
 // PARTNER RESOURCES
 // ============================================
 
+interface PartnerListResource {
+  id: number;
+  name: string;
+  slug: string;
+  visual_identity: PartnerVisualIdentityResource | null;
+}
+
 interface PartnerVisualIdentityResource {
   // Core branding
   primary_color: string | null;
@@ -2673,11 +2747,13 @@ interface ValidationError {
 
 ## API Quick Reference
 
-### Authentication & Invitations
+### Authentication & Partners
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/partners` | List active partners (for registration dropdown) |
 | GET | `/api/invitations/{token}` | Validate invitation token |
-| POST | `/api/register` | Register new user (requires invitation) |
+| POST | `/api/register` | Register new user with partner_id |
+| POST | `/api/email/verification-notification` | Resend verification email (auth required) |
 | POST | `/api/login` | Login user |
 | POST | `/api/logout` | Logout user |
 
@@ -2797,41 +2873,54 @@ interface ValidationError {
 
 ## Usage Examples
 
-### Example: Complete Authentication Flow with Invitation
+### Example: Complete Registration Flow
 
 ```typescript
-// 1. User clicks invitation link in email (e.g., https://yourapp.com/register?invitation=abc123...)
-// Extract token from URL
-const invitationToken = new URLSearchParams(window.location.search).get('invitation');
+// 1. Fetch active partners to populate the gym dropdown
+const partnersResponse = await fetch('/api/partners', {
+  headers: { 'Accept': 'application/json' }
+});
+const { data: partners } = await partnersResponse.json();
+// Render partners as a dropdown: partners.map(p => ({ label: p.name, value: p.id }))
 
-// 2. Validate the invitation token
-const validateResponse = await fetch(`/api/invitations/${invitationToken}`);
-const { data: invitation } = await validateResponse.json();
+// 2. User selects a partner and fills in the registration form
 
-// Show partner branding and pre-fill email
-console.log(invitation.partner.name);
-console.log(invitation.email);
-
-// 3. Register with invitation token
+// 3. Register with the selected partner_id
 const registerResponse = await fetch('/api/register', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
   body: JSON.stringify({
     name: 'John Doe',
-    email: invitation.email,  // Must match invitation email
+    email: 'john@example.com',
     password: 'password123',
     password_confirmation: 'password123',
-    invitation_token: invitationToken
+    partner_id: 1  // ID from the partners list
   })
 });
 const { token, user } = await registerResponse.json();
 
-// 4. Use token for subsequent requests
+// 4. Store the token and show a "check your email" screen
+// user.email_verified_at will be null at this point
+localStorage.setItem('auth_token', token);
+
+// 5. The user taps the verification link in their email, which opens a browser.
+//    The backend validates the link and shows a "Email Verified!" page.
+//    The user then returns to the app.
+
+// 6. On next app open / after user returns, check email_verified_at
 const headers = {
   'Authorization': `Bearer ${token}`,
   'Content-Type': 'application/json',
   'Accept': 'application/json'
 };
+const userResponse = await fetch('/api/user', { headers });
+const { user: freshUser } = await userResponse.json();
+
+if (freshUser.email_verified_at) {
+  // Proceed to onboarding / home screen
+} else {
+  // Show "waiting for verification" screen with option to resend
+}
 ```
 
 ### Example: Start and Track a Workout

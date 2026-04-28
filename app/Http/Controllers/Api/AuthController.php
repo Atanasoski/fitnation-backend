@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\UserResource;
+use App\Models\Partner;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,34 +25,14 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'invitation_token' => ['required', 'string', 'exists:user_invitations,token'],
+            'partner_id' => ['required', 'integer', 'exists:partners,id'],
         ]);
 
-        // Validate the invitation
-        $invitation = \App\Models\UserInvitation::where('token', $validated['invitation_token'])->first();
+        $partner = Partner::find($validated['partner_id']);
 
-        if (! $invitation) {
+        if (! $partner->is_active) {
             return response()->json([
-                'message' => 'Invalid invitation token',
-            ], 422);
-        }
-
-        if ($invitation->isAccepted()) {
-            return response()->json([
-                'message' => 'This invitation has already been used',
-            ], 422);
-        }
-
-        if ($invitation->isExpired()) {
-            return response()->json([
-                'message' => 'This invitation has expired',
-            ], 422);
-        }
-
-        // Verify the email matches the invitation
-        if ($invitation->email !== $validated['email']) {
-            return response()->json([
-                'message' => 'Email does not match the invitation',
+                'message' => 'The selected partner is not currently active.',
             ], 422);
         }
 
@@ -58,16 +40,15 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'partner_id' => $invitation->partner_id,
+            'partner_id' => $validated['partner_id'],
         ]);
 
-        // Mark invitation as accepted
-        $invitation->markAsAccepted();
+        event(new Registered($user));
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'message' => 'User registered successfully',
+            'message' => 'User registered successfully. Please check your email to verify your account.',
             'user' => new UserResource($user->load(['partner', 'profile'])),
             'token' => $token,
         ], 201);
@@ -96,6 +77,24 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'user' => new UserResource($user->load(['partner', 'profile'])),
             'token' => $token,
+        ]);
+    }
+
+    /**
+     * Resend the email verification notification.
+     */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email is already verified.',
+            ], 422);
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return response()->json([
+            'message' => 'Verification link sent.',
         ]);
     }
 

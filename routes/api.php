@@ -118,6 +118,7 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::post('/workout-templates/{workoutTemplate}/exercises', [WorkoutTemplateController::class, 'addExercise']);
     Route::delete('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'removeExercise']);
     Route::put('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'updateExercise']);
+    Route::patch('/workout-templates/{workoutTemplate}/exercises/{pivot}/swap', [WorkoutTemplateController::class, 'swapExercise']);
     Route::post('/workout-templates/{workoutTemplate}/order', [WorkoutTemplateController::class, 'updateOrder']);
 
     // Weekly Workout Planner
@@ -145,5 +146,6 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::post('/workout-sessions/{session}/exercises', [WorkoutSessionController::class, 'addExercise']);
     Route::delete('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'removeExercise']);
     Route::put('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'updateExercise']);
+    Route::patch('/workout-sessions/{session}/exercises/{sessionExercise}/swap', [WorkoutSessionController::class, 'swapExercise']);
     Route::post('/workout-sessions/{session}/exercises/reorder', [WorkoutSessionController::class, 'reorderExercises']);
 });

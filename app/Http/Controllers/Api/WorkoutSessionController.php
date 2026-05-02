@@ -8,6 +8,7 @@ use App\Http\Requests\AddSessionExerciseRequest;
 use App\Http\Requests\LogSetRequest;
 use App\Http\Requests\ReorderSessionExercisesRequest;
 use App\Http\Requests\StartWorkoutSessionRequest;
+use App\Http\Requests\SwapWorkoutSessionExerciseRequest;
 use App\Http\Requests\UpdateSessionExerciseRequest;
 use App\Http\Requests\UpdateSetRequest;
 use App\Http\Requests\WorkoutSessionCalendarRequest;
@@ -426,6 +427,31 @@ class WorkoutSessionController extends Controller
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($exercise),
             'message' => 'Exercise updated successfully',
+        ]);
+    }
+
+    /**
+     * Swap the exercise on a session exercise row without touching any other column.
+     */
+    public function swapExercise(SwapWorkoutSessionExerciseRequest $request, WorkoutSession $session, WorkoutSessionExercise $sessionExercise): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if ($sessionExercise->workout_session_id !== $session->id) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], 404);
+        }
+
+        $sessionExercise->update(['exercise_id' => $request->validated('exercise_id')]);
+
+        $session->load([
+            'workoutSessionExercises.exercise.category',
+            'setLogs' => fn ($q) => $q->orderBy('set_number'),
+        ]);
+
+        return response()->json([
+            'data' => new WorkoutSessionResource($session),
         ]);
     }
 

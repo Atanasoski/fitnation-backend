@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWorkoutTemplateRequest;
+use App\Http\Requests\SwapWorkoutTemplateExerciseRequest;
 use App\Http\Requests\UpdateWorkoutTemplateRequest;
 use App\Http\Resources\Api\WorkoutTemplateResource;
 use App\Models\WorkoutTemplate;
@@ -194,6 +195,27 @@ class WorkoutTemplateController extends Controller
 
         return response()->json([
             'message' => 'Exercise updated successfully',
+            'data' => new WorkoutTemplateResource($workoutTemplate),
+        ]);
+    }
+
+    /**
+     * Swap the exercise on a pivot row without touching any other column.
+     */
+    public function swapExercise(SwapWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $pivot): JsonResponse
+    {
+        $workoutTemplate->load('plan');
+        if ($workoutTemplate->plan->user_id !== auth()->id() || $pivot->workout_template_id !== $workoutTemplate->id) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], 404);
+        }
+
+        $pivot->update(['exercise_id' => $request->validated('exercise_id')]);
+
+        $workoutTemplate->load(['exercises.category', 'exercises.muscleGroups', 'exercises.partners']);
+
+        return response()->json([
             'data' => new WorkoutTemplateResource($workoutTemplate),
         ]);
     }

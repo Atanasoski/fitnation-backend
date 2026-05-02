@@ -287,6 +287,38 @@ interface GetUserResponse {
 
 ---
 
+### Delete Account
+```
+DELETE /api/user
+```
+*Requires authentication*
+
+Permanently removes the authenticated user's account. The user's name and email are anonymized, all active tokens are revoked, and the record is soft-deleted. This action is irreversible.
+
+**Request Body:**
+```typescript
+interface DeleteUserRequest {
+  password: string; // Current account password (required)
+}
+```
+
+**Response:**
+- `204 No Content` on success
+
+**Error Responses:**
+- `401 Unauthenticated` — no valid token provided
+- `422 Unprocessable Entity` — password is missing or incorrect
+  ```json
+  {
+    "message": "The password field is incorrect.",
+    "errors": {
+      "password": ["The password field is incorrect."]
+    }
+  }
+  ```
+
+---
+
 ## User Profile
 
 ### Get Profile

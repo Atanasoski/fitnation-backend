@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
 
     // User endpoints
     Route::get('/user', [UserController::class, 'show']);
+    Route::delete('/user', [UserController::class, 'destroy']);
     Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
 
     // Profile endpoints

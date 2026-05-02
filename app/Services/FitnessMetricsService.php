@@ -138,10 +138,10 @@ class FitnessMetricsService
      */
     private function getWeeklyProgress(): array
     {
-        $currentWeekStart = Carbon::now()->startOfWeek(); // Monday
-        $currentWeekEnd = Carbon::now()->endOfWeek(); // Sunday
-        $previousWeekStart = Carbon::now()->subWeek()->startOfWeek();
-        $previousWeekEnd = Carbon::now()->subWeek()->endOfWeek();
+        $currentWeekStart = Carbon::now()->subWeek()->startOfWeek();
+        $currentWeekEnd = Carbon::now()->subWeek()->endOfWeek();
+        $previousWeekStart = Carbon::now()->subWeeks(2)->startOfWeek();
+        $previousWeekEnd = Carbon::now()->subWeeks(2)->endOfWeek();
 
         // Get current week sessions with set logs
         $currentWeekSessions = WorkoutSession::where('user_id', $this->user->id)
@@ -161,7 +161,6 @@ class FitnessMetricsService
         $previousWeekWorkouts = $previousWeekSessions->count();
 
         // Conversion factor: 1 kg = 2.20462 lbs
-        $kgToLbs = 2.20462;
 
         // Calculate volume (weight × reps) for current week
         // Weight is stored in KG, convert to lbs for API response
@@ -170,7 +169,7 @@ class FitnessMetricsService
         foreach ($currentWeekSessions as $session) {
             foreach ($session->setLogs as $setLog) {
                 // Volume in KG, convert to lbs
-                $currentWeekVolume += ($setLog->weight * $setLog->reps) * $kgToLbs;
+                $currentWeekVolume += ($setLog->weight * $setLog->reps);
             }
             // Calculate duration in minutes
             if ($session->performed_at && $session->completed_at) {
@@ -183,7 +182,7 @@ class FitnessMetricsService
         foreach ($previousWeekSessions as $session) {
             foreach ($session->setLogs as $setLog) {
                 // Volume in KG, convert to lbs
-                $previousWeekVolume += ($setLog->weight * $setLog->reps) * $kgToLbs;
+                $previousWeekVolume += ($setLog->weight * $setLog->reps);
             }
         }
 
@@ -210,6 +209,8 @@ class FitnessMetricsService
             $trend = 'up';
         } elseif ($percentage < 0) {
             $trend = 'down';
+        } else {
+            $trend = 'same';
         }
 
         // Create daily breakdown for current week
@@ -219,7 +220,7 @@ class FitnessMetricsService
         $historicalWeeks = $this->getHistoricalWeeklyProgress(8);
 
         $result = [
-            'percentage' => (int) round(abs($percentage)),
+            'percentage' => (int) round($percentage),
             'trend' => $trend,
             'current_week_workouts' => $currentWeekWorkouts,
             'previous_week_workouts' => $previousWeekWorkouts,
@@ -815,9 +816,6 @@ class FitnessMetricsService
             ];
         }
 
-        // Conversion factor: 1 kg = 2.20462 lbs
-        $kgToLbs = 2.20462;
-
         // Process sessions and aggregate by day
         foreach ($sessions as $session) {
             // Carbon's dayOfWeekIso returns 1-7 where 1 = Monday, 7 = Sunday
@@ -825,10 +823,9 @@ class FitnessMetricsService
             $dayOfWeek = $session->performed_at->dayOfWeekIso - 1;
 
             // Calculate volume for this session
-            // Weight is stored in KG, convert to lbs for API response
             $sessionVolume = 0;
             foreach ($session->setLogs as $setLog) {
-                $sessionVolume += ($setLog->weight * $setLog->reps) * $kgToLbs;
+                $sessionVolume += ($setLog->weight * $setLog->reps);
             }
 
             // Calculate duration

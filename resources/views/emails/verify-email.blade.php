@@ -25,6 +25,7 @@
             max-width: 120px;
             height: auto;
             margin-bottom: 20px;
+            border-radius: 10px;
         }
         .header-text {
             color: {{ $user->partner?->identity?->text_on_primary_color ?? '#ffffff' }};

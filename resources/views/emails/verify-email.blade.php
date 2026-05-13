@@ -54,7 +54,7 @@
         .cta-button {
             display: inline-block;
             background-color: {{ $user->partner?->identity?->primary_color ?? '#fa812d' }};
-            color: #ffffff;
+            color: #ffffff !important;
             padding: 16px 32px;
             text-decoration: none;
             border-radius: 8px;
@@ -111,7 +111,7 @@
             </div>
 
             <div style="text-align: center;">
-                <a href="{{ $verificationUrl }}" class="cta-button">
+                <a href="{{ $verificationUrl }}" class="cta-button" style="color: #ffffff !important;">
                     Verify Email Address
                 </a>
             </div>

@@ -17,9 +17,12 @@
             background-color: #ffffff;
         }
         .header {
-            background-color: {{ $user->partner?->identity?->primary_color ?? '#fa812d' }};
+            background-color: #f9fafb;
+            border-left: 4px solid {{ $user->partner?->identity?->primary_color ?? '#fa812d' }};
             padding: 40px 20px;
             text-align: center;
+            margin: 20px;
+            border-radius: 4px;
         }
         .logo {
             max-width: 120px;
@@ -28,7 +31,7 @@
             border-radius: 10px;
         }
         .header-text {
-            color: {{ $user->partner?->identity?->text_on_primary_color ?? '#ffffff' }};
+            color: #111827;
             font-size: 24px;
             font-weight: bold;
             margin: 0;

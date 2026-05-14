@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             ExerciseClassificationSeeder::class, // Classify exercises with lookup table FKs
             PartnerExerciseSeeder::class, // Link partners to default exercises
             WorkoutSplitSeeder::class,   // Create workout splits
+            PushPullLegsPlanSeeder::class, // 6-Day PPL plan for Fit Nation (partner 1)
         ]);
 
         $this->command->info('');

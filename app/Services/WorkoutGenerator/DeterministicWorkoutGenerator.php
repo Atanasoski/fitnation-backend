@@ -565,7 +565,7 @@ class DeterministicWorkoutGenerator
         $trainingStyles = $this->normalizeStringList($preferences['training_styles'] ?? null);
 
         if (! empty($equipmentTypes)) {
-            if ($trainingStyles === ['BODYBUILDING'] && $this->isFunctionalOnlyEquipment($equipmentTypes)) {
+            if ($trainingStyles === ['BODYBUILDING'] && $this->hasAnyFunctionalEquipment($equipmentTypes)) {
                 return null;
             }
 
@@ -578,9 +578,9 @@ class DeterministicWorkoutGenerator
     /**
      * @param  list<string>  $equipmentTypes
      */
-    private function isFunctionalOnlyEquipment(array $equipmentTypes): bool
+    private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
     {
-        return collect($equipmentTypes)->every(
+        return collect($equipmentTypes)->contains(
             fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
         );
     }

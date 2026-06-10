@@ -1847,7 +1847,7 @@ interface GenerateWorkoutRequest {
 - If `equipment_types` not provided → system uses all available equipment types
 - If neither `training_styles` nor `equipment_types` is provided → defaults to `["BODYBUILDING"]`
 - If only `equipment_types` is provided (or `training_styles` is omitted / `[]`) → no training style filter is applied (all exercises matching that equipment)
-- If the client sends `training_styles: ["BODYBUILDING"]` together with **functional-only** equipment (`TRX`, `LANDMINE`, `KETTLEBELL`, `BAND`, `MEDICINE_BALL`), the backend treats that as an implicit default (no style selected) and ignores the bodybuilding filter — omit `training_styles` or send `[]` instead when no style is selected
+- If the client sends `training_styles: ["BODYBUILDING"]` together with **any** functional equipment (`TRX`, `LANDMINE`, `KETTLEBELL`, `BAND`, `MEDICINE_BALL`) — including mixed selections such as `["DUMBBELL", "TRX"]` — the backend treats that as an implicit default (no style selected) and ignores the bodybuilding filter — omit `training_styles` or send `[]` instead when no style is selected
 - If multiple `equipment_types` are provided → exercises matching **any** listed equipment (OR), e.g. `["DUMBBELL", "TRX"]`
 - If multiple `training_styles` are provided → exercises tagged with **any** listed style (OR), e.g. `["FUNCTIONAL", "OLYMPIC"]`
 - If both `equipment_types` and `training_styles` are provided → exercises must satisfy **both** filters (AND), e.g. `["LANDMINE"]` + `["FUNCTIONAL"]` or `["TRX"]` + `["BODYBUILDING", "FUNCTIONAL"]`

@@ -1101,6 +1101,88 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $this->assertContains($trxRow->id, $selectedIds);
     }
 
+    public function test_generator_includes_mixed_equipment_when_functional_is_in_selection_with_implicit_bodybuilding(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $trxType = EquipmentType::firstOrCreate(
+            ['code' => 'TRX'],
+            ['name' => 'TRX', 'display_order' => 90]
+        );
+
+        $dumbbellPress = Exercise::factory()->press()->barbell()->flat()->create([
+            'name' => 'Dumbbell Bench Press',
+        ]);
+        $dumbbellPress->equipmentType()->associate(
+            EquipmentType::firstOrCreate(['code' => 'DUMBBELL'], ['name' => 'Dumbbell', 'display_order' => 20])
+        );
+        $dumbbellPress->save();
+
+        $trxRow = Exercise::factory()->row()->flat()->create([
+            'name' => 'TRX Row',
+            'equipment_type_id' => $trxType->id,
+        ]);
+
+        $this->attachToPartnerAndBodybuildingStyle([$dumbbellPress], $partner);
+        $this->attachToPartnerAndTrainingStyle([$trxRow], $partner, 'FUNCTIONAL');
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
+            'equipment_types' => ['DUMBBELL', 'TRX'],
+            'training_styles' => ['BODYBUILDING'],
+            'duration_minutes' => 60,
+        ]);
+
+        $selectedIds = array_column($result['exercises'], 'exercise_id');
+        $this->assertContains($dumbbellPress->id, $selectedIds);
+        $this->assertContains($trxRow->id, $selectedIds);
+    }
+
+    public function test_generator_keeps_bodybuilding_filter_for_non_functional_equipment_only(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $bodybuildingExercise = Exercise::factory()->press()->barbell()->flat()->create([
+            'name' => 'Dumbbell Bench Press',
+        ]);
+        $bodybuildingExercise->equipmentType()->associate(
+            EquipmentType::firstOrCreate(['code' => 'DUMBBELL'], ['name' => 'Dumbbell', 'display_order' => 20])
+        );
+        $bodybuildingExercise->save();
+
+        $functionalExercise = Exercise::factory()->press()->barbell()->flat()->create([
+            'name' => 'Dumbbell Thruster',
+        ]);
+        $functionalExercise->equipmentType()->associate(
+            EquipmentType::firstOrCreate(['code' => 'DUMBBELL'], ['name' => 'Dumbbell', 'display_order' => 20])
+        );
+        $functionalExercise->save();
+
+        $this->attachToPartnerAndBodybuildingStyle([$bodybuildingExercise], $partner);
+        $this->attachToPartnerAndTrainingStyle([$functionalExercise], $partner, 'FUNCTIONAL');
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'equipment_types' => ['DUMBBELL'],
+            'training_styles' => ['BODYBUILDING'],
+            'duration_minutes' => 60,
+        ]);
+
+        $selectedIds = array_column($result['exercises'], 'exercise_id');
+        $this->assertContains($bodybuildingExercise->id, $selectedIds);
+        $this->assertNotContains($functionalExercise->id, $selectedIds);
+    }
+
     public function test_generator_fails_when_equipment_and_training_style_do_not_overlap(): void
     {
         $partner = Partner::factory()->create();

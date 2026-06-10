@@ -41,13 +41,22 @@ class DeterministicWorkoutGenerator
             'duration_minutes' => $durationMinutes,
         ]);
 
+        // Apply training_styles when explicitly provided. Only default to BODYBUILDING when
+        // neither equipment nor style filters are set — otherwise equipment-only requests
+        // would incorrectly exclude functional equipment (e.g. TRX).
+        $trainingStyles = $preferences['training_styles'] ?? null;
+
+        if ($trainingStyles === null && empty($preferences['equipment_types'])) {
+            $trainingStyles = ['BODYBUILDING'];
+        }
+
         // Get available exercises matching filters
         $exercises = $this->exerciseSelector->getAvailableExercises([
             'target_regions' => $targetRegions,
             'equipment_types' => $preferences['equipment_types'] ?? null,
             'movement_patterns' => $preferences['movement_patterns'] ?? null,
             'angles' => $preferences['angles'] ?? null,
-            'training_styles' => $preferences['training_styles'] ?? ['BODYBUILDING'],
+            'training_styles' => $trainingStyles,
             'limit' => 200,
         ], $user->partner);
 
@@ -64,7 +73,7 @@ class DeterministicWorkoutGenerator
                 'equipment_types' => $preferences['equipment_types'] ?? null,
                 'movement_patterns' => $complementaryMovementPatterns,
                 'angles' => $preferences['angles'] ?? null,
-                'training_styles' => $preferences['training_styles'] ?? ['BODYBUILDING'],
+                'training_styles' => $trainingStyles,
                 'limit' => 200,
             ], $user->partner);
 
@@ -93,7 +102,7 @@ class DeterministicWorkoutGenerator
         $orderedExercises = $this->orderByCompoundFirst($selectedExercises);
 
         // Apply progression targets for each exercise (sets already distributed)
-        $exercisesWithTargets = $this->applyTargets($orderedExercises, $user, $normalizedPreferences);
+        $exercisesWithTargets = $this->applyTargets($orderedExercises, $user);
 
         Log::info('Deterministic workout generated', [
             'user_id' => $user->id,
@@ -459,7 +468,7 @@ class DeterministicWorkoutGenerator
      * Apply progression targets to selected exercises.
      * Sets come from distribution, reps/rest come from goal defaults or progression calculator.
      */
-    private function applyTargets(Collection $exercises, User $user, array $preferences): array
+    private function applyTargets(Collection $exercises, User $user): array
     {
         $fitnessGoal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
         $trainingExperience = $user->profile?->training_experience;

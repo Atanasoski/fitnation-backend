@@ -406,7 +406,11 @@ Generates a personalized welcome workout plan based on the user's profile. This 
 **Request Body (optional):**
 ```typescript
 interface CompleteOnboardingRequest {
-  plan_name?: string;  // Optional: Custom name for the plan (defaults to "Your Personalized Plan")
+  plan_name?: string;        // Optional: Custom name for the plan (defaults to "Your Personalized Plan")
+  equipment_types?: string[]; // Optional: e.g. ["DUMBBELL", "TRX"] — filters every generated workout to these equipment types. Combined with training_styles when both are provided (AND logic).
+  movement_patterns?: string[]; // Optional: e.g. ["PRESS", "ROW"]
+  angles?: string[];           // Optional: e.g. ["FLAT", "INCLINE"]
+  training_styles?: string[];  // Optional: e.g. ["FUNCTIONAL"] — combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
 }
 ```
 
@@ -1044,14 +1048,18 @@ POST /api/plans/regenerate
 ```
 *Requires authentication*
 
-Creates a new 12-week personalized program from the user's profile (same algorithm as onboarding). Any **active** plan with `is_auto_generated: true` for this user is deactivated (`is_active` set to `false`); templates and workout history on older plans remain in the database for calendars and history. The new plan is set active with `is_auto_generated: true`.
+Creates a new 5-week personalized program from the user's profile (same algorithm as onboarding). Any **active** plan with `is_auto_generated: true` for this user is deactivated (`is_active` set to `false`); templates and workout history on older plans remain in the database for calendars and history. The new plan is set active with `is_auto_generated: true`.
 
 Requires onboarding to be complete and the same profile fields as plan generation (fitness goal, training experience, training days per week, workout duration).
 
 **Request Body (optional):**
 ```typescript
 interface RegeneratePlanRequest {
-  plan_name?: string;  // Optional display name (defaults to "Your Personalized Plan")
+  plan_name?: string;        // Optional display name (defaults to "Your Personalized Plan")
+  equipment_types?: string[]; // Optional: filters every generated workout to these equipment types. Combined with training_styles when both are provided (AND logic).
+  movement_patterns?: string[]; // Optional
+  angles?: string[];           // Optional
+  training_styles?: string[];  // Optional: combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
 }
 ```
 
@@ -1821,9 +1829,10 @@ Generates a new workout session in draft status. Creates a session with exercise
 ```typescript
 interface GenerateWorkoutRequest {
   target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to all regions (full body) if not provided
-  equipment_types?: string[];          // optional, e.g., ["MACHINE", "BARBELL"] - defaults to all if not provided
+  equipment_types?: string[];          // optional, e.g., ["DUMBBELL", "TRX"] - defaults to all if not provided. Combined with training_styles when both are provided (AND logic).
   movement_patterns?: string[];        // optional, e.g., ["PRESS", "FLY", "DIP"]
   angles?: string[];                   // optional, e.g., ["FLAT", "INCLINE", "DECLINE"]
+  training_styles?: string[];          // optional, e.g., ["FUNCTIONAL"] - combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
   duration_minutes?: number;           // optional, min 15, max 180 - uses profile default if not provided
   difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional - uses profile training_experience if not provided
 }
@@ -1832,6 +1841,9 @@ interface GenerateWorkoutRequest {
 **Defaults:**
 - If `target_regions` not provided → system generates full body workout (all target regions)
 - If `equipment_types` not provided → system uses all available equipment types
+- If neither `training_styles` nor `equipment_types` is provided → defaults to `["BODYBUILDING"]`
+- If only `equipment_types` is provided → no training style filter is applied (all exercises matching that equipment)
+- If both `equipment_types` and `training_styles` are provided → exercises must match both filters (e.g. `["TRX"]` + `["FUNCTIONAL"]`)
 - If `duration_minutes` not provided → system uses user profile `workout_duration_minutes`
 - If `difficulty` not provided → system uses user profile `training_experience`
 
@@ -1851,11 +1863,17 @@ interface GenerateWorkoutRequest {
 - `CORE` - Abs, Obliques
 
 **Available Equipment Type Codes:**
-- `MACHINE` - Machine exercises
 - `BARBELL` - Barbell exercises
-- `DUMBBELL` - Dumbbell exercises
-- `CABLE` - Cable exercises
 - `BODYWEIGHT` - Bodyweight exercises
+- `CABLE` - Cable exercises
+- `DUMBBELL` - Dumbbell exercises
+- `KETTLEBELL` - Kettlebell exercises
+- `MACHINE` - Machine exercises
+- `TRX` - TRX suspension training exercises
+
+**Available Training Style Codes:**
+- `BODYBUILDING` - Bodybuilding-style exercises (default when no equipment filter is set)
+- `FUNCTIONAL` - Functional training exercises (includes TRX, kettlebell, etc.)
 
 **Available Movement Pattern Codes:**
 - `PRESS` - Pressing movements
@@ -1997,9 +2015,10 @@ Cancels the current draft session and generates a new one with optionally differ
 ```typescript
 interface RegenerateWorkoutRequest {
   target_regions?: string[];           // optional - defaults to all regions (full body) if not provided
-  equipment_types?: string[];          // optional - defaults to all if not provided
+  equipment_types?: string[];          // optional - combined with training_styles when both are provided (AND logic)
   movement_patterns?: string[];        // optional
   angles?: string[];                   // optional
+  training_styles?: string[];          // optional - combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
   duration_minutes?: number;           // optional, min 15, max 180
   difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional
 }

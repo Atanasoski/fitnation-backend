@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
+use App\Models\EquipmentType;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\TargetRegion;
+use App\Models\TrainingStyle;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -190,6 +192,58 @@ class WorkoutSessionGenerationTest extends TestCase
         $response->assertStatus(201);
         $this->assertNotEmpty($response->json('data.exercises'));
         $this->assertEquals('draft', $response->json('data.status'));
+    }
+
+    public function test_generate_with_training_style_preference(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $trxType = EquipmentType::firstOrCreate(
+            ['code' => 'TRX'],
+            ['name' => 'TRX', 'display_order' => 90]
+        );
+        $functionalStyle = TrainingStyle::firstOrCreate(
+            ['code' => 'FUNCTIONAL'],
+            ['name' => 'Functional Training', 'display_order' => 20]
+        );
+
+        $bodybuildingStyle = TrainingStyle::firstOrCreate(
+            ['code' => 'BODYBUILDING'],
+            ['name' => 'Bodybuilding', 'display_order' => 10]
+        );
+
+        $trxExercise = Exercise::factory()->press()->flat()->create([
+            'name' => 'TRX Chest Press',
+            'equipment_type_id' => $trxType->id,
+        ]);
+        $barbellExercise = Exercise::factory()->press()->barbell()->flat()->create([
+            'name' => 'Barbell Bench Press',
+        ]);
+
+        foreach ([$trxExercise, $barbellExercise] as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+        $trxExercise->trainingStyles()->attach($functionalStyle->id);
+        $barbellExercise->trainingStyles()->attach($bodybuildingStyle->id);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [
+                'target_regions' => ['UPPER_PUSH'],
+                'training_styles' => ['FUNCTIONAL'],
+                'duration_minutes' => 45,
+            ]);
+
+        $response->assertStatus(201);
+        $selectedIds = collect($response->json('data.exercises'))
+            ->pluck('session_exercise.exercise_id')
+            ->all();
+        $this->assertContains($trxExercise->id, $selectedIds);
+        $this->assertNotContains($barbellExercise->id, $selectedIds);
     }
 
     public function test_generate_validation(): void

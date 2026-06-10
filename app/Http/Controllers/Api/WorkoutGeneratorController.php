@@ -32,6 +32,7 @@ class WorkoutGeneratorController extends Controller
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
                 'difficulty' => $request->input('difficulty'),
             ];
@@ -99,6 +100,7 @@ class WorkoutGeneratorController extends Controller
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
                 'difficulty' => $request->input('difficulty'),
             ];

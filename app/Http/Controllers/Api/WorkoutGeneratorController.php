@@ -37,8 +37,11 @@ class WorkoutGeneratorController extends Controller
                 'difficulty' => $request->input('difficulty'),
             ];
 
-            // Remove null values
-            $preferences = array_filter($preferences, fn ($value) => $value !== null);
+            // Remove null and empty array values
+            $preferences = array_filter(
+                $preferences,
+                fn ($value) => $value !== null && $value !== []
+            );
 
             $session = $this->workoutGenerationService->generate($user, $preferences);
 
@@ -105,8 +108,11 @@ class WorkoutGeneratorController extends Controller
                 'difficulty' => $request->input('difficulty'),
             ];
 
-            // Remove null values
-            $preferences = array_filter($preferences, fn ($value) => $value !== null);
+            // Remove null and empty array values
+            $preferences = array_filter(
+                $preferences,
+                fn ($value) => $value !== null && $value !== []
+            );
 
             $newSession = $this->workoutGenerationService->regenerateSession($session, $preferences);
 

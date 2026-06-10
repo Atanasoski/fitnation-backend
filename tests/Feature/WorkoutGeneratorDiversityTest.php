@@ -1037,7 +1037,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $this->assertNotContains($trxBodybuilding->id, $selectedIds);
     }
 
-    public function test_generator_fails_when_equipment_and_training_style_do_not_overlap(): void
+    public function test_generator_ignores_client_bodybuilding_default_for_functional_equipment(): void
     {
         $partner = Partner::factory()->create();
         $user = User::factory()->create(['partner_id' => $partner->id]);
@@ -1051,19 +1051,77 @@ class WorkoutGeneratorDiversityTest extends TestCase
             ['name' => 'TRX', 'display_order' => 90]
         );
 
-        $trxFunctional = Exercise::factory()->press()->flat()->create([
-            'name' => 'TRX Chest Press',
+        $trxRow = Exercise::factory()->row()->flat()->create([
+            'name' => 'TRX Row',
             'equipment_type_id' => $trxType->id,
         ]);
 
-        $this->attachToPartnerAndTrainingStyle([$trxFunctional], $partner, 'FUNCTIONAL');
+        $this->attachToPartnerAndTrainingStyle([$trxRow], $partner, 'FUNCTIONAL');
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PULL'],
+            'equipment_types' => ['TRX'],
+            'training_styles' => ['BODYBUILDING'],
+            'duration_minutes' => 60,
+        ]);
+
+        $selectedIds = array_column($result['exercises'], 'exercise_id');
+        $this->assertContains($trxRow->id, $selectedIds);
+    }
+
+    public function test_generator_treats_empty_training_styles_array_as_unset_when_equipment_selected(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $trxType = EquipmentType::firstOrCreate(
+            ['code' => 'TRX'],
+            ['name' => 'TRX', 'display_order' => 90]
+        );
+
+        $trxRow = Exercise::factory()->row()->flat()->create([
+            'name' => 'TRX Row',
+            'equipment_type_id' => $trxType->id,
+        ]);
+
+        $this->attachToPartnerAndTrainingStyle([$trxRow], $partner, 'FUNCTIONAL');
+
+        $result = $this->generator->generate($user, [
+            'target_regions' => ['UPPER_PULL'],
+            'equipment_types' => ['TRX'],
+            'training_styles' => [],
+            'duration_minutes' => 60,
+        ]);
+
+        $selectedIds = array_column($result['exercises'], 'exercise_id');
+        $this->assertContains($trxRow->id, $selectedIds);
+    }
+
+    public function test_generator_fails_when_equipment_and_training_style_do_not_overlap(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $functionalExercise = Exercise::factory()->press()->barbell()->flat()->create([
+            'name' => 'Barbell Thruster',
+        ]);
+
+        $this->attachToPartnerAndTrainingStyle([$functionalExercise], $partner, 'FUNCTIONAL');
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No exercises available matching the specified criteria');
 
         $this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH'],
-            'equipment_types' => ['TRX'],
+            'equipment_types' => ['BARBELL'],
             'training_styles' => ['BODYBUILDING'],
             'duration_minutes' => 60,
         ]);

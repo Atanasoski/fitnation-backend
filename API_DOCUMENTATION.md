@@ -407,12 +407,14 @@ Generates a personalized welcome workout plan based on the user's profile. This 
 ```typescript
 interface CompleteOnboardingRequest {
   plan_name?: string;        // Optional: Custom name for the plan (defaults to "Your Personalized Plan")
-  equipment_types?: string[]; // Optional: e.g. ["DUMBBELL", "TRX"] — filters every generated workout to these equipment types. Combined with training_styles when both are provided (AND logic).
+  equipment_types?: string[]; // Optional: array of equipment codes, e.g. ["DUMBBELL", "TRX"]. Multiple values use OR logic.
   movement_patterns?: string[]; // Optional: e.g. ["PRESS", "ROW"]
   angles?: string[];           // Optional: e.g. ["FLAT", "INCLINE"]
-  training_styles?: string[];  // Optional: e.g. ["FUNCTIONAL"] — combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
+  training_styles?: string[];  // Optional: array of training style codes, e.g. ["FUNCTIONAL"] or ["BODYBUILDING", "FUNCTIONAL"]. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
 }
 ```
+
+**Exercise filter semantics:** Within each array field, multiple values are combined with **OR** (e.g. `["FUNCTIONAL", "OLYMPIC"]` matches exercises tagged with either style). Across fields, filters are combined with **AND** (e.g. `equipment_types: ["LANDMINE"]` + `training_styles: ["FUNCTIONAL"]` requires both).
 
 **Response (201 Created):**
 ```typescript
@@ -1056,12 +1058,14 @@ Requires onboarding to be complete and the same profile fields as plan generatio
 ```typescript
 interface RegeneratePlanRequest {
   plan_name?: string;        // Optional display name (defaults to "Your Personalized Plan")
-  equipment_types?: string[]; // Optional: filters every generated workout to these equipment types. Combined with training_styles when both are provided (AND logic).
+  equipment_types?: string[]; // Optional: array of equipment codes. Multiple values use OR logic.
   movement_patterns?: string[]; // Optional
   angles?: string[];           // Optional
-  training_styles?: string[];  // Optional: combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
+  training_styles?: string[];  // Optional: array of training style codes. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
 }
 ```
+
+**Exercise filter semantics:** Same as [Complete Onboarding](#complete-onboarding) — OR within each array field, AND across fields.
 
 **Response (201 Created):**
 ```typescript
@@ -1829,10 +1833,10 @@ Generates a new workout session in draft status. Creates a session with exercise
 ```typescript
 interface GenerateWorkoutRequest {
   target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to all regions (full body) if not provided
-  equipment_types?: string[];          // optional, e.g., ["DUMBBELL", "TRX"] - defaults to all if not provided. Combined with training_styles when both are provided (AND logic).
+  equipment_types?: string[];          // optional, array of equipment codes, e.g. ["DUMBBELL", "TRX"] — defaults to all if not provided. Multiple values use OR logic.
   movement_patterns?: string[];        // optional, e.g., ["PRESS", "FLY", "DIP"]
   angles?: string[];                   // optional, e.g., ["FLAT", "INCLINE", "DECLINE"]
-  training_styles?: string[];          // optional, e.g., ["FUNCTIONAL"] - combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
+  training_styles?: string[];          // optional, array of training style codes, e.g. ["FUNCTIONAL"] or ["BODYBUILDING", "FUNCTIONAL"]. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
   duration_minutes?: number;           // optional, min 15, max 180 - uses profile default if not provided
   difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional - uses profile training_experience if not provided
 }
@@ -1842,8 +1846,11 @@ interface GenerateWorkoutRequest {
 - If `target_regions` not provided → system generates full body workout (all target regions)
 - If `equipment_types` not provided → system uses all available equipment types
 - If neither `training_styles` nor `equipment_types` is provided → defaults to `["BODYBUILDING"]`
-- If only `equipment_types` is provided → no training style filter is applied (all exercises matching that equipment)
-- If both `equipment_types` and `training_styles` are provided → exercises must match both filters (e.g. `["TRX"]` + `["FUNCTIONAL"]`)
+- If only `equipment_types` is provided (or `training_styles` is omitted / `[]`) → no training style filter is applied (all exercises matching that equipment)
+- If the client sends `training_styles: ["BODYBUILDING"]` together with **functional-only** equipment (`TRX`, `LANDMINE`, `KETTLEBELL`, `BAND`, `MEDICINE_BALL`), the backend treats that as an implicit default (no style selected) and ignores the bodybuilding filter — omit `training_styles` or send `[]` instead when no style is selected
+- If multiple `equipment_types` are provided → exercises matching **any** listed equipment (OR), e.g. `["DUMBBELL", "TRX"]`
+- If multiple `training_styles` are provided → exercises tagged with **any** listed style (OR), e.g. `["FUNCTIONAL", "OLYMPIC"]`
+- If both `equipment_types` and `training_styles` are provided → exercises must satisfy **both** filters (AND), e.g. `["LANDMINE"]` + `["FUNCTIONAL"]` or `["TRX"]` + `["BODYBUILDING", "FUNCTIONAL"]`
 - If `duration_minutes` not provided → system uses user profile `workout_duration_minutes`
 - If `difficulty` not provided → system uses user profile `training_experience`
 
@@ -1872,8 +1879,12 @@ interface GenerateWorkoutRequest {
 - `TRX` - TRX suspension training exercises
 
 **Available Training Style Codes:**
-- `BODYBUILDING` - Bodybuilding-style exercises (default when no equipment filter is set)
-- `FUNCTIONAL` - Functional training exercises (includes TRX, kettlebell, etc.)
+- `BODYBUILDING` - Bodybuilding-style exercises (default when no equipment or style filter is set)
+- `FUNCTIONAL` - Functional training exercises (includes TRX, kettlebell, landmine, etc.)
+- `OLYMPIC` - Olympic lifting exercises (cleans, snatches, etc.)
+- `CALISTHENICS` - Calisthenics exercises (bodyweight skills such as dips, pull-ups, handstands)
+
+Multiple codes may be sent in `training_styles`; an exercise qualifies if it is tagged with **any** of the requested styles.
 
 **Available Movement Pattern Codes:**
 - `PRESS` - Pressing movements
@@ -2015,14 +2026,16 @@ Cancels the current draft session and generates a new one with optionally differ
 ```typescript
 interface RegenerateWorkoutRequest {
   target_regions?: string[];           // optional - defaults to all regions (full body) if not provided
-  equipment_types?: string[];          // optional - combined with training_styles when both are provided (AND logic)
+  equipment_types?: string[];          // optional, array of equipment codes. Multiple values use OR logic.
   movement_patterns?: string[];        // optional
   angles?: string[];                   // optional
-  training_styles?: string[];          // optional - combined with equipment_types when both are provided. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
+  training_styles?: string[];          // optional, array of training style codes. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
   duration_minutes?: number;           // optional, min 15, max 180
   difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional
 }
 ```
+
+**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields.
 
 **Response (201 Created):**
 ```typescript

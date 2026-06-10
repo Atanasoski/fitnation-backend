@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Log;
 
 class DeterministicWorkoutGenerator
 {
+    /** @var list<string> */
+    private const FUNCTIONAL_EQUIPMENT_CODES = [
+        'TRX',
+        'LANDMINE',
+        'KETTLEBELL',
+        'BAND',
+        'MEDICINE_BALL',
+    ];
+
     public function __construct(
         private ExerciseSelectorService $exerciseSelector,
         private ProgressionCalculatorService $progressionCalculator
@@ -41,21 +50,15 @@ class DeterministicWorkoutGenerator
             'duration_minutes' => $durationMinutes,
         ]);
 
-        // Apply training_styles when explicitly provided. Only default to BODYBUILDING when
-        // neither equipment nor style filters are set — otherwise equipment-only requests
-        // would incorrectly exclude functional equipment (e.g. TRX).
-        $trainingStyles = $preferences['training_styles'] ?? null;
-
-        if ($trainingStyles === null && empty($preferences['equipment_types'])) {
-            $trainingStyles = ['BODYBUILDING'];
-        }
+        $equipmentTypes = $this->normalizeStringList($preferences['equipment_types'] ?? null);
+        $trainingStyles = $this->resolveTrainingStyleFilter($preferences, $equipmentTypes);
 
         // Get available exercises matching filters
         $exercises = $this->exerciseSelector->getAvailableExercises([
             'target_regions' => $targetRegions,
-            'equipment_types' => $preferences['equipment_types'] ?? null,
-            'movement_patterns' => $preferences['movement_patterns'] ?? null,
-            'angles' => $preferences['angles'] ?? null,
+            'equipment_types' => $equipmentTypes,
+            'movement_patterns' => $this->normalizeStringList($preferences['movement_patterns'] ?? null),
+            'angles' => $this->normalizeStringList($preferences['angles'] ?? null),
             'training_styles' => $trainingStyles,
             'limit' => 200,
         ], $user->partner);
@@ -70,9 +73,9 @@ class DeterministicWorkoutGenerator
         if (! empty($complementaryMovementPatterns)) {
             $complementary = $this->exerciseSelector->getAvailableExercises([
                 'target_regions' => null,
-                'equipment_types' => $preferences['equipment_types'] ?? null,
+                'equipment_types' => $equipmentTypes,
                 'movement_patterns' => $complementaryMovementPatterns,
-                'angles' => $preferences['angles'] ?? null,
+                'angles' => $this->normalizeStringList($preferences['angles'] ?? null),
                 'training_styles' => $trainingStyles,
                 'limit' => 200,
             ], $user->partner);
@@ -550,5 +553,52 @@ class DeterministicWorkoutGenerator
         $description = implode(', ', $parts);
 
         return "Generated workout {$description}. Exercises ordered from compound to isolation for optimal performance.";
+    }
+
+    /**
+     * @param  array<string, mixed>  $preferences
+     * @param  list<string>|null  $equipmentTypes
+     * @return list<string>|null
+     */
+    private function resolveTrainingStyleFilter(array $preferences, ?array $equipmentTypes): ?array
+    {
+        $trainingStyles = $this->normalizeStringList($preferences['training_styles'] ?? null);
+
+        if (! empty($equipmentTypes)) {
+            if ($trainingStyles === ['BODYBUILDING'] && $this->isFunctionalOnlyEquipment($equipmentTypes)) {
+                return null;
+            }
+
+            return $trainingStyles;
+        }
+
+        return $trainingStyles ?? ['BODYBUILDING'];
+    }
+
+    /**
+     * @param  list<string>  $equipmentTypes
+     */
+    private function isFunctionalOnlyEquipment(array $equipmentTypes): bool
+    {
+        return collect($equipmentTypes)->every(
+            fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
+        );
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function normalizeStringList(mixed $values): ?array
+    {
+        if (! is_array($values)) {
+            return null;
+        }
+
+        $normalized = array_values(array_filter(
+            $values,
+            fn ($value) => is_string($value) && $value !== ''
+        ));
+
+        return $normalized === [] ? null : $normalized;
     }
 }

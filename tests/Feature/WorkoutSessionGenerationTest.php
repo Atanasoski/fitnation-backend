@@ -246,6 +246,50 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotContains($barbellExercise->id, $selectedIds);
     }
 
+    public function test_generate_ignores_implicit_bodybuilding_default_for_trx_equipment(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $trxType = EquipmentType::firstOrCreate(
+            ['code' => 'TRX'],
+            ['name' => 'TRX', 'display_order' => 90]
+        );
+        $functionalStyle = TrainingStyle::firstOrCreate(
+            ['code' => 'FUNCTIONAL'],
+            ['name' => 'Functional Training', 'display_order' => 20]
+        );
+        TrainingStyle::firstOrCreate(
+            ['code' => 'BODYBUILDING'],
+            ['name' => 'Bodybuilding', 'display_order' => 10]
+        );
+
+        $trxRow = Exercise::factory()->row()->flat()->create([
+            'name' => 'TRX Row',
+            'equipment_type_id' => $trxType->id,
+        ]);
+        $trxRow->partners()->attach($partner->id);
+        $trxRow->trainingStyles()->attach($functionalStyle->id);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [
+                'target_regions' => ['UPPER_PULL'],
+                'equipment_types' => ['TRX'],
+                'training_styles' => ['BODYBUILDING'],
+                'duration_minutes' => 45,
+            ]);
+
+        $response->assertStatus(201);
+        $selectedIds = collect($response->json('data.exercises'))
+            ->pluck('session_exercise.exercise_id')
+            ->all();
+        $this->assertContains($trxRow->id, $selectedIds);
+    }
+
     public function test_generate_validation(): void
     {
         $user = User::factory()->create();

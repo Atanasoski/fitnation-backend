@@ -226,19 +226,22 @@ class WorkoutSessionController extends Controller
             abort(403, 'Set log does not belong to this session.');
         }
 
-        // Verify this is the last set for this exercise
-        $lastSet = SetLog::where('workout_session_id', $session->id)
-            ->where('exercise_id', $setLog->exercise_id)
-            ->orderBy('set_number', 'desc')
-            ->first();
+        // Delete the set and re-sequence the remaining sets so their set_number
+        // stays contiguous (1..N). target_sets is owned by the client, which
+        // decrements it via updateSessionExercise, so we don't touch it here.
+        DB::transaction(function () use ($session, $setLog) {
+            $exerciseId = $setLog->exercise_id;
+            $deleted = $setLog->set_number;
 
-        if (! $lastSet || $lastSet->id !== $setLog->id) {
-            return response()->json([
-                'message' => 'Only the last set can be deleted.',
-            ], 422);
-        }
+            $setLog->delete();
 
-        $setLog->delete();
+            // Shift every later set down by one. Safe as a single bulk UPDATE:
+            // there is no unique constraint on set_number.
+            SetLog::where('workout_session_id', $session->id)
+                ->where('exercise_id', $exerciseId)
+                ->where('set_number', '>', $deleted)
+                ->decrement('set_number');
+        });
 
         return response()->json([
             'message' => 'Set deleted successfully',

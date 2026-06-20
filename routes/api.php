@@ -36,17 +36,29 @@ Route::get('/partners', [PartnerController::class, 'activeList'])
 Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'])
     ->middleware('throttle:6,1');
 
+// Public webhooks (signature-verified)
+Route::webhooks('webhooks/revenuecat', 'revenuecat')
+    ->middleware('throttle:60,1');
+
 // Protected endpoints
 Route::middleware('auth:sanctum')->name('api.')->group(function () {
-    // Auth endpoints
+    // Auth endpoints — no subscription required
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])
         ->middleware('throttle:6,1')
         ->name('api.verification.send');
 
-    // User endpoints
+    // User endpoints — no subscription required (app reads these to determine access)
     Route::get('/user', [UserController::class, 'show']);
     Route::delete('/user', [UserController::class, 'destroy']);
+
+    // Onboarding — no subscription required (happens before paywall)
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
+
+    // Everything below requires an active subscription
+    Route::middleware(\App\Http\Middleware\RequiresSubscription::class)->group(function () {
+
+    // Fitness metrics
     Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
 
     // Profile endpoints
@@ -54,9 +66,6 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::patch('/profile', [ProfileController::class, 'update']);
     Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
-
-    // Onboarding endpoints
-    Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
 
     // Exercises CRUD
     Route::apiResource('exercises', ExerciseController::class);
@@ -149,4 +158,6 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::put('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'updateExercise']);
     Route::patch('/workout-sessions/{session}/exercises/{sessionExercise}/swap', [WorkoutSessionController::class, 'swapExercise']);
     Route::post('/workout-sessions/{session}/exercises/reorder', [WorkoutSessionController::class, 'reorderExercises']);
+
+    }); // end RequiresSubscription
 });

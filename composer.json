@@ -12,7 +12,8 @@
         "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.0",
-        "mkocansey/bladewind": "^3.3"
+        "mkocansey/bladewind": "^3.3",
+        "resend/resend-laravel": "^1.4"
     },
     "require-dev": {
         "laravel/boost": "^1.8",

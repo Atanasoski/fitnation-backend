@@ -34,6 +34,14 @@ class UserResource extends JsonResource
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,
             'email_verified_at' => $this->email_verified_at,
+            'entitlements' => $this->entitlements()->map(fn ($e) => $e->value)->all(),
+            'subscription' => [
+                'status' => $this->subscription?->status?->value,
+                'expires_at' => $this->subscription?->expires_at,
+                'is_trial' => $this->subscription?->isInTrial() ?? false,
+                'is_sponsored_by_gym' => $this->partner?->isSponsoringMembers() ?? false,
+                'grace_period_ends_at' => $this->grace_period_ends_at,
+            ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

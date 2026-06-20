@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Entitlement;
 use App\Enums\PlanType;
 use App\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -53,6 +55,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'last_login_at' => 'datetime',
             'onboarding_completed_at' => 'datetime',
+            'grace_period_ends_at' => 'datetime',
         ];
     }
 
@@ -134,5 +137,42 @@ class User extends Authenticatable implements MustVerifyEmail
     public function profile(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(UserProfile::class);
+    }
+
+    public function subscription(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Subscription::class);
+    }
+
+    /**
+     * @return Collection<int, Entitlement>
+     */
+    public function entitlements(): Collection
+    {
+        $set = collect();
+
+        if ($this->subscription?->isActive()) {
+            $set = $set->merge($this->subscription->grantedEntitlements());
+        }
+
+        if ($this->partner?->isSponsoringMembers()) {
+            $set->push(Entitlement::AppAccess);
+        }
+
+        if ($this->grace_period_ends_at && $this->grace_period_ends_at > now()) {
+            $set->push(Entitlement::AppAccess);
+        }
+
+        return $set->unique()->values();
+    }
+
+    public function hasEntitlement(Entitlement $e): bool
+    {
+        return $this->entitlements()->contains($e);
+    }
+
+    public function hasAppAccess(): bool
+    {
+        return $this->hasEntitlement(Entitlement::AppAccess);
     }
 }

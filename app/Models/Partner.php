@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PartnerPlan;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -17,13 +18,23 @@ class Partner extends Model
         'slug',
         'domain',
         'is_active',
+        'plan',
+        'plan_expires_at',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'plan' => PartnerPlan::class,
+            'plan_expires_at' => 'datetime',
         ];
+    }
+
+    public function isSponsoringMembers(): bool
+    {
+        return $this->plan === PartnerPlan::Sponsor
+            && ($this->plan_expires_at === null || $this->plan_expires_at > now());
     }
 
     /**

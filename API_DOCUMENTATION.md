@@ -7,23 +7,23 @@ This documentation provides complete information about all API resources and end
 1. [Base Configuration](#base-configuration)
 2. [Authentication & Partners](#authentication--partners)
 3. [User Management](#user-management)
-4. [User Profile](#user-profile)
-
-5. [Onboarding](#onboarding)
-6. [Exercises](#exercises)
-7. [Muscle Groups](#muscle-groups)
-8. [Categories](#categories)
-9. [Exercise Classifications](#exercise-classifications)
-10. [Fitness Metrics](#fitness-metrics)
-11. [Plans](#plans)
-12. [Routines](#routines)
-13. [Programs](#programs)
-14. [Browsable Routines](#browsable-routines)
-15. [Workout Templates](#workout-templates)
-16. [Workout Planner](#workout-planner)
-17. [Workout Sessions](#workout-sessions)
-18. [Complete TypeScript Definitions](#complete-typescript-definitions)
-19. [Error Responses](#error-responses)
+4. [Subscriptions & Entitlements](#subscriptions--entitlements)
+5. [User Profile](#user-profile)
+6. [Onboarding](#onboarding)
+7. [Exercises](#exercises)
+8. [Muscle Groups](#muscle-groups)
+9. [Categories](#categories)
+10. [Exercise Classifications](#exercise-classifications)
+11. [Fitness Metrics](#fitness-metrics)
+12. [Plans](#plans)
+13. [Routines](#routines)
+14. [Programs](#programs)
+15. [Browsable Routines](#browsable-routines)
+16. [Workout Templates](#workout-templates)
+17. [Workout Planner](#workout-planner)
+18. [Workout Sessions](#workout-sessions)
+19. [Complete TypeScript Definitions](#complete-typescript-definitions)
+20. [Error Responses](#error-responses)
 
 ---
 
@@ -45,6 +45,9 @@ const headers = {
 
 ### Authentication Method
 All protected endpoints require Laravel Sanctum Bearer token authentication.
+
+### Subscription Gate
+Beyond authentication, **most feature endpoints also require an active entitlement** (a paid subscription, a sponsoring gym, or an active grace period). Requests from a user without app access receive **`403 Forbidden`** with `code: "subscription_required"`. See [Subscriptions & Entitlements](#subscriptions--entitlements) for the full access model and the list of endpoints that remain accessible without a subscription.
 
 ---
 
@@ -276,12 +279,37 @@ interface LogoutResponse {
 ```
 GET /api/user
 ```
-*Requires authentication*
+*Requires authentication — does NOT require a subscription*
+
+This endpoint is intentionally **not** behind the subscription gate so the app can always read the user's access state (and render the paywall accordingly). The response includes `entitlements` and a `subscription` summary — use these to decide whether to show the app or the paywall.
 
 **Response:**
 ```typescript
 interface GetUserResponse {
-  user: UserResource;
+  user: UserResource;  // includes `entitlements` and `subscription` — see UserResource
+}
+```
+
+**Example Response:**
+```json
+{
+  "user": {
+    "id": 42,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "entitlements": ["app_access"],
+    "subscription": {
+      "status": "active",
+      "expires_at": "2026-07-20T12:00:00.000000Z",
+      "is_trial": false,
+      "is_sponsored_by_gym": false,
+      "grace_period_ends_at": null
+    },
+    "email_verified_at": "2026-06-20T10:00:00.000000Z",
+    "onboarding_completed_at": "2026-06-20T10:05:00.000000Z",
+    "created_at": "2026-06-20T09:00:00.000000Z",
+    "updated_at": "2026-06-20T10:05:00.000000Z"
+  }
 }
 ```
 
@@ -316,6 +344,72 @@ interface DeleteUserRequest {
     }
   }
   ```
+
+---
+
+## Subscriptions & Entitlements
+
+App access is controlled by **entitlements**. A user has access when **any** of the following is true:
+
+1. **Active paid subscription** — purchased through the App Store / Play Store and synced via RevenueCat.
+2. **Sponsoring gym (partner)** — the user's partner is on a `sponsor` plan, so the gym pays on the member's behalf (multi-tenant: some gyms cover their members, others don't).
+3. **Active grace period** — a time-limited grant (e.g. a launch grace window) set on the user.
+
+There is no client-facing subscription purchase API — purchases happen in-app through RevenueCat's SDK, and the backend is updated asynchronously via webhook. **The frontend never writes subscription state; it only reads it** from `GET /api/user`.
+
+### How to gate the UI
+
+Read `GET /api/user` on launch (and after returning from a purchase) and branch on `entitlements`:
+
+```typescript
+const { user } = await (await fetch('/api/user', { headers })).json();
+
+if (user.entitlements.includes('app_access')) {
+  // Grant access to the app
+} else {
+  // Show the paywall
+}
+```
+
+`entitlements` is the **source of truth**. The `subscription` object is supplementary detail for rendering (e.g. "Trial ends in 3 days", "Sponsored by your gym", "Renews on …").
+
+### Endpoints that do NOT require a subscription
+
+These remain accessible to authenticated users without app access, so the app can function up to the paywall:
+
+| Method | Endpoint | Why |
+|--------|----------|-----|
+| GET | `/api/user` | Read access/entitlement state |
+| DELETE | `/api/user` | Account deletion must always be possible |
+| POST | `/api/logout` | — |
+| POST | `/api/email/verification-notification` | Email verification happens before paywall |
+| POST | `/api/onboarding/complete` | Onboarding happens before the paywall |
+
+Every other authenticated endpoint requires app access and returns `403` with `code: "subscription_required"` otherwise (see [Error Responses](#error-responses)).
+
+### The `subscription` object
+
+```typescript
+interface SubscriptionSummary {
+  status: SubscriptionStatus | null;   // null if the user has never had a subscription
+  expires_at: string | null;           // ISO 8601 — when the current period ends
+  is_trial: boolean;                    // true while in an active trial period
+  is_sponsored_by_gym: boolean;         // true when the user's gym covers access
+  grace_period_ends_at: string | null;  // ISO 8601 — non-null while a grace grant is active
+}
+
+type SubscriptionStatus =
+  | 'active'         // paid and current
+  | 'cancelled'      // auto-renew off; access continues until expires_at
+  | 'expired'        // lapsed or refunded — no access
+  | 'billing_issue'  // payment failed; store is retrying
+  | 'paused';        // Android-only pause; resumes automatically
+```
+
+**Notes for the frontend:**
+- A `status` of `cancelled` still means the user **has access** until `expires_at` — do not gate on `status` directly; gate on `entitlements`.
+- `is_sponsored_by_gym: true` means there may be **no personal subscription** — `status` can be `null` while the user still has full access. This is expected for sponsored-gym members.
+- A refund sets `status` to `expired` and revokes access immediately.
 
 ---
 
@@ -2370,10 +2464,31 @@ interface UserResource {
   profile_photo: string;  // Full URL
   profile: UserProfileResource | null;
   partner: UserPartner | null;
-  email_verified_at: string | null;  // ISO 8601
-  created_at: string;                 // ISO 8601
-  updated_at: string;                 // ISO 8601
+  onboarding_completed_at: string | null;  // ISO 8601
+  email_verified_at: string | null;        // ISO 8601
+  entitlements: Entitlement[];             // active entitlements — source of truth for access
+  subscription: SubscriptionSummary;       // supplementary subscription detail (see below)
+  created_at: string;                       // ISO 8601
+  updated_at: string;                       // ISO 8601
 }
+
+// Currently the only entitlement; gate app access on its presence.
+type Entitlement = 'app_access';
+
+interface SubscriptionSummary {
+  status: SubscriptionStatus | null;   // null if the user has never had a subscription
+  expires_at: string | null;           // ISO 8601 — when the current period ends
+  is_trial: boolean;                    // true while in an active trial period
+  is_sponsored_by_gym: boolean;         // true when the user's gym covers access
+  grace_period_ends_at: string | null;  // ISO 8601 — non-null while a grace grant is active
+}
+
+type SubscriptionStatus =
+  | 'active'
+  | 'cancelled'
+  | 'expired'
+  | 'billing_issue'
+  | 'paused';
 
 interface UserProfileResource {
   fitness_goal: FitnessGoal | null;
@@ -2749,6 +2864,18 @@ interface ForbiddenError {
   message: "Exercise does not belong to this session.";
 }
 ```
+
+#### Subscription required
+Returned by every subscription-gated endpoint when the authenticated user has no active entitlement. The `code` field lets the app reliably distinguish this from other 403s and route the user to the paywall.
+
+```typescript
+interface SubscriptionRequiredError {
+  message: "Subscription required.";
+  code: "subscription_required";
+}
+```
+
+When you receive this, re-read `GET /api/user` to confirm the user's `entitlements` and present the paywall. See [Subscriptions & Entitlements](#subscriptions--entitlements).
 
 ### 404 Not Found
 ```typescript

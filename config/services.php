@@ -43,4 +43,15 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id'          => env('GOOGLE_WEB_CLIENT_ID'),
+        'ios_client_id'      => env('GOOGLE_IOS_CLIENT_ID'),
+        'android_client_id'  => env('GOOGLE_ANDROID_CLIENT_ID'),
+    ],
+
+    'apple' => [
+        'bundle_id'  => env('APPLE_BUNDLE_ID', 'com.fitnation.app'),
+        'service_id' => env('APPLE_SERVICE_ID'), // web Service ID, e.g. com.fitnation.app.web
+    ],
+
 ];

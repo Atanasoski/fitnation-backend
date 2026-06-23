@@ -11,8 +11,17 @@ class RequiresSubscription
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user()?->hasEntitlement(Entitlement::AppAccess)) {
-            return response()->json(['message' => 'Subscription required.'], 403);
+        $user = $request->user();
+
+        // Load the relations entitlements() reads up front so this gate (and the
+        // downstream controller) doesn't lazy-load them per request.
+        $user?->loadMissing(['subscription', 'partner']);
+
+        if (! $user?->hasEntitlement(Entitlement::AppAccess)) {
+            return response()->json([
+                'message' => 'Subscription required.',
+                'code' => 'subscription_required',
+            ], 403);
         }
 
         return $next($request);

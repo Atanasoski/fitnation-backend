@@ -12,10 +12,9 @@ return new class extends Migration
             $table->timestamp('grace_period_ends_at')->nullable();
         });
 
-        // Backfill: grant 30 days of grace access to all existing users at launch.
-        \DB::table('users')->update([
-            'grace_period_ends_at' => now()->addDays(30),
-        ]);
+        // NOTE: the one-time launch grace grant is intentionally NOT done here —
+        // run `php artisan subscriptions:grant-launch-grace` explicitly at launch
+        // so a bulk business action isn't an irreversible migration side-effect.
     }
 
     public function down(): void

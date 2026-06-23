@@ -26,6 +26,7 @@ class Subscription extends Model
         'expires_at',
         'cancelled_at',
         'environment',
+        'last_event_at_ms',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class Subscription extends Model
             'purchased_at' => 'datetime',
             'expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'last_event_at_ms' => 'integer',
         ];
     }
 

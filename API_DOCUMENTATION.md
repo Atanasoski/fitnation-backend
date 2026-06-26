@@ -155,11 +155,9 @@ Registers a new user under the specified partner. A verification email is sent i
 **Request Body:**
 ```typescript
 interface RegisterRequest {
-  name: string;                  // required, max 255 chars
-  email: string;                 // required, unique, lowercase email
-  password: string;              // required, min 8 chars
-  password_confirmation: string; // required, must match password
-  partner_id: number;            // required, ID from GET /api/partners
+  email: string;      // required, unique, lowercase email
+  password: string;   // required, min 8 chars
+  partner_id: number; // required, ID from GET /api/partners
 }
 ```
 

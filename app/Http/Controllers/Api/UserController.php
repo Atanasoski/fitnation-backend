@@ -35,6 +35,8 @@ class UserController extends Controller
         $user->forceFill([
             'name' => 'Deleted User',
             'email' => 'deleted_'.$user->id.'@deleted.invalid',
+            'social_provider' => null,
+            'social_provider_id' => null,
         ])->save();
 
         $user->delete();

@@ -21,8 +21,12 @@ class DeleteUserRequest extends FormRequest
      */
     public function rules(): array
     {
+        $hasPassword = !is_null($this->user()->password);
+
         return [
-            'password' => ['required', 'current_password'],
+            'password' => $hasPassword
+                ? ['required', 'current_password']
+                : ['nullable'],
         ];
     }
 }

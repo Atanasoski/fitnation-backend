@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
+use App\Enums\UnitSystem;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,7 @@ class UserProfile extends Model
         'training_experience',
         'training_days_per_week',
         'workout_duration_minutes',
+        'unit_system',
     ];
 
     /**
@@ -41,6 +43,7 @@ class UserProfile extends Model
             'fitness_goal' => FitnessGoal::class,
             'gender' => Gender::class,
             'training_experience' => TrainingExperience::class,
+            'unit_system' => UnitSystem::class,
             'age' => 'integer',
             'height' => 'integer',
             'weight' => 'decimal:2',

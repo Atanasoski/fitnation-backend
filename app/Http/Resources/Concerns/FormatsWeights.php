@@ -2,23 +2,17 @@
 
 namespace App\Http\Resources\Concerns;
 
+use App\Enums\UnitSystem;
+use App\Services\UnitConversionService;
+
 trait FormatsWeights
 {
     /**
-     * Format weight value to remove unnecessary trailing zeros.
+     * Format a training weight (kg, as stored) for display in the given
+     * unit system. Delegates all conversion/rounding to UnitConversionService.
      */
-    private function formatWeight(string|float|null $weight): float|int|null
+    private function formatWeight(string|float|null $weight, ?UnitSystem $unitSystem = null): float|int|null
     {
-        if ($weight === null) {
-            return null;
-        }
-
-        $floatValue = (float) $weight;
-
-        if ($floatValue == (int) $floatValue) {
-            return (int) $floatValue;
-        }
-
-        return $floatValue;
+        return app(UnitConversionService::class)->formatTrainingWeight($weight, $unitSystem);
     }
 }

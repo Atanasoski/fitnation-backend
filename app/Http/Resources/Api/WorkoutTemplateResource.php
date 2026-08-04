@@ -63,7 +63,7 @@ class WorkoutTemplateResource extends JsonResource
                             'target_sets' => $exercise->pivot->target_sets,
                             'min_target_reps' => $exercise->pivot->min_target_reps,
                             'max_target_reps' => $exercise->pivot->max_target_reps,
-                            'target_weight' => $this->formatWeight($exercise->pivot->target_weight),
+                            'target_weight' => $this->formatWeight($exercise->pivot->target_weight, auth()->user()?->profile?->unit_system),
                             'rest_seconds' => $exercise->pivot->rest_seconds,
                         ],
                     ];

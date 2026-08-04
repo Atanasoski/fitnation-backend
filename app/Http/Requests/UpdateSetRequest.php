@@ -2,16 +2,41 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UnitSystem;
+use App\Services\UnitConversionService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSetRequest extends FormRequest
 {
+    public function __construct(
+        private readonly UnitConversionService $conversionService,
+    ) {
+        parent::__construct();
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Convert an incoming weight to the canonical kg storage unit before
+     * validation runs, based on the authenticated user's stored preference.
+     */
+    protected function prepareForValidation(): void
+    {
+        $unitSystem = $this->user()?->profile?->unit_system ?? UnitSystem::Metric;
+
+        if ($unitSystem !== UnitSystem::Imperial || ! $this->filled('weight')) {
+            return;
+        }
+
+        $this->merge([
+            'weight' => $this->conversionService->toKg((float) $this->input('weight'), UnitSystem::Imperial),
+        ]);
     }
 
     /**

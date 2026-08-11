@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\AddWorkoutTemplateExerciseRequest;
+use App\Http\Requests\Api\UpdateWorkoutTemplateExerciseRequest;
 use App\Http\Requests\StoreWorkoutTemplateRequest;
 use App\Http\Requests\SwapWorkoutTemplateExerciseRequest;
 use App\Http\Requests\UpdateWorkoutTemplateRequest;
@@ -114,7 +116,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Add exercise to workout template.
      */
-    public function addExercise(Request $request, WorkoutTemplate $workoutTemplate): JsonResponse
+    public function addExercise(AddWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate): JsonResponse
     {
         // Authorization check
         $workoutTemplate->load('plan');
@@ -124,9 +126,7 @@ class WorkoutTemplateController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
-            'exercise_id' => 'required|exists:workout_exercises,id',
-        ]);
+        $validated = $request->validated();
 
         // Get the highest order value and increment
         $maxOrder = $workoutTemplate->workoutTemplateExercises()->max('order') ?? -1;
@@ -171,7 +171,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Update exercise in workout template.
      */
-    public function updateExercise(Request $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $exercise): JsonResponse
+    public function updateExercise(UpdateWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $exercise): JsonResponse
     {
         // Authorization check
         $workoutTemplate->load('plan');
@@ -181,13 +181,7 @@ class WorkoutTemplateController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
-            'target_sets' => 'nullable|integer|min:1',
-            'min_target_reps' => 'nullable|integer|min:1',
-            'max_target_reps' => 'nullable|integer|min:1|gte:min_target_reps',
-            'target_weight' => 'nullable|numeric|min:0',
-            'rest_seconds' => 'nullable|integer|min:0',
-        ]);
+        $validated = $request->validated();
 
         $exercise->update($validated);
 

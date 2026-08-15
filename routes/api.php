@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VerifyEmailController;
 use App\Http\Controllers\Api\WorkoutGeneratorController;
 use App\Http\Controllers\Api\WorkoutPlannerController;
 use App\Http\Controllers\Api\WorkoutSessionController;
@@ -32,6 +33,13 @@ Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']
 
 // Public invitation validation
 Route::get('/invitations/{token}', [InvitationController::class, 'show']);
+
+// Public: signed, session-free email verification. The verification email
+// links to the member web app; the web page or the mobile app (via universal
+// link) calls this endpoint with the signed query string it received.
+Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('api.verification.verify');
 
 Route::get('/partners', [PartnerController::class, 'activeList'])
     ->middleware('throttle:30,1');

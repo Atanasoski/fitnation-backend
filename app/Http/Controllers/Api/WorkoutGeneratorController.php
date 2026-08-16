@@ -32,12 +32,16 @@ class WorkoutGeneratorController extends Controller
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
                 'difficulty' => $request->input('difficulty'),
             ];
 
-            // Remove null values
-            $preferences = array_filter($preferences, fn ($value) => $value !== null);
+            // Remove null and empty array values
+            $preferences = array_filter(
+                $preferences,
+                fn ($value) => $value !== null && $value !== []
+            );
 
             $session = $this->workoutGenerationService->generate($user, $preferences);
 
@@ -99,12 +103,16 @@ class WorkoutGeneratorController extends Controller
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
                 'difficulty' => $request->input('difficulty'),
             ];
 
-            // Remove null values
-            $preferences = array_filter($preferences, fn ($value) => $value !== null);
+            // Remove null and empty array values
+            $preferences = array_filter(
+                $preferences,
+                fn ($value) => $value !== null && $value !== []
+            );
 
             $newSession = $this->workoutGenerationService->regenerateSession($session, $preferences);
 

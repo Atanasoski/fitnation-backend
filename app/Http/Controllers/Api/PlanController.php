@@ -42,8 +42,17 @@ class PlanController extends Controller
     public function regenerate(Request $request, WelcomePlanGenerationService $planGenerationService): JsonResponse
     {
         try {
+            $preferences = array_filter([
+                'equipment_types' => $request->input('equipment_types'),
+                'movement_patterns' => $request->input('movement_patterns'),
+                'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
+            ], fn ($v) => $v !== null);
+
             $plan = $planGenerationService->generatePlan(
-                $request->user()
+                $request->user(),
+                null,
+                $preferences
             );
 
             return response()->json([
@@ -320,7 +329,7 @@ class PlanController extends Controller
             ->with(['workoutTemplates' => fn ($query) => $query->orderedByProgram()->with(['exercises.category', 'exercises.partners'])])
             ->latest()
             ->first();
-            // dd($program);
+        // dd($program);
 
         return response()->json([
             'data' => [new ProgramResource($program)],

@@ -141,6 +141,43 @@
                 </div>
             </div>
 
+            <!-- Exercise Filters (both apply together when selected) -->
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <!-- Equipment Types -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Equipment Types <span class="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-3">
+                        @foreach(['BARBELL' => 'Barbell', 'BODYWEIGHT' => 'Bodyweight', 'CABLE' => 'Cable', 'DUMBBELL' => 'Dumbbell', 'KETTLEBELL' => 'Kettlebell', 'MACHINE' => 'Machine', 'TRX' => 'TRX'] as $code => $label)
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" name="equipment_types[]" value="{{ $code }}"
+                                    {{ in_array($code, old('equipment_types', $params['equipment_types'] ?? [])) ? 'checked' : '' }}
+                                    class="rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-600">
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Training Styles -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Training Styles <span class="text-gray-400 text-xs">(optional — defaults to Bodybuilding when neither filter is set)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-3">
+                        @foreach(['BODYBUILDING' => 'Bodybuilding', 'FUNCTIONAL' => 'Functional'] as $code => $label)
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" name="training_styles[]" value="{{ $code }}"
+                                    {{ in_array($code, old('training_styles', $params['training_styles'] ?? [])) ? 'checked' : '' }}
+                                    class="rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-600">
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-end">
                 <x-ui.button type="submit" variant="primary">
                     Generate Preview

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
+use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
+
+// Public marketing / app download landing page
+Route::get('/landing', [LandingPageController::class, 'english'])->name('landing');
+Route::get('/landing/mk', [LandingPageController::class, 'macedonian'])->name('landing.mk');
+
+// Smart store redirect — QR codes and shared links point here; sends each device to its store
+Route::get('/get', [LandingPageController::class, 'storeRedirect'])->name('app.get');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 

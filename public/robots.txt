@@ -1,2 +1,13 @@
 User-agent: *
-Disallow:
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /partner/
+Disallow: /partners
+Disallow: /users
+Disallow: /user-invitations
+Disallow: /plans
+Disallow: /workouts
+Disallow: /profile
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password

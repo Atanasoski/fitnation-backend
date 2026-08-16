@@ -23,9 +23,17 @@ class OnboardingController extends Controller
         try {
             $user = $request->user();
 
+            $preferences = array_filter([
+                'equipment_types' => $request->input('equipment_types'),
+                'movement_patterns' => $request->input('movement_patterns'),
+                'angles' => $request->input('angles'),
+                'training_styles' => $request->input('training_styles'),
+            ], fn ($v) => $v !== null);
+
             $plan = $this->planGenerationService->generateWelcomePlan(
                 $user,
-                $request->input('plan_name')
+                $request->input('plan_name'),
+                $preferences
             );
 
             return response()->json([

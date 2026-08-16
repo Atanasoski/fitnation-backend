@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Log;
 
 class DeterministicWorkoutGenerator
 {
+    /** @var list<string> */
+    private const FUNCTIONAL_EQUIPMENT_CODES = [
+        'TRX',
+        'LANDMINE',
+        'KETTLEBELL',
+        'BAND',
+        'MEDICINE_BALL',
+    ];
+
     public function __construct(
         private ExerciseSelectorService $exerciseSelector,
         private ProgressionCalculatorService $progressionCalculator
@@ -41,13 +50,16 @@ class DeterministicWorkoutGenerator
             'duration_minutes' => $durationMinutes,
         ]);
 
+        $equipmentTypes = $this->normalizeStringList($preferences['equipment_types'] ?? null);
+        $trainingStyles = $this->resolveTrainingStyleFilter($preferences, $equipmentTypes);
+
         // Get available exercises matching filters
         $exercises = $this->exerciseSelector->getAvailableExercises([
             'target_regions' => $targetRegions,
-            'equipment_types' => $preferences['equipment_types'] ?? null,
-            'movement_patterns' => $preferences['movement_patterns'] ?? null,
-            'angles' => $preferences['angles'] ?? null,
-            'training_styles' => $preferences['training_styles'] ?? ['BODYBUILDING'],
+            'equipment_types' => $equipmentTypes,
+            'movement_patterns' => $this->normalizeStringList($preferences['movement_patterns'] ?? null),
+            'angles' => $this->normalizeStringList($preferences['angles'] ?? null),
+            'training_styles' => $trainingStyles,
             'limit' => 200,
         ], $user->partner);
 
@@ -61,10 +73,10 @@ class DeterministicWorkoutGenerator
         if (! empty($complementaryMovementPatterns)) {
             $complementary = $this->exerciseSelector->getAvailableExercises([
                 'target_regions' => null,
-                'equipment_types' => $preferences['equipment_types'] ?? null,
+                'equipment_types' => $equipmentTypes,
                 'movement_patterns' => $complementaryMovementPatterns,
-                'angles' => $preferences['angles'] ?? null,
-                'training_styles' => $preferences['training_styles'] ?? ['BODYBUILDING'],
+                'angles' => $this->normalizeStringList($preferences['angles'] ?? null),
+                'training_styles' => $trainingStyles,
                 'limit' => 200,
             ], $user->partner);
 
@@ -93,7 +105,7 @@ class DeterministicWorkoutGenerator
         $orderedExercises = $this->orderByCompoundFirst($selectedExercises);
 
         // Apply progression targets for each exercise (sets already distributed)
-        $exercisesWithTargets = $this->applyTargets($orderedExercises, $user, $normalizedPreferences);
+        $exercisesWithTargets = $this->applyTargets($orderedExercises, $user);
 
         Log::info('Deterministic workout generated', [
             'user_id' => $user->id,
@@ -459,7 +471,7 @@ class DeterministicWorkoutGenerator
      * Apply progression targets to selected exercises.
      * Sets come from distribution, reps/rest come from goal defaults or progression calculator.
      */
-    private function applyTargets(Collection $exercises, User $user, array $preferences): array
+    private function applyTargets(Collection $exercises, User $user): array
     {
         $fitnessGoal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
         $trainingExperience = $user->profile?->training_experience;
@@ -541,5 +553,52 @@ class DeterministicWorkoutGenerator
         $description = implode(', ', $parts);
 
         return "Generated workout {$description}. Exercises ordered from compound to isolation for optimal performance.";
+    }
+
+    /**
+     * @param  array<string, mixed>  $preferences
+     * @param  list<string>|null  $equipmentTypes
+     * @return list<string>|null
+     */
+    private function resolveTrainingStyleFilter(array $preferences, ?array $equipmentTypes): ?array
+    {
+        $trainingStyles = $this->normalizeStringList($preferences['training_styles'] ?? null);
+
+        if (! empty($equipmentTypes)) {
+            if ($trainingStyles === ['BODYBUILDING'] && $this->hasAnyFunctionalEquipment($equipmentTypes)) {
+                return null;
+            }
+
+            return $trainingStyles;
+        }
+
+        return $trainingStyles ?? ['BODYBUILDING'];
+    }
+
+    /**
+     * @param  list<string>  $equipmentTypes
+     */
+    private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
+    {
+        return collect($equipmentTypes)->contains(
+            fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
+        );
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function normalizeStringList(mixed $values): ?array
+    {
+        if (! is_array($values)) {
+            return null;
+        }
+
+        $normalized = array_values(array_filter(
+            $values,
+            fn ($value) => is_string($value) && $value !== ''
+        ));
+
+        return $normalized === [] ? null : $normalized;
     }
 }

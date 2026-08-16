@@ -31,6 +31,8 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'movement_patterns.*' => 'string|exists:movement_patterns,code',
             'angles' => 'nullable|array',
             'angles.*' => 'string|exists:angles,code',
+            'training_styles' => 'nullable|array',
+            'training_styles.*' => 'string|exists:training_styles,code',
             'duration_minutes' => 'nullable|integer|min:15|max:180',
             'difficulty' => [
                 'nullable',
@@ -55,6 +57,8 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'movement_patterns.*.exists' => 'One or more movement pattern codes do not exist.',
             'angles.array' => 'Angles must be an array.',
             'angles.*.exists' => 'One or more angle codes do not exist.',
+            'training_styles.array' => 'Training styles must be an array.',
+            'training_styles.*.exists' => 'One or more training style codes do not exist.',
             'duration_minutes.integer' => 'Duration must be an integer.',
             'duration_minutes.min' => 'Duration must be at least 15 minutes.',
             'duration_minutes.max' => 'Duration must not exceed 180 minutes.',

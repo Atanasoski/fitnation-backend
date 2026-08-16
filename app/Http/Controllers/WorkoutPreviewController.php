@@ -50,6 +50,10 @@ class WorkoutPreviewController extends Controller
             'duration_minutes' => ['required', 'integer', 'in:30,45,60,75,90'],
             'weeks' => ['required', 'integer', 'min:1', 'max:12'],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
+            'equipment_types' => ['nullable', 'array'],
+            'equipment_types.*' => ['string', 'in:BARBELL,BODYWEIGHT,CABLE,DUMBBELL,KETTLEBELL,MACHINE,TRX'],
+            'training_styles' => ['nullable', 'array'],
+            'training_styles.*' => ['string', 'in:BODYBUILDING,FUNCTIONAL'],
         ]);
 
         // Get partner if provided
@@ -96,10 +100,12 @@ class WorkoutPreviewController extends Controller
             $weeks[$week] = [];
 
             foreach ($split as $dayIndex => $targetRegions) {
-                $workout = $this->workoutGenerator->generate($fakeUser, [
+                $workout = $this->workoutGenerator->generate($fakeUser, array_filter([
                     'target_regions' => $targetRegions,
                     'duration_minutes' => (int) $validated['duration_minutes'],
-                ]);
+                    'equipment_types' => $validated['equipment_types'] ?? null,
+                    'training_styles' => $validated['training_styles'] ?? null,
+                ], fn ($v) => $v !== null));
 
                 $workoutName = $this->getWorkoutName($targetRegions, $dayIndex);
 

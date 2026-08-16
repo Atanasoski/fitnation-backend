@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Route;
 // Public authentication endpoints
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/social', [SocialAuthController::class, 'authenticate'])
+    ->middleware('throttle:10,1');
 Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
     ->middleware('throttle:6,1');
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])

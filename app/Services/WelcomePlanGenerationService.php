@@ -26,11 +26,11 @@ class WelcomePlanGenerationService
      * Generate a personalized program from the user's profile.
      * Deactivates any existing active auto-generated plan for this user.
      */
-    public function generatePlan(User $user, ?string $planName = null): Plan
+    public function generatePlan(User $user, ?string $planName = null, array $preferences = []): Plan
     {
         $this->validateUserProfile($user);
 
-        return DB::transaction(function () use ($user, $planName) {
+        return DB::transaction(function () use ($user, $planName, $preferences) {
             Plan::query()
                 ->where('user_id', $user->id)
                 ->where('is_auto_generated', true)
@@ -66,7 +66,7 @@ class WelcomePlanGenerationService
             for ($week = 1; $week <= 5; $week++) {
                 $dayIndex = 0;
                 foreach ($split as $targetRegions) {
-                    $this->createWorkoutTemplate($plan, $dayIndex, $targetRegions, $user, $week, $orderIndex);
+                    $this->createWorkoutTemplate($plan, $dayIndex, $targetRegions, $user, $week, $orderIndex, $preferences);
                     $dayIndex++;
                     $orderIndex++;
                 }
@@ -85,13 +85,13 @@ class WelcomePlanGenerationService
     /**
      * Generate a welcome plan for a user based on their profile (onboarding).
      */
-    public function generateWelcomePlan(User $user, ?string $planName = null): Plan
+    public function generateWelcomePlan(User $user, ?string $planName = null, array $preferences = []): Plan
     {
         if ($user->onboarding_completed_at !== null) {
             throw new \Exception('Onboarding has already been completed for this user');
         }
 
-        $plan = $this->generatePlan($user, $planName);
+        $plan = $this->generatePlan($user, $planName, $preferences);
 
         $user->update([
             'onboarding_completed_at' => now(),
@@ -119,14 +119,22 @@ class WelcomePlanGenerationService
     /**
      * Create a workout template for a specific day and week
      */
-    private function createWorkoutTemplate(Plan $plan, int $dayIndex, array $targetRegions, User $user, int $weekNumber, int $orderIndex): WorkoutTemplate
+    private function createWorkoutTemplate(Plan $plan, int $dayIndex, array $targetRegions, User $user, int $weekNumber, int $orderIndex, array $preferences = []): WorkoutTemplate
     {
         $workoutName = $this->getWorkoutName($targetRegions, $dayIndex);
 
-        $generatedWorkout = $this->workoutGenerator->generate($user, [
-            'target_regions' => $targetRegions,
-            'duration_minutes' => $user->profile->workout_duration_minutes,
-        ]);
+        $generatedWorkout = $this->workoutGenerator->generate($user, array_merge(
+            array_filter([
+                'equipment_types' => $preferences['equipment_types'] ?? null,
+                'movement_patterns' => $preferences['movement_patterns'] ?? null,
+                'angles' => $preferences['angles'] ?? null,
+                'training_styles' => $preferences['training_styles'] ?? null,
+            ], fn ($v) => $v !== null),
+            [
+                'target_regions' => $targetRegions,
+                'duration_minutes' => $user->profile->workout_duration_minutes,
+            ]
+        ));
 
         $template = WorkoutTemplate::create([
             'plan_id' => $plan->id,

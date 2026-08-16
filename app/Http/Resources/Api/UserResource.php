@@ -19,6 +19,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'profile_photo' => asset($this->profile_photo),
+            'has_password' => !is_null($this->password),
             'profile' => $this->whenLoaded('profile', function () {
                 return new UserProfileResource($this->profile);
             }),

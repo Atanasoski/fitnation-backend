@@ -22,9 +22,8 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'string', 'min:8'],
             'partner_id' => ['required', 'integer', 'exists:partners,id'],
         ]);
 
@@ -37,7 +36,7 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'name' => $validated['name'],
+            'name' => '',
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'partner_id' => $validated['partner_id'],

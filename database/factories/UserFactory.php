@@ -52,4 +52,16 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Grant app access via a future grace period — the cheapest way to get a
+     * user past the RequiresSubscription middleware in tests of gated routes
+     * that aren't themselves about subscriptions.
+     */
+    public function entitled(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'grace_period_ends_at' => now()->addDays(30),
+        ]);
+    }
 }

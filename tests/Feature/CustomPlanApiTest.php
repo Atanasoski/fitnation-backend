@@ -15,7 +15,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_user_can_create_custom_plan(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/custom-plans', [
@@ -33,7 +33,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_user_can_list_own_custom_plans(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         // Create routines for this user
@@ -48,7 +48,7 @@ class CustomPlanApiTest extends TestCase
         ]);
 
         // Create another user's routine (should not appear)
-        $otherUser = User::factory()->create();
+        $otherUser = User::factory()->entitled()->create();
         Plan::factory()->create([
             'user_id' => $otherUser->id,
             'type' => PlanType::Routine,
@@ -62,7 +62,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_user_can_update_own_custom_plan(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $routine = Plan::factory()->create([
@@ -95,7 +95,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_user_can_delete_own_custom_plan(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $routine = Plan::factory()->create([
@@ -117,8 +117,8 @@ class CustomPlanApiTest extends TestCase
 
     public function test_user_cannot_access_other_users_routines(): void
     {
-        $user1 = User::factory()->create();
-        $user2 = User::factory()->create();
+        $user1 = User::factory()->entitled()->create();
+        $user2 = User::factory()->entitled()->create();
         Sanctum::actingAs($user1);
 
         $customPlan = Plan::factory()->create([
@@ -143,7 +143,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_custom_plan_creation_requires_name(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/custom-plans', [
@@ -156,7 +156,7 @@ class CustomPlanApiTest extends TestCase
 
     public function test_cannot_access_program_as_custom_plan(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create([

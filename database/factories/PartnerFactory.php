@@ -36,4 +36,26 @@ class PartnerFactory extends Factory
             'is_active' => false,
         ]);
     }
+
+    /**
+     * Gym pays Fit Nation — its members get app access without subscribing.
+     */
+    public function sponsor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'plan' => \App\Enums\PartnerPlan::Sponsor,
+            'plan_expires_at' => null,
+        ]);
+    }
+
+    /**
+     * A sponsorship that has already lapsed — members no longer get free access.
+     */
+    public function sponsorExpired(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'plan' => \App\Enums\PartnerPlan::Sponsor,
+            'plan_expires_at' => now()->subDay(),
+        ]);
+    }
 }

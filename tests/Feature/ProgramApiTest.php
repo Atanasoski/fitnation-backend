@@ -17,7 +17,7 @@ class ProgramApiTest extends TestCase
 
     public function test_user_can_list_own_programs(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         // Create programs for this user
@@ -32,7 +32,7 @@ class ProgramApiTest extends TestCase
         ]);
 
         // Create another user's program (should not appear)
-        $otherUser = User::factory()->create();
+        $otherUser = User::factory()->entitled()->create();
         Plan::factory()->program()->create([
             'user_id' => $otherUser->id,
         ]);
@@ -46,7 +46,7 @@ class ProgramApiTest extends TestCase
     public function test_user_can_view_library_programs(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         // Create library programs for this partner (is_active so they appear in library)
@@ -65,7 +65,7 @@ class ProgramApiTest extends TestCase
     public function test_user_can_clone_library_program(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         $libraryProgram = Plan::factory()->partnerLibrary($partner)->create([
@@ -103,7 +103,7 @@ class ProgramApiTest extends TestCase
 
     public function test_user_cannot_create_program_directly(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         // The routines endpoint only creates routines
@@ -123,7 +123,7 @@ class ProgramApiTest extends TestCase
 
     public function test_user_can_only_toggle_is_active(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create([
@@ -146,8 +146,8 @@ class ProgramApiTest extends TestCase
 
     public function test_cannot_clone_non_library_program(): void
     {
-        $user1 = User::factory()->create();
-        $user2 = User::factory()->create();
+        $user1 = User::factory()->entitled()->create();
+        $user2 = User::factory()->entitled()->create();
         Sanctum::actingAs($user2);
 
         // User-owned program (not a library plan)
@@ -167,7 +167,7 @@ class ProgramApiTest extends TestCase
     {
         $partner1 = Partner::factory()->create();
         $partner2 = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner1->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner1->id]);
         Sanctum::actingAs($user);
 
         $libraryProgram = Plan::factory()->partnerLibrary($partner2)->create();
@@ -182,7 +182,7 @@ class ProgramApiTest extends TestCase
 
     public function test_user_without_partner_sees_empty_library(): void
     {
-        $user = User::factory()->create(['partner_id' => null]);
+        $user = User::factory()->entitled()->create(['partner_id' => null]);
         Sanctum::actingAs($user);
 
         $response = $this->getJson('/api/programs/library');
@@ -194,7 +194,7 @@ class ProgramApiTest extends TestCase
     public function test_library_excludes_inactive_programs(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         Plan::factory()->partnerLibrary($partner)->create(['is_active' => true, 'name' => 'Active Program']);
@@ -209,7 +209,7 @@ class ProgramApiTest extends TestCase
 
     public function test_cannot_access_custom_plan_as_program(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $customPlan = Plan::factory()->create([

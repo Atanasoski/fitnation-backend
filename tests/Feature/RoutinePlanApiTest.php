@@ -18,7 +18,7 @@ class RoutinePlanApiTest extends TestCase
     public function test_user_can_list_partner_routines(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         // Create partner-owned routine plans (is_active so they appear)
@@ -45,7 +45,7 @@ class RoutinePlanApiTest extends TestCase
     public function test_user_can_view_single_routine(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         $routine = Plan::factory()->partnerRoutine($partner)->create([
@@ -72,7 +72,7 @@ class RoutinePlanApiTest extends TestCase
 
     public function test_user_without_partner_sees_empty_routines(): void
     {
-        $user = User::factory()->create(['partner_id' => null]);
+        $user = User::factory()->entitled()->create(['partner_id' => null]);
         Sanctum::actingAs($user);
 
         $response = $this->getJson('/api/routines');
@@ -84,7 +84,7 @@ class RoutinePlanApiTest extends TestCase
     public function test_routines_excludes_inactive_plans(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         Plan::factory()->partnerRoutine($partner)->create(['is_active' => true, 'name' => 'Active Routine']);
@@ -101,7 +101,7 @@ class RoutinePlanApiTest extends TestCase
     {
         $partner1 = Partner::factory()->create();
         $partner2 = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner1->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner1->id]);
         Sanctum::actingAs($user);
 
         $routine = Plan::factory()->partnerRoutine($partner2)->create();
@@ -117,7 +117,7 @@ class RoutinePlanApiTest extends TestCase
     public function test_cannot_access_program_as_routine(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->partnerLibrary($partner)->create([
@@ -135,7 +135,7 @@ class RoutinePlanApiTest extends TestCase
     public function test_cannot_access_user_owned_routine_as_browsable(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         Sanctum::actingAs($user);
 
         $userRoutine = Plan::factory()->create([

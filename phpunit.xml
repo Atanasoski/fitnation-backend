@@ -24,8 +24,12 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_DATABASE" value="muscle_hustle"/>
+        <!-- Dedicated test database: RefreshDatabase drops and re-migrates it on
+             every run, so pointing this at the real dev DB wipes local data.
+             Create once with: CREATE DATABASE muscle_hustle_test -->
+        <env name="DB_DATABASE" value="muscle_hustle_test" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
+        <env name="REVENUECAT_WEBHOOK_SECRET" value="test-webhook-secret" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

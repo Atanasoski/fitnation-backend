@@ -7,12 +7,15 @@ use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionStore;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 
 class Subscription extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'partner_id',
@@ -56,7 +59,7 @@ class Subscription extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query
-            ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Cancelled])
+            ->whereIn('status', self::accessGrantingStatuses())
             ->where('expires_at', '>', now());
     }
 
@@ -72,13 +75,36 @@ class Subscription extends Model
         return $query->where('partner_id', $partner->id);
     }
 
+    /**
+     * Statuses that keep access for the remainder of the paid period. Only a
+     * hard expiry (or a refund, which forces Expired + expires_at = now) ends
+     * access early:
+     *  - Cancelled: auto-renew off, the user paid through expires_at.
+     *  - BillingIssue: the store is retrying the charge; locking out mid-retry
+     *    would punish a user whose current period is already paid. If retries
+     *    fail, the EXPIRATION webhook revokes access at period end.
+     *  - Paused (Android): the pause takes effect at period end, so any
+     *    remaining time is paid time.
+     *
+     * @return array<int, SubscriptionStatus>
+     */
+    public static function accessGrantingStatuses(): array
+    {
+        return [
+            SubscriptionStatus::Active,
+            SubscriptionStatus::Cancelled,
+            SubscriptionStatus::BillingIssue,
+            SubscriptionStatus::Paused,
+        ];
+    }
+
     public function isActive(): bool
     {
         if (! $this->expires_at || $this->expires_at <= now()) {
             return false;
         }
 
-        return $this->status === SubscriptionStatus::Active || $this->isInGracePeriod();
+        return in_array($this->status, self::accessGrantingStatuses(), true);
     }
 
     public function isInGracePeriod(): bool

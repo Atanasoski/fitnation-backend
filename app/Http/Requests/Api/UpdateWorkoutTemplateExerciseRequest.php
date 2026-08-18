@@ -2,17 +2,12 @@
 
 namespace App\Http\Requests\Api;
 
-use App\Enums\UnitSystem;
-use App\Services\UnitConversionService;
+use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateWorkoutTemplateExerciseRequest extends FormRequest
 {
-    public function __construct(
-        private readonly UnitConversionService $conversionService,
-    ) {
-        parent::__construct();
-    }
+    use ConvertsIncomingUnits;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -28,15 +23,7 @@ class UpdateWorkoutTemplateExerciseRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $unitSystem = $this->user()?->profile?->unit_system ?? UnitSystem::Metric;
-
-        if ($unitSystem !== UnitSystem::Imperial || ! $this->filled('target_weight')) {
-            return;
-        }
-
-        $this->merge([
-            'target_weight' => $this->conversionService->toKg((float) $this->input('target_weight'), UnitSystem::Imperial),
-        ]);
+        $this->convertIncomingUnits(['target_weight']);
     }
 
     /**

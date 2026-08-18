@@ -6,18 +6,14 @@ use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
+use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use App\Models\User;
-use App\Services\UnitConversionService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ProfileUpdateRequest extends FormRequest
 {
-    public function __construct(
-        private readonly UnitConversionService $conversionService,
-    ) {
-        parent::__construct();
-    }
+    use ConvertsIncomingUnits;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -29,32 +25,16 @@ class ProfileUpdateRequest extends FormRequest
 
     /**
      * Convert incoming weight/height to the canonical kg/cm storage units
-     * before validation runs, based on the unit system this request (or the
-     * user's stored profile) declares.
+     * before validation runs. The unit system this payload is expressed in is
+     * whatever it declares, falling back to the user's stored preference.
      */
     protected function prepareForValidation(): void
     {
         $unitSystem = UnitSystem::tryFrom((string) $this->input('unit_system'))
-            ?? $this->user()->profile?->unit_system
+            ?? $this->user()?->unitSystem()
             ?? UnitSystem::Metric;
 
-        if ($unitSystem !== UnitSystem::Imperial) {
-            return;
-        }
-
-        $merge = [];
-
-        if ($this->filled('weight')) {
-            $merge['weight'] = $this->conversionService->toKg((float) $this->input('weight'), UnitSystem::Imperial);
-        }
-
-        if ($this->filled('height')) {
-            $merge['height'] = $this->conversionService->toCm((float) $this->input('height'), UnitSystem::Imperial);
-        }
-
-        if ($merge !== []) {
-            $this->merge($merge);
-        }
+        $this->convertIncomingUnits(['weight'], ['height'], $unitSystem);
     }
 
     /**
@@ -84,7 +64,7 @@ class ProfileUpdateRequest extends FormRequest
             'training_experience' => ['nullable', Rule::enum(TrainingExperience::class)],
             'training_days_per_week' => ['nullable', 'integer', 'min:1', 'max:7'],
             'workout_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
-            'unit_system' => ['sometimes', 'nullable', Rule::enum(UnitSystem::class)],
+            'unit_system' => ['sometimes', Rule::enum(UnitSystem::class)],
         ];
     }
 

@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use App\Enums\UnitSystem;
 use App\Services\UnitConversionService;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class UnitConversionServiceTest extends TestCase
 {

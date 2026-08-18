@@ -7,9 +7,12 @@ use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\MuscleGroup;
+use App\Models\Plan;
 use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Models\WorkoutTemplate;
+use App\Models\WorkoutTemplateExercise;
 use App\Services\UnitConversionService;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -303,5 +306,122 @@ class UnitSystemTest extends TestCase
         // Sanity check: progressive overload actually triggered (weight > last performance),
         // proving this isn't a trivially-equal all-zero comparison.
         $this->assertGreaterThan(60.0, $metricTargets['target_weight']);
+    }
+
+    public function test_updating_template_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['unit_system' => UnitSystem::Imperial]);
+
+        $exercise = Exercise::factory()->create();
+        $plan = Plan::factory()->create(['user_id' => $user->id]);
+        $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
+
+        $pivot = WorkoutTemplateExercise::create([
+            'workout_template_id' => $template->id,
+            'exercise_id' => $exercise->id,
+            'order' => 0,
+            'target_sets' => 3,
+            'min_target_reps' => 8,
+            'max_target_reps' => 12,
+            'target_weight' => 0,
+            'rest_seconds' => 90,
+        ]);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->putJson("/api/workout-templates/{$template->id}/exercises/{$pivot->id}", [
+                'target_weight' => 225, // lbs
+            ]);
+
+        $response->assertOk();
+
+        // 225 lbs -> 102.058... kg stored canonically
+        $this->assertEqualsWithDelta(102.06, (float) $pivot->fresh()->target_weight, 0.01);
+    }
+
+    public function test_updating_session_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['unit_system' => UnitSystem::Imperial]);
+
+        $exercise = Exercise::factory()->create();
+        $session = WorkoutSession::factory()->create(['user_id' => $user->id]);
+
+        $sessionExercise = $session->workoutSessionExercises()->create([
+            'exercise_id' => $exercise->id,
+            'order' => 1,
+            'target_sets' => 3,
+            'min_target_reps' => 8,
+            'max_target_reps' => 12,
+            'target_weight' => 0,
+            'rest_seconds' => 90,
+        ]);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->putJson("/api/workout-sessions/{$session->id}/exercises/{$sessionExercise->id}", [
+                'target_weight' => 135, // lbs
+            ]);
+
+        $response->assertOk();
+
+        // 135 lbs -> 61.234... kg stored canonically
+        $this->assertEqualsWithDelta(61.23, (float) $sessionExercise->fresh()->target_weight, 0.01);
+    }
+
+    public function test_adding_session_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['unit_system' => UnitSystem::Imperial]);
+
+        $exercise = Exercise::factory()->create();
+        $session = WorkoutSession::factory()->create(['user_id' => $user->id]);
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->postJson("/api/workout-sessions/{$session->id}/exercises", [
+                'exercise_id' => $exercise->id,
+                'target_weight' => 185, // lbs
+            ]);
+
+        $response->assertSuccessful();
+
+        // 185 lbs -> 83.914... kg stored canonically
+        $this->assertEqualsWithDelta(
+            83.91,
+            (float) $session->workoutSessionExercises()->latest('id')->first()->target_weight,
+            0.01
+        );
+    }
+
+    public function test_imperial_weight_exceeding_the_kg_bound_after_conversion_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['unit_system' => UnitSystem::Imperial]);
+
+        // 1200 lbs -> 544.31 kg, above the existing max:500 kg bound.
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->patchJson('/api/profile', [
+                'weight' => 1200,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('weight');
+    }
+
+    public function test_profile_update_rejects_a_null_unit_system(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->patchJson('/api/profile', [
+                'unit_system' => null,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('unit_system');
     }
 }

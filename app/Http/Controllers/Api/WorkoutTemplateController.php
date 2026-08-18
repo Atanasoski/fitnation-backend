@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\AddWorkoutTemplateExerciseRequest;
+use App\Http\Requests\Api\StoreWorkoutTemplateExerciseRequest;
 use App\Http\Requests\Api\UpdateWorkoutTemplateExerciseRequest;
 use App\Http\Requests\StoreWorkoutTemplateRequest;
 use App\Http\Requests\SwapWorkoutTemplateExerciseRequest;
@@ -116,7 +116,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Add exercise to workout template.
      */
-    public function addExercise(AddWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate): JsonResponse
+    public function addExercise(StoreWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate): JsonResponse
     {
         // Authorization check
         $workoutTemplate->load('plan');

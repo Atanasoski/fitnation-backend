@@ -85,7 +85,7 @@ class WorkoutSessionExerciseResource extends JsonResource
             'max_target_reps' => $maxTargetReps,
             'progression_mode' => $targets['progression_mode'],
             'progression_status' => $progressionStatus,
-            'target_weight' => $this->formatWeight($targetWeight, $user?->profile?->unit_system),
+            'target_weight' => $this->formatTrainingWeight($targetWeight, $user?->unitSystem()),
             'total_reps_previous' => $targets['total_reps_previous'],
             'total_reps_target' => $targets['total_reps_target'],
             'rest_seconds' => $restSeconds,

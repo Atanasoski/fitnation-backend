@@ -20,19 +20,7 @@ class UnitConversionService
      */
     public function formatTrainingWeight(string|float|null $weightKg, ?UnitSystem $unitSystem): float|int|null
     {
-        if ($weightKg === null) {
-            return null;
-        }
-
-        $kg = (float) $weightKg;
-
-        if ($unitSystem !== UnitSystem::Imperial) {
-            return $this->stripTrailingZeros($kg);
-        }
-
-        $lbs = $this->roundToStep($kg * self::KG_TO_LBS, self::TRAINING_WEIGHT_STEP_LBS);
-
-        return $this->stripTrailingZeros($lbs);
+        return $this->formatWeightToStep($weightKg, $unitSystem, self::TRAINING_WEIGHT_STEP_LBS);
     }
 
     /**
@@ -41,26 +29,14 @@ class UnitConversionService
      */
     public function formatBodyWeight(string|float|null $weightKg, ?UnitSystem $unitSystem): float|int|null
     {
-        if ($weightKg === null) {
-            return null;
-        }
-
-        $kg = (float) $weightKg;
-
-        if ($unitSystem !== UnitSystem::Imperial) {
-            return $this->stripTrailingZeros($kg);
-        }
-
-        $lbs = $this->roundToStep($kg * self::KG_TO_LBS, self::BODY_WEIGHT_STEP_LBS);
-
-        return $this->stripTrailingZeros($lbs);
+        return $this->formatWeightToStep($weightKg, $unitSystem, self::BODY_WEIGHT_STEP_LBS);
     }
 
     /**
      * Format a stored cm height for display: metric passthrough, imperial
      * converts to total inches rounded to the nearest whole inch.
      */
-    public function formatHeight(int|string|null $heightCm, ?UnitSystem $unitSystem): int|null
+    public function formatHeight(int|string|null $heightCm, ?UnitSystem $unitSystem): ?int
     {
         if ($heightCm === null) {
             return null;
@@ -92,6 +68,25 @@ class UnitConversionService
         return $unitSystem === UnitSystem::Imperial
             ? (int) round($height / self::CM_TO_INCHES)
             : (int) round($height);
+    }
+
+    /**
+     * Shared display formatting for stored kg weights: metric passes through,
+     * imperial converts to lbs and snaps to the given step.
+     */
+    private function formatWeightToStep(string|float|null $weightKg, ?UnitSystem $unitSystem, float $stepLbs): float|int|null
+    {
+        if ($weightKg === null) {
+            return null;
+        }
+
+        $kg = (float) $weightKg;
+
+        if ($unitSystem !== UnitSystem::Imperial) {
+            return $this->stripTrailingZeros($kg);
+        }
+
+        return $this->stripTrailingZeros($this->roundToStep($kg * self::KG_TO_LBS, $stepLbs));
     }
 
     private function roundToStep(float $value, float $step): float

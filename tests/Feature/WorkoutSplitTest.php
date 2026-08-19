@@ -34,7 +34,9 @@ class WorkoutSplitTest extends TestCase
 
     public function test_returns_empty_array_for_non_existent_split_combination(): void
     {
-        $split = WorkoutSplit::getSplit(3, SplitFocus::LowerFocus);
+        // The seeder covers every focus for 1-7 days per week, so 8 is the
+        // combination that genuinely has no split.
+        $split = WorkoutSplit::getSplit(8, SplitFocus::LowerFocus);
 
         $this->assertIsArray($split);
         $this->assertEmpty($split);
@@ -42,6 +44,13 @@ class WorkoutSplitTest extends TestCase
 
     public function test_service_throws_exception_when_split_not_found(): void
     {
+        // A female user resolves to lower_focus, which the seeder now provides,
+        // so drop that combination to reach the guard.
+        WorkoutSplit::query()
+            ->where('days_per_week', 3)
+            ->where('focus', SplitFocus::LowerFocus)
+            ->delete();
+
         $user = User::factory()->create();
         $user->profile()->update([
             'training_days_per_week' => 3,
@@ -87,25 +96,9 @@ class WorkoutSplitTest extends TestCase
 
     public function test_service_uses_lower_focus_for_female_user(): void
     {
-        // First, create a lower_focus split for testing
-        WorkoutSplit::create([
-            'days_per_week' => 3,
-            'focus' => SplitFocus::LowerFocus,
-            'day_index' => 0,
-            'target_regions' => ['LOWER', 'CORE'],
-        ]);
-        WorkoutSplit::create([
-            'days_per_week' => 3,
-            'focus' => SplitFocus::LowerFocus,
-            'day_index' => 1,
-            'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
-        ]);
-        WorkoutSplit::create([
-            'days_per_week' => 3,
-            'focus' => SplitFocus::LowerFocus,
-            'day_index' => 2,
-            'target_regions' => ['LOWER', 'UPPER_PULL'],
-        ]);
+        // The seeder already provides the lower_focus 3-day split this covers;
+        // creating it again violates the days/focus/day_index unique key.
+        $this->assertNotEmpty(WorkoutSplit::getSplit(3, SplitFocus::LowerFocus));
 
         $user = User::factory()->create();
         $user->profile()->update([

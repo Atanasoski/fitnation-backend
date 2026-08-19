@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Partner;
 use App\Models\User;
-use App\Models\UserInvitation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,25 +11,14 @@ class AuthControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register_with_valid_invitation(): void
+    public function test_user_can_register(): void
     {
         $partner = Partner::factory()->create();
-        $inviter = User::factory()->create(['partner_id' => $partner->id]);
-
-        $invitation = UserInvitation::create([
-            'partner_id' => $partner->id,
-            'invited_by' => $inviter->id,
-            'email' => 'newuser@example.com',
-            'token' => UserInvitation::generateToken(),
-            'expires_at' => now()->addDays(7),
-        ]);
 
         $response = $this->postJson('/api/register', [
-            'name' => 'New User',
             'email' => 'newuser@example.com',
             'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'invitation_token' => $invitation->token,
+            'partner_id' => $partner->id,
         ]);
 
         $response->assertCreated()
@@ -44,119 +32,59 @@ class AuthControllerTest extends TestCase
             'email' => 'newuser@example.com',
             'partner_id' => $partner->id,
         ]);
-
-        // Verify invitation was marked as accepted
-        $invitation->refresh();
-        $this->assertNotNull($invitation->accepted_at);
     }
 
-    public function test_registration_requires_invitation_token(): void
+    public function test_registration_requires_email_password_and_partner(): void
+    {
+        $response = $this->postJson('/api/register', []);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['email', 'password', 'partner_id']);
+    }
+
+    public function test_registration_fails_with_unknown_partner(): void
     {
         $response = $this->postJson('/api/register', [
-            'name' => 'New User',
             'email' => 'newuser@example.com',
             'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'partner_id' => 999999,
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['invitation_token']);
+            ->assertJsonValidationErrors(['partner_id']);
     }
 
-    public function test_registration_fails_with_invalid_invitation_token(): void
+    public function test_registration_fails_with_inactive_partner(): void
     {
+        $partner = Partner::factory()->inactive()->create();
+
         $response = $this->postJson('/api/register', [
-            'name' => 'New User',
             'email' => 'newuser@example.com',
             'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'invitation_token' => 'invalid-token',
-        ]);
-
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['invitation_token']);
-    }
-
-    public function test_registration_fails_with_expired_invitation(): void
-    {
-        $partner = Partner::factory()->create();
-        $inviter = User::factory()->create(['partner_id' => $partner->id]);
-
-        $invitation = UserInvitation::create([
             'partner_id' => $partner->id,
-            'invited_by' => $inviter->id,
-            'email' => 'newuser@example.com',
-            'token' => UserInvitation::generateToken(),
-            'expires_at' => now()->subDays(1), // Expired
-        ]);
-
-        $response = $this->postJson('/api/register', [
-            'name' => 'New User',
-            'email' => 'newuser@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'invitation_token' => $invitation->token,
         ]);
 
         $response->assertUnprocessable()
             ->assertJson([
-                'message' => 'This invitation has expired',
+                'message' => 'The selected partner is not currently active.',
             ]);
+
+        $this->assertDatabaseMissing('users', ['email' => 'newuser@example.com']);
     }
 
-    public function test_registration_fails_with_already_used_invitation(): void
+    public function test_registration_rejects_a_duplicate_email(): void
     {
         $partner = Partner::factory()->create();
-        $inviter = User::factory()->create(['partner_id' => $partner->id]);
-
-        $invitation = UserInvitation::create([
-            'partner_id' => $partner->id,
-            'invited_by' => $inviter->id,
-            'email' => 'newuser@example.com',
-            'token' => UserInvitation::generateToken(),
-            'expires_at' => now()->addDays(7),
-            'accepted_at' => now(), // Already accepted
-        ]);
+        User::factory()->create(['email' => 'taken@example.com']);
 
         $response = $this->postJson('/api/register', [
-            'name' => 'New User',
-            'email' => 'newuser@example.com',
+            'email' => 'taken@example.com',
             'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'invitation_token' => $invitation->token,
+            'partner_id' => $partner->id,
         ]);
 
         $response->assertUnprocessable()
-            ->assertJson([
-                'message' => 'This invitation has already been used',
-            ]);
-    }
-
-    public function test_registration_fails_when_email_does_not_match_invitation(): void
-    {
-        $partner = Partner::factory()->create();
-        $inviter = User::factory()->create(['partner_id' => $partner->id]);
-
-        $invitation = UserInvitation::create([
-            'partner_id' => $partner->id,
-            'invited_by' => $inviter->id,
-            'email' => 'invited@example.com',
-            'token' => UserInvitation::generateToken(),
-            'expires_at' => now()->addDays(7),
-        ]);
-
-        $response = $this->postJson('/api/register', [
-            'name' => 'New User',
-            'email' => 'different@example.com', // Different email
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'invitation_token' => $invitation->token,
-        ]);
-
-        $response->assertUnprocessable()
-            ->assertJson([
-                'message' => 'Email does not match the invitation',
-            ]);
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_user_can_login_with_valid_credentials(): void

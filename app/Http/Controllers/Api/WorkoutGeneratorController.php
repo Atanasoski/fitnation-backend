@@ -8,6 +8,7 @@ use App\Http\Requests\RegenerateWorkoutSessionRequest;
 use App\Http\Resources\Api\GeneratedWorkoutSessionResource;
 use App\Models\WorkoutSession;
 use App\Services\WorkoutGenerator\WorkoutGenerationService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -68,6 +69,9 @@ class WorkoutGeneratorController extends Controller
                 'data' => new GeneratedWorkoutSessionResource($confirmedSession),
                 'message' => 'Workout session confirmed and started successfully',
             ]);
+        } catch (AuthorizationException $e) {
+            // Ownership failures are a 403, not an internal error.
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Workout session confirmation failed', [
                 'user_id' => Auth::id(),
@@ -120,6 +124,9 @@ class WorkoutGeneratorController extends Controller
                 'data' => new GeneratedWorkoutSessionResource($newSession),
                 'message' => 'New workout session generated successfully',
             ], 201);
+        } catch (AuthorizationException $e) {
+            // Ownership failures are a 403, not an internal error.
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Workout session regeneration failed', [
                 'user_id' => Auth::id(),

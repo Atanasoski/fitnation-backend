@@ -115,7 +115,9 @@ class WorkoutSessionGenerationTest extends TestCase
     public function test_generate_requires_complete_profile(): void
     {
         $user = User::factory()->create();
-        // No profile created
+        // The factory always creates a profile, so drop it to reach the guard.
+        $user->profile()->delete();
+        $user->unsetRelation('profile');
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', []);
@@ -228,8 +230,10 @@ class WorkoutSessionGenerationTest extends TestCase
         foreach ([$trxExercise, $barbellExercise] as $exercise) {
             $exercise->partners()->attach($partner->id);
         }
-        $trxExercise->trainingStyles()->attach($functionalStyle->id);
-        $barbellExercise->trainingStyles()->attach($bodybuildingStyle->id);
+        // The factory already tags every exercise BODYBUILDING, so add these
+        // without detaching (and without duplicating the bodybuilding row).
+        $trxExercise->trainingStyles()->syncWithoutDetaching($functionalStyle->id);
+        $barbellExercise->trainingStyles()->syncWithoutDetaching($bodybuildingStyle->id);
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', [

@@ -44,7 +44,10 @@ class WorkoutGeneratorDiversityTest extends TestCase
 
         foreach ($exercises as $exercise) {
             $exercise->partners()->syncWithoutDetaching([$partner->id]);
-            $exercise->trainingStyles()->syncWithoutDetaching([$style->id]);
+            // sync, not syncWithoutDetaching: these tests assert the exercise is
+            // reachable ONLY under $styleCode, so the factory's default
+            // BODYBUILDING tag has to go.
+            $exercise->trainingStyles()->sync([$style->id]);
         }
     }
 

@@ -411,21 +411,27 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'angle_id' => $flatAngle->id,
         ]);
 
-        Exercise::factory()->create([
+        // These carry explicit lower priorities so nothing ties with Back Squat.
+        // selection_priority defaults to 100, which is Back Squat's value, and
+        // sortByCompoundPriority would then rank Back Squat, Deadlift and Leg
+        // Press equally. LOWER allows only 2 compound exercises, so the shuffle
+        // in selectExercisesForDuration would decide which two of the three got
+        // in and Back Squat would be dropped about a third of the time.
+        Exercise::factory()->withPriority(10)->create([
             'name' => 'Deadlift',
             'movement_pattern_id' => $hingePattern->id,
             'target_region_id' => $lower->id,
             'angle_id' => $flatAngle->id,
         ]);
 
-        Exercise::factory()->create([
+        Exercise::factory()->withPriority(10)->create([
             'name' => 'Leg Press',
             'movement_pattern_id' => $legPressPattern->id,
             'target_region_id' => $lower->id,
             'angle_id' => $flatAngle->id,
         ]);
 
-        Exercise::factory()->create([
+        Exercise::factory()->withPriority(10)->create([
             'name' => 'Leg Extension',
             'movement_pattern_id' => $kneeExtensionPattern->id,
             'target_region_id' => $lower->id,

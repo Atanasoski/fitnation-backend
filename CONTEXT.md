@@ -11,6 +11,19 @@ them: `metric` or `imperial`. It is a **presentation and input preference**, not
 a storage format — the same underlying measurement is the same value regardless
 of which unit system reads it. Every user has one; metric is the default.
 
+### Measured Field
+
+A database column that holds a measurement, declared once against its
+[Measurement Kind](#measurement-kind). A field's kind is a domain fact, not a
+per-endpoint decision — both the read path and the write path derive from the
+single declaration, which is what stops them disagreeing about the same column.
+
+### Measurement Kind
+
+What a [Measured Field](#measured-field) holds: a Training Weight, a Body
+Weight, or a Height. The kind determines the canonical storage unit and the
+imperial display step.
+
 ### Canonical Units
 
 The single storage format for every measurement: **kilograms** for weight,

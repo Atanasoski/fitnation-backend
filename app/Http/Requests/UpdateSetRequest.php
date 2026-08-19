@@ -23,7 +23,7 @@ class UpdateSetRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->convertIncomingUnits(['weight']);
+        $this->convertMeasuredInputs('workout_session_set_logs', ['weight']);
     }
 
     /**

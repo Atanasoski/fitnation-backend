@@ -34,7 +34,7 @@ class ProfileUpdateRequest extends FormRequest
             ?? $this->user()?->unitSystem()
             ?? UnitSystem::Metric;
 
-        $this->convertIncomingUnits(['weight'], ['height'], $unitSystem);
+        $this->convertMeasuredInputs('user_profiles', ['weight', 'height'], $unitSystem);
     }
 
     /**

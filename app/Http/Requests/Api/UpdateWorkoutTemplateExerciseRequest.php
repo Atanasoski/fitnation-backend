@@ -23,7 +23,7 @@ class UpdateWorkoutTemplateExerciseRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->convertIncomingUnits(['target_weight']);
+        $this->convertMeasuredInputs('workout_template_exercises', ['target_weight']);
     }
 
     /**

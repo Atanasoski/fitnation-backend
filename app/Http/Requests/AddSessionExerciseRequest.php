@@ -24,7 +24,7 @@ class AddSessionExerciseRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->convertIncomingUnits(['target_weight']);
+        $this->convertMeasuredInputs('workout_session_exercises', ['target_weight']);
     }
 
     /**

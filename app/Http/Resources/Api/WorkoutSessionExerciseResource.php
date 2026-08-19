@@ -2,14 +2,14 @@
 
 namespace App\Http\Resources\Api;
 
-use App\Http\Resources\Concerns\FormatsWeights;
+use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class WorkoutSessionExerciseResource extends JsonResource
 {
-    use FormatsWeights;
+    use FormatsMeasurements;
 
     /**
      * Transform the resource into an array.
@@ -85,7 +85,7 @@ class WorkoutSessionExerciseResource extends JsonResource
             'max_target_reps' => $maxTargetReps,
             'progression_mode' => $targets['progression_mode'],
             'progression_status' => $progressionStatus,
-            'target_weight' => $this->formatTrainingWeight($targetWeight, $user?->unitSystem()),
+            'target_weight' => $this->formatMeasured($targetWeight, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
             'total_reps_previous' => $targets['total_reps_previous'],
             'total_reps_target' => $targets['total_reps_target'],
             'rest_seconds' => $restSeconds,

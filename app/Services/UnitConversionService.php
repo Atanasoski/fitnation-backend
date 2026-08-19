@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MeasurementKind;
 use App\Enums\UnitSystem;
 
 class UnitConversionService
@@ -13,6 +14,39 @@ class UnitConversionService
     private const TRAINING_WEIGHT_STEP_LBS = 5.0;
 
     private const BODY_WEIGHT_STEP_LBS = 0.5;
+
+    /**
+     * Format a stored canonical value for display in the given unit system.
+     * Metric passes through; imperial converts and snaps to the kind's step.
+     *
+     * This and toStorage() are inverses, and every read/write pair in the app
+     * must go through them so the two can never disagree about a field. The
+     * kind comes from MeasuredFields, which is the single place a column's
+     * measurement kind is declared.
+     */
+    public function toDisplay(string|float|null $stored, MeasurementKind $kind, ?UnitSystem $unitSystem): float|int|null
+    {
+        if ($stored === null) {
+            return null;
+        }
+
+        if ($kind === MeasurementKind::Height) {
+            return $this->formatHeight($stored, $unitSystem);
+        }
+
+        return $this->formatWeightToStep($stored, $unitSystem, $kind->imperialStep());
+    }
+
+    /**
+     * Convert an incoming display value back to its canonical storage unit.
+     * The inverse of toDisplay(), modulo that kind's display rounding.
+     */
+    public function toStorage(float $input, MeasurementKind $kind, UnitSystem $unitSystem): float|int
+    {
+        return $kind === MeasurementKind::Height
+            ? $this->toCm($input, $unitSystem)
+            : $this->toKg($input, $unitSystem);
+    }
 
     /**
      * Format a stored kg training weight for display: metric passthrough

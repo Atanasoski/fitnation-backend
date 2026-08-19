@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
+use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\MuscleGroup;
 use App\Models\Partner;
@@ -307,9 +308,9 @@ class FitnessMetricsTest extends TestCase
         );
         $exercise->muscleGroups()->syncWithoutDetaching([$chest->id => ['is_primary' => true]]);
 
-        // Create workout sessions for current week with set logs
-        $currentWeekStart = Carbon::now()->startOfWeek();
-        $currentWeekEnd = Carbon::now()->endOfWeek();
+        // getWeeklyProgress compares the last completed week against the week
+        // before it, and only counts sessions with status "completed".
+        $currentWeekStart = Carbon::now()->subWeek()->startOfWeek();
 
         // Create sessions on Monday, Wednesday, Friday
         $monday = $currentWeekStart->copy();
@@ -319,18 +320,18 @@ class FitnessMetricsTest extends TestCase
         foreach ([$monday, $wednesday, $friday] as $date) {
             $session = WorkoutSession::factory()->create([
                 'user_id' => $user->id,
+                'status' => WorkoutSessionStatus::Completed,
                 'performed_at' => $date->copy()->setTime(10, 0),
                 'completed_at' => $date->copy()->setTime(11, 0), // 60 minutes
             ]);
 
-            // Create set logs with volume (weight stored in KG)
-            // Session 1: 100kg × 10 reps = 1000 kg, Session 2: 100kg × 8 reps = 800 kg
-            // Total per session: 1800 kg = 3968.316 lbs (1800 × 2.20462)
+            // Set logs, weight in kg. Volume is reported in kg (see b9be8a0).
+            // Set 1: 100kg × 10 = 1000, set 2: 100kg × 8 = 800 -> 1800 per session
             SetLog::create([
                 'workout_session_id' => $session->id,
                 'exercise_id' => $exercise->id,
                 'set_number' => 1,
-                'weight' => 100.0, // 100 kg
+                'weight' => 100.0,
                 'reps' => 10,
                 'rest_seconds' => 60,
             ]);
@@ -339,26 +340,27 @@ class FitnessMetricsTest extends TestCase
                 'workout_session_id' => $session->id,
                 'exercise_id' => $exercise->id,
                 'set_number' => 2,
-                'weight' => 100.0, // 100 kg
+                'weight' => 100.0,
                 'reps' => 8,
                 'rest_seconds' => 60,
             ]);
         }
 
-        // Create previous week session
-        $previousWeekStart = Carbon::now()->subWeek()->startOfWeek();
+        // The week before that is the comparison week.
+        $previousWeekStart = Carbon::now()->subWeeks(2)->startOfWeek();
         $previousSession = WorkoutSession::factory()->create([
             'user_id' => $user->id,
+            'status' => WorkoutSessionStatus::Completed,
             'performed_at' => $previousWeekStart->copy()->setTime(10, 0),
             'completed_at' => $previousWeekStart->copy()->setTime(11, 0),
         ]);
 
-        // Previous week: 90kg × 10 reps = 900 kg = 1984.158 lbs (900 × 2.20462)
+        // 90kg × 10 reps = 900 kg
         SetLog::create([
             'workout_session_id' => $previousSession->id,
             'exercise_id' => $exercise->id,
             'set_number' => 1,
-            'weight' => 90.0, // 90 kg
+            'weight' => 90.0,
             'reps' => 10,
             'rest_seconds' => 60,
         ]);
@@ -371,15 +373,12 @@ class FitnessMetricsTest extends TestCase
 
         $weeklyProgress = $response->json('data.weekly_progress');
 
-        // Check volume fields (should be converted from KG to lbs)
-        // Current week: 3 sessions × 1800 kg = 5400 kg = 11904.948 lbs
-        // Previous week: 900 kg = 1984.158 lbs
-        $this->assertIsInt($weeklyProgress['current_week_volume']);
-        $this->assertGreaterThan(10000, $weeklyProgress['current_week_volume']); // Should be ~11905 lbs
-        $this->assertIsInt($weeklyProgress['previous_week_volume']);
-        $this->assertGreaterThan(1000, $weeklyProgress['previous_week_volume']); // Should be ~1984 lbs
-        $this->assertIsInt($weeklyProgress['volume_difference']);
-        $this->assertIsInt($weeklyProgress['volume_difference_percent']);
+        // Volume is reported in kg, not lbs (b9be8a0 dropped the conversion).
+        // Current week: 3 sessions × 1800 kg = 5400 kg. Previous week: 900 kg.
+        $this->assertSame(5400, $weeklyProgress['current_week_volume']);
+        $this->assertSame(900, $weeklyProgress['previous_week_volume']);
+        $this->assertSame(4500, $weeklyProgress['volume_difference']);
+        $this->assertSame(500, $weeklyProgress['volume_difference_percent']);
 
         // Check time field
         $this->assertIsInt($weeklyProgress['current_week_time_minutes']);

@@ -160,15 +160,12 @@ class FitnessMetricsService
         $currentWeekWorkouts = $currentWeekSessions->count();
         $previousWeekWorkouts = $previousWeekSessions->count();
 
-        // Conversion factor: 1 kg = 2.20462 lbs
-
-        // Calculate volume (weight × reps) for current week
-        // Weight is stored in KG, convert to lbs for API response
+        // Calculate volume (weight × reps) for current week.
+        // Weight is stored in kg and reported in kg.
         $currentWeekVolume = 0;
         $currentWeekTimeMinutes = 0;
         foreach ($currentWeekSessions as $session) {
             foreach ($session->setLogs as $setLog) {
-                // Volume in KG, convert to lbs
                 $currentWeekVolume += ($setLog->weight * $setLog->reps);
             }
             // Calculate duration in minutes
@@ -181,7 +178,6 @@ class FitnessMetricsService
         $previousWeekVolume = 0;
         foreach ($previousWeekSessions as $session) {
             foreach ($session->setLogs as $setLog) {
-                // Volume in KG, convert to lbs
                 $previousWeekVolume += ($setLog->weight * $setLog->reps);
             }
         }

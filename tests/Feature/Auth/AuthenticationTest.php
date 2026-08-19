@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -19,7 +20,13 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
+        // The web portal is admins only; regular users are pushed to the mobile
+        // app by AuthenticatedSessionController::store.
         $user = User::factory()->create();
+        $user->roles()->attach(Role::firstOrCreate(
+            ['slug' => 'admin'],
+            ['name' => 'Admin', 'description' => 'System admin']
+        ));
 
         $response = $this->post('/login', [
             'email' => $user->email,

@@ -79,7 +79,7 @@ class CustomPlanApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Custom plan updated successfully',
+                'message' => 'Routine updated successfully',
                 'data' => [
                     'name' => 'Updated Name',
                     'description' => 'Updated description',
@@ -107,7 +107,7 @@ class CustomPlanApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Custom plan deleted successfully',
+                'message' => 'Routine deleted successfully',
             ]);
 
         $this->assertDatabaseMissing('plans', [
@@ -167,7 +167,7 @@ class CustomPlanApiTest extends TestCase
 
         $response->assertStatus(400)
             ->assertJson([
-                'message' => 'Not a custom plan',
+                'message' => 'Not a routine',
             ]);
     }
 }

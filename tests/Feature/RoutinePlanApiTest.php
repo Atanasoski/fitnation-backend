@@ -146,9 +146,13 @@ class RoutinePlanApiTest extends TestCase
 
         $response = $this->getJson("/api/routines/{$userRoutine->id}");
 
-        $response->assertStatus(400)
+        // routinesShow checks partner membership before plan shape, so a plan
+        // with no partner is rejected as unauthorized rather than as
+        // non-browsable. Deliberate: the status must not reveal whether the
+        // plan is in a partner catalogue.
+        $response->assertStatus(403)
             ->assertJson([
-                'message' => 'Not a browsable routine',
+                'message' => 'Unauthorized',
             ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\EquipmentType;
 use App\Models\Exercise;
 use App\Models\MovementPattern;
 use App\Models\TargetRegion;
+use App\Models\TrainingStyle;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -36,6 +37,23 @@ class ExerciseFactory extends Factory
             'video' => null,
             'default_rest_sec' => fake()->randomElement([60, 90, 120, 180]),
         ];
+    }
+
+    /**
+     * Every exercise gets the BODYBUILDING training style by default, mirroring
+     * production: both the importer and the classification seeder fall back to
+     * BODYBUILDING when no style is specified, and the generator filters on it.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Exercise $exercise) {
+            $exercise->trainingStyles()->syncWithoutDetaching(
+                TrainingStyle::firstOrCreate(
+                    ['code' => 'BODYBUILDING'],
+                    ['name' => 'Bodybuilding', 'display_order' => 10]
+                )->id
+            );
+        });
     }
 
     /**

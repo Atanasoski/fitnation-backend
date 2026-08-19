@@ -38,7 +38,12 @@ class EmailVerificationTest extends TestCase
 
         Event::assertDispatched(Verified::class);
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
-        $response->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+
+        // VerifyEmailController is session-free so mobile users can verify in a
+        // browser without logging in, so it renders a confirmation page rather
+        // than redirecting to the web dashboard.
+        $response->assertStatus(200);
+        $response->assertViewIs('auth.email-verified');
     }
 
     public function test_email_is_not_verified_with_invalid_hash(): void

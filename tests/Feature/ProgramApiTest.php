@@ -117,7 +117,7 @@ class ProgramApiTest extends TestCase
         $response->assertStatus(201);
         $this->assertDatabaseHas('plans', [
             'name' => 'Program',
-            'type' => PlanType::Custom->value,
+            'type' => PlanType::Routine->value,
         ]);
     }
 
@@ -214,7 +214,7 @@ class ProgramApiTest extends TestCase
 
         $customPlan = Plan::factory()->create([
             'user_id' => $user->id,
-            'type' => PlanType::Custom,
+            'type' => PlanType::Routine,
         ]);
 
         $response = $this->getJson("/api/programs/{$customPlan->id}");

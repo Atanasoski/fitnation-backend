@@ -3,14 +3,14 @@
 namespace App\Http\Resources\Api;
 
 use App\Enums\WorkoutSessionStatus;
-use App\Http\Resources\Concerns\FormatsWeights;
+use App\Http\Resources\Concerns\FormatsMeasurements;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 
 class WorkoutTemplateResource extends JsonResource
 {
-    use FormatsWeights;
+    use FormatsMeasurements;
 
     /**
      * Transform the resource into an array.
@@ -63,7 +63,7 @@ class WorkoutTemplateResource extends JsonResource
                             'target_sets' => $exercise->pivot->target_sets,
                             'min_target_reps' => $exercise->pivot->min_target_reps,
                             'max_target_reps' => $exercise->pivot->max_target_reps,
-                            'target_weight' => $this->formatWeight($exercise->pivot->target_weight),
+                            'target_weight' => $this->formatMeasured($exercise->pivot->target_weight, 'workout_template_exercises', 'target_weight', auth()->user()?->unitSystem()),
                             'rest_seconds' => $exercise->pivot->rest_seconds,
                         ],
                     ];

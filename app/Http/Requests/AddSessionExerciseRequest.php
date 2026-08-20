@@ -2,16 +2,29 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AddSessionExerciseRequest extends FormRequest
 {
+    use ConvertsIncomingUnits;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Convert an incoming target weight to the canonical kg storage unit
+     * before validation runs, based on the authenticated user's stored
+     * preference.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->convertMeasuredInputs('workout_session_exercises', ['target_weight']);
     }
 
     /**

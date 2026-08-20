@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Api;
 
 use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateSetRequest extends FormRequest
+class UpdateWorkoutTemplateExerciseRequest extends FormRequest
 {
     use ConvertsIncomingUnits;
 
@@ -23,7 +23,7 @@ class UpdateSetRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->convertMeasuredInputs('workout_session_set_logs', ['weight']);
+        $this->convertMeasuredInputs('workout_template_exercises', ['target_weight']);
     }
 
     /**
@@ -34,23 +34,11 @@ class UpdateSetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'weight' => 'required|numeric|min:0',
-            'reps' => 'required|integer|min:0',
-        ];
-    }
-
-    /**
-     * Get custom error messages for validator errors.
-     *
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'weight.required' => 'The weight is required.',
-            'weight.min' => 'The weight cannot be negative.',
-            'reps.required' => 'The number of reps is required.',
-            'reps.min' => 'The number of reps cannot be negative.',
+            'target_sets' => 'nullable|integer|min:1',
+            'min_target_reps' => 'nullable|integer|min:1',
+            'max_target_reps' => 'nullable|integer|min:1|gte:min_target_reps',
+            'target_weight' => 'nullable|numeric|min:0',
+            'rest_seconds' => 'nullable|integer|min:0',
         ];
     }
 }

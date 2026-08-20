@@ -8,7 +8,7 @@ This documentation provides complete information about all API resources and end
 2. [Authentication & Partners](#authentication--partners)
 3. [User Management](#user-management)
 4. [User Profile](#user-profile)
-
+   - [Unit System](#unit-system)
 5. [Onboarding](#onboarding)
 6. [Exercises](#exercises)
 7. [Muscle Groups](#muscle-groups)
@@ -332,6 +332,8 @@ interface GetProfileResponse {
 }
 ```
 
+`user.profile.height`/`user.profile.weight` are already formatted for display in the user's `unit_system` (see [Unit System](#unit-system) below) — no client-side conversion needed.
+
 ---
 
 ### Update Profile
@@ -353,8 +355,9 @@ interface ProfileUpdateRequest {
   fitness_goal?: FitnessGoal;       // enum value
   age?: number;                     // 1-150
   gender?: Gender;                  // enum value
-  height?: number;                  // 50-300 (cm)
-  weight?: number;                  // 1-500 (kg)
+  unit_system?: UnitSystem;         // 'metric' or 'imperial' - see Unit System below. Omit to keep the stored preference.
+  height?: number;                  // in the unit_system being submitted (cm if metric/omitted, inches if imperial) - converted and stored as cm
+  weight?: number;                  // in the unit_system being submitted (kg if metric/omitted, lbs if imperial) - converted and stored as kg
   training_experience?: TrainingExperience; // enum value
   training_days_per_week?: number;  // 1-7
   workout_duration_minutes?: number; // 1-600
@@ -363,7 +366,10 @@ interface ProfileUpdateRequest {
 type FitnessGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness';
 type Gender = 'male' | 'female' | 'other';
 type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
+type UnitSystem = 'metric' | 'imperial';
 ```
+
+**Note:** `height`/`weight` validation bounds (50-300cm / 1-500kg) are checked *after* conversion, so they're always enforced in metric regardless of what unit the client submitted. A very large imperial value can still fail validation once converted (e.g. 1200 lbs → ~544kg, which exceeds the 500kg max) — the returned error message will reference kg, not lbs.
 
 **Response:**
 ```typescript
@@ -372,6 +378,32 @@ interface ProfileUpdateResponse {
   user: UserResource;
 }
 ```
+
+---
+
+### Unit System
+
+The API supports both metric (kg/cm) and imperial (lbs/inches) units. **Storage is always metric internally** — conversion happens only at the API boundary, so this is purely a display/input concern for the frontend.
+
+**What's unit-aware:**
+- `user.profile.height` / `user.profile.weight` (`GET /api/profile`, and nested in `UserResource` anywhere it appears)
+- `SetLogResource.weight` (logged set weights)
+- `WorkoutSessionExerciseResource.target_weight` (live progression targets)
+- `WorkoutTemplateResource` exercise pivot `target_weight` (template targets) — converted both for display (`GET`) and on write via `PUT /api/workout-templates/{id}/exercises/{exercise}` (log a set uses the mobile API, owner-only, same as everything else in this list)
+- Request bodies that accept weight/height: `PATCH /api/profile`, `POST /api/workout-sessions/{session}/sets` (log set), `PUT /api/workout-sessions/{session}/sets/{setLog}` (update set), `PUT /api/workout-templates/{id}/exercises/{exercise}` (update template exercise)
+
+**Not unit-aware, by design:** the internal staff/coach dashboard (session-authenticated Blade admin tooling, separate from the mobile API's `Api\WorkoutTemplateController`) always works in kg/cm regardless of any preference — that surface is staff-only and intentionally excluded from this feature.
+
+**How the unit is resolved on write:**
+1. `PATCH /api/profile` — uses `unit_system` from that request's own body if present, otherwise falls back to the user's stored preference, otherwise defaults to metric.
+2. All other write endpoints (log/update set, add/update session exercise, update template exercise) — always use the user's stored `profile.unit_system` (there's no per-request override here).
+
+**Rounding conventions (imperial display only, metric is always exact passthrough):**
+- Body weight (profile): rounds to the nearest **0.5 lb**.
+- Training/session weight (set logs, session/template target weights): rounds to the nearest **5 lb** (gym plate-increment convention).
+- Height: rounds to the nearest whole **inch**.
+
+**Frontend integration tip:** read `unit_system` off `user.profile.unit_system` and use it purely as a label (`"kg"` vs `"lbs"`, `"cm"` vs `"in"`) — every number the API returns is already in the right unit, so no conversion math is needed client-side except when you want to submit a new value (send it in whichever unit `unit_system` is currently set to).
 
 ---
 
@@ -1580,13 +1612,10 @@ POST /api/workout-templates/{workoutTemplate}/exercises
 ```typescript
 interface AddTemplateExerciseRequest {
   exercise_id: number;       // required, must exist
-  target_sets?: number;      // optional, min 1
-  min_target_reps?: number;  // optional, min 1
-  max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
-  target_weight?: number;    // optional, min 0
-  rest_seconds?: number;     // optional, min 0
 }
 ```
+
+**Note:** Only `exercise_id` is accepted at add-time — the exercise is added with default pivot values (order is assigned automatically). To set `target_sets`/`target_weight`/etc., follow up with `PUT .../exercises/{exercise}` (below) using the pivot ID returned in the response.
 
 **Response (201 Created):**
 ```typescript
@@ -1612,7 +1641,7 @@ interface UpdateTemplateExerciseRequest {
   target_sets?: number;      // optional, min 1
   min_target_reps?: number;  // optional, min 1
   max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
-  target_weight?: number;    // optional, min 0
+  target_weight?: number;    // optional, min 0 - in the user's unit_system (lbs if imperial, kg if metric); converted and stored as kg
   rest_seconds?: number;     // optional, min 0
 }
 ```
@@ -2160,7 +2189,7 @@ POST /api/workout-sessions/{session}/sets
 interface LogSetRequest {
   exercise_id: number;    // required, must exist
   set_number: number;     // required, min 1
-  weight: number;         // required, min 0
+  weight: number;         // required, min 0 - in the user's stored unit_system (lbs if imperial, kg if metric); converted and stored as kg
   reps: number;           // required, min 0
   rest_seconds?: number;  // optional, min 0
 }
@@ -2185,7 +2214,7 @@ PUT /api/workout-sessions/{session}/sets/{setLog}
 **Request Body:**
 ```typescript
 interface UpdateSetRequest {
-  weight: number;  // required, min 0
+  weight: number;  // required, min 0 - in the user's stored unit_system (lbs if imperial, kg if metric); converted and stored as kg
   reps: number;    // required, min 0
 }
 ```
@@ -2231,7 +2260,7 @@ interface AddSessionExerciseRequest {
   target_sets?: number;      // optional, min 1, defaults to 3
   min_target_reps?: number;  // optional, min 1, defaults to 8
   max_target_reps?: number;  // optional, min 1, defaults to 12, must be >= min_target_reps
-  target_weight?: number;    // optional, min 0, defaults to 0
+  target_weight?: number;    // optional, min 0, defaults to 0 - in the user's stored unit_system (lbs if imperial, kg if metric); converted and stored as kg
   rest_seconds?: number;     // optional, min 0, uses exercise default
 }
 ```
@@ -2261,7 +2290,7 @@ interface UpdateSessionExerciseRequest {
   target_sets?: number;      // optional, min 1
   min_target_reps?: number;  // optional, min 1
   max_target_reps?: number;  // optional, min 1, must be >= min_target_reps
-  target_weight?: number;    // optional, min 0
+  target_weight?: number;    // optional, min 0 - in the user's stored unit_system (lbs if imperial, kg if metric); converted and stored as kg
   rest_seconds?: number;     // optional, min 0
 }
 ```
@@ -2369,6 +2398,9 @@ type Gender = 'male' | 'female' | 'other';
 // Training Experience
 type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
 
+// Unit System (see Unit System section under User Profile)
+type UnitSystem = 'metric' | 'imperial';
+
 // Strength Level
 type StrengthLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -2409,8 +2441,9 @@ interface UserProfileResource {
   fitness_goal: FitnessGoal | null;
   age: number | null;
   gender: Gender | null;
-  height: number | null;              // in cm
-  weight: number | null;              // in kg
+  height: number | null;              // in unit_system (cm if metric, whole inches if imperial) - already formatted, no conversion needed
+  weight: number | null;              // in unit_system (kg if metric, lbs rounded to nearest 0.5 if imperial) - already formatted, no conversion needed
+  unit_system: UnitSystem | null;     // 'metric' or 'imperial' - use as the display label for height/weight
   training_experience: TrainingExperience | null;
   training_days_per_week: number | null;  // 1-7
   workout_duration_minutes: number | null;
@@ -2660,7 +2693,7 @@ interface TemplateExercisePivot {
   target_sets: number | null;
   min_target_reps: number | null;
   max_target_reps: number | null;
-  target_weight: number | null;
+  target_weight: number | null;  // in the reading user's unit_system (lbs rounded to nearest 5 if imperial) - converted on read and on write; see Unit System
   rest_seconds: number | null;
 }
 
@@ -2708,7 +2741,7 @@ interface WorkoutSessionExerciseResource {
   min_target_reps: number | null;
   max_target_reps: number | null;
   progression_status: 'no_history' | 'below_min' | 'working' | 'ready';
-  target_weight: number | null;
+  target_weight: number | null;  // in the user's unit_system (lbs rounded to nearest 5 if imperial) - always kg internally
   total_reps_previous: number | null;
   total_reps_target: number | null;
   rest_seconds: number | null;
@@ -2721,7 +2754,7 @@ interface SetLogResource {
   workout_session_id: number;
   exercise_id: number;
   set_number: number;
-  weight: number;
+  weight: number;  // in the user's unit_system (lbs rounded to nearest 5 if imperial) - always kg internally
   reps: number;
   rest_seconds: number | null;
   created_at: string;
@@ -3066,4 +3099,5 @@ await fetch(`/api/workout-templates/${pushTemplate.data.id}/exercises`, {
 4. **Session Uniqueness**: Only one active (uncompleted) session per day per user
 5. **Authorization**: Users can only access their own plans, templates, and sessions
 6. **File Uploads**: Profile photos max 2MB, exercise images max 5MB, videos max 50MB, plan cover images max 5MB
-7. **Weight Format**: Stored as decimals, may be returned as strings in JSON
+7. **Weight Format**: Stored as decimals (kg internally). API responses return weights as JSON numbers, with trailing zeros stripped (`82.5`, not `"82.50"`).
+8. **Unit System**: All weight/height fields are auto-converted for display and input based on the user's `unit_system` preference (`metric` or `imperial`) — see [Unit System](#unit-system). No client-side conversion math is needed; just label numbers using `unit_system`.

@@ -5,18 +5,36 @@ namespace App\Http\Requests\Api;
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
+use App\Enums\UnitSystem;
+use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ProfileUpdateRequest extends FormRequest
 {
+    use ConvertsIncomingUnits;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Convert incoming weight/height to the canonical kg/cm storage units
+     * before validation runs. The unit system this payload is expressed in is
+     * whatever it declares, falling back to the user's stored preference.
+     */
+    protected function prepareForValidation(): void
+    {
+        $unitSystem = UnitSystem::tryFrom((string) $this->input('unit_system'))
+            ?? $this->user()?->unitSystem()
+            ?? UnitSystem::Metric;
+
+        $this->convertMeasuredInputs('user_profiles', ['weight', 'height'], $unitSystem);
     }
 
     /**
@@ -46,6 +64,7 @@ class ProfileUpdateRequest extends FormRequest
             'training_experience' => ['nullable', Rule::enum(TrainingExperience::class)],
             'training_days_per_week' => ['nullable', 'integer', 'min:1', 'max:7'],
             'workout_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'unit_system' => ['sometimes', Rule::enum(UnitSystem::class)],
         ];
     }
 

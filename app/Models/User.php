@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PlanType;
+use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -137,5 +138,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function profile(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(UserProfile::class);
+    }
+
+    /**
+     * The unit system this user reads and writes measurements in. Users with
+     * no profile yet fall back to metric, which is also the column default.
+     */
+    public function unitSystem(): UnitSystem
+    {
+        return $this->profile?->unit_system ?? UnitSystem::Metric;
     }
 }

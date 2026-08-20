@@ -64,6 +64,7 @@ class ProfileController extends Controller
             'training_experience',
             'training_days_per_week',
             'workout_duration_minutes',
+            'unit_system',
         ];
         $profileData = array_intersect_key($validated, array_flip($profileFields));
 

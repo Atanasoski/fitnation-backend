@@ -19,6 +19,14 @@ class WorkoutSessionResource extends JsonResource
         if ($this->relationLoaded('workoutSessionExercises') && $this->relationLoaded('setLogs')) {
             $exerciseIds = $this->workoutSessionExercises->pluck('exercise_id')->toArray();
             $previousSetLogs = $this->getPreviousSetLogsForExercises($exerciseIds);
+            // Exercises appearing on more than one row: legacy sets carrying no
+            // row id cannot be attributed to either, so they are not shown under
+            // both.
+            $duplicatedExerciseIds = $this->workoutSessionExercises
+                ->groupBy('exercise_id')
+                ->filter(fn ($rows) => $rows->count() > 1)
+                ->keys();
+
             $progression = WorkoutSessionExerciseResource::batchProgression(
                 $this->workoutSessionExercises,
                 $request->user()
@@ -26,10 +34,10 @@ class WorkoutSessionResource extends JsonResource
 
             foreach ($this->workoutSessionExercises as $sessionExercise) {
 
-                $loggedSets = $this->setLogs
-                    ->where('exercise_id', $sessionExercise->exercise_id)
-                    ->sortBy('set_number')
-                    ->values();
+                $loggedSets = $sessionExercise->ownedSetsFrom(
+                    $this->setLogs,
+                    ! $duplicatedExerciseIds->contains($sessionExercise->exercise_id)
+                );
 
                 $previousSets = $previousSetLogs->get($sessionExercise->exercise_id, collect());
 

@@ -12,6 +12,7 @@ handed to a separate agent.
 | [004](004-today-endpoint-matches-stale-drafts.md) | `today()` returns stale drafts; `start()` can create a second session | medium | session controller, `WorkoutSession` scopes |
 | [005](005-session-resource-duplication-and-pr-detection.md) | Resource duplication + noisy PR detection in `complete()` | low–medium | resources, `complete()` |
 | [006](006-reorder-request-validation-n-plus-1.md) | `exists` rules fan out one query per array element | low | `ReorderSessionExercisesRequest` |
+| [007](007-set-log-row-id-not-null-followup.md) | Make the new set-log row id NOT NULL and drop the legacy fallback | medium | migration, `ownedSetsFrom`, `LogSetRequest` |
 
 ## Suggested order
 
@@ -21,7 +22,8 @@ handed to a separate agent.
 4. **001** — the performance work.
 5. **005** — cleanup, last, since 001 and 002 both rewrite `WorkoutSessionResource`.
 
-006 was found while implementing 001 and is independent of the rest.
+006 was found while implementing 001 and is independent of the rest. 007 finishes 002 and
+must wait until 002 is deployed and its backfill checked against production data.
 
 001, 002 and 005 all edit `app/Http/Resources/Api/WorkoutSessionResource.php`. Do not run
 them in parallel against the same branch.

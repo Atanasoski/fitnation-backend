@@ -6,16 +6,41 @@ use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProgressionCalculatorService
 {
+    /**
+     * Decimal places SetLog casts `weight` to. Kept in step with that cast.
+     */
+    private const WEIGHT_PRECISION = 1;
+
     /**
      * Calculate target sets, reps, and weight for an exercise based on user history
      */
     public function calculateTargets(Exercise $exercise, User $user, ?TrainingExperience $experience = null): array
     {
+        return $this->calculateTargetsFrom(
+            $exercise,
+            $user,
+            $experience,
+            $this->getLastPerformance($exercise, $user)
+        );
+    }
+
+    /**
+     * Calculate targets from an already-resolved last performance.
+     *
+     * Callers that serialize many exercises at once resolve the performances in
+     * one batch (see getLastPerformanceForExercises) and pass each one in here,
+     * so the history lookup does not repeat per exercise.
+     *
+     * @param  array<string, mixed>|null  $lastPerformance  null means "no history", not "not yet resolved"
+     */
+    public function calculateTargetsFrom(Exercise $exercise, User $user, ?TrainingExperience $experience, ?array $lastPerformance): array
+    {
         $experience ??= TrainingExperience::Beginner;
-        $lastPerformance = $this->getLastPerformance($exercise, $user);
         $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
 
         if ($this->isBodyweight($exercise)) {
@@ -76,15 +101,93 @@ class ProgressionCalculatorService
                     ->orderBy('set_number');
             }])
             ->orderBy('completed_at', 'desc')
+            ->orderBy('id', 'desc') // tiebreak, so this agrees with the batched window below
             ->first();
 
         if (! $lastSetLog || $lastSetLog->setLogs->isEmpty()) {
             return null;
         }
 
-        $weights = $lastSetLog->setLogs
+        return $this->shapeLastPerformance($lastSetLog->setLogs, $exercise);
+    }
+
+    /**
+     * Batched getLastPerformance() for many exercises at once.
+     *
+     * Resolves, per exercise, the sets from the user's most recent completed
+     * session containing that exercise — the same row the single-exercise
+     * lookup picks — in one query rather than one query per exercise.
+     *
+     * Uses a window function, so this requires MySQL 8.0+ / MariaDB 10.2+
+     * (or SQLite 3.25+ for local dev).
+     *
+     * @param  \Illuminate\Support\Collection<int, Exercise>|array<int, Exercise>  $exercises
+     * @return array<int, array<string, mixed>> keyed by exercise_id; exercises with no history are absent
+     */
+    public function getLastPerformanceForExercises(Collection|array $exercises, User $user): array
+    {
+        $exercises = collect($exercises)->keyBy('id');
+
+        if ($exercises->isEmpty()) {
+            return [];
+        }
+
+        // Rank each (exercise, completed session) pair newest-first and keep only
+        // the winner. DENSE_RANK (not ROW_NUMBER) so every set of the winning
+        // session survives the filter, since they share the same rank key.
+        $ranked = DB::table('workout_session_set_logs as set_logs')
+            ->join('workout_sessions as sessions', 'sessions.id', '=', 'set_logs.workout_session_id')
+            ->where('sessions.user_id', $user->id)
+            ->where('sessions.status', WorkoutSessionStatus::Completed->value)
+            ->whereIn('set_logs.exercise_id', $exercises->keys()->all())
+            ->select([
+                'set_logs.exercise_id',
+                'set_logs.set_number',
+                'set_logs.weight',
+                'set_logs.reps',
+                'set_logs.rest_seconds',
+                DB::raw('DENSE_RANK() OVER (PARTITION BY set_logs.exercise_id ORDER BY sessions.completed_at DESC, sessions.id DESC) as session_rank'),
+            ]);
+
+        $rows = DB::query()
+            ->fromSub($ranked, 'ranked')
+            ->where('ranked.session_rank', 1)
+            ->orderBy('ranked.exercise_id')
+            ->orderBy('ranked.set_number')
+            ->get();
+
+        $performances = [];
+
+        foreach ($rows->groupBy('exercise_id') as $exerciseId => $setLogs) {
+            $exercise = $exercises->get((int) $exerciseId);
+
+            if (! $exercise) {
+                continue;
+            }
+
+            $performances[(int) $exerciseId] = $this->shapeLastPerformance($setLogs, $exercise);
+        }
+
+        return $performances;
+    }
+
+    /**
+     * Build the last-performance array from one session's sets for one exercise.
+     *
+     * Shared by the single and batched lookups so both report identical numbers.
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $setLogs  ordered by set_number
+     * @return array<string, mixed>
+     */
+    private function shapeLastPerformance(Collection $setLogs, Exercise $exercise): array
+    {
+        // SetLog casts weight to decimal:1. The batched lookup reads the column
+        // through the query builder, which bypasses model casts, so normalise
+        // here — otherwise the two paths report different weights for the same
+        // set and progression drifts by up to a full equipment increment.
+        $weights = $setLogs
             ->pluck('weight')
-            ->map(fn ($weight) => (float) $weight)
+            ->map(fn ($weight) => round((float) $weight, self::WEIGHT_PRECISION))
             ->all();
 
         $normalizedWeightKeys = array_map(
@@ -95,12 +198,12 @@ class ProgressionCalculatorService
         arsort($weightCounts);
         $mostCommonWeight = (float) array_key_first($weightCounts);
 
-        $reps = $lastSetLog->setLogs
+        $reps = $setLogs
             ->pluck('reps')
             ->map(fn ($repCount) => (int) $repCount)
             ->all();
 
-        $restSeconds = $lastSetLog->setLogs
+        $restSeconds = $setLogs
             ->pluck('rest_seconds')
             ->filter(fn ($rest) => $rest !== null)
             ->map(fn ($rest) => (int) $rest)
@@ -108,7 +211,7 @@ class ProgressionCalculatorService
 
         return [
             'weight' => $mostCommonWeight,
-            'sets' => $lastSetLog->setLogs->count(),
+            'sets' => $setLogs->count(),
             'rest_seconds' => $restSeconds ?? $exercise->default_rest_sec ?? 90,
             'weights' => $weights,
             'reps' => $reps,

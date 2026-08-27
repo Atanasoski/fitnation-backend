@@ -146,7 +146,7 @@ class WorkoutSessionController extends Controller
             });
         }
 
-        $session->load(['workoutSessionExercises.exercise.category', 'setLogs']);
+        $session->load(WorkoutSession::detailRelations());
 
         return response()->json([
             'data' => new WorkoutSessionResource($session),
@@ -161,10 +161,7 @@ class WorkoutSessionController extends Controller
     {
         $this->authorize('view', $session);
 
-        $session->load([
-            'workoutSessionExercises.exercise.category',
-            'setLogs' => fn ($q) => $q->orderBy('set_number'),
-        ]);
+        $session->load(WorkoutSession::detailRelations());
 
         return response()->json([
             'data' => new WorkoutSessionResource($session),
@@ -321,10 +318,7 @@ class WorkoutSessionController extends Controller
             }
         }
 
-        $session->load([
-            'workoutSessionExercises.exercise.category',
-            'setLogs' => fn ($q) => $q->orderBy('set_number'),
-        ]);
+        $session->load(WorkoutSession::detailRelations());
 
         return response()->json([
             'data' => new WorkoutSessionResource($session),
@@ -373,7 +367,7 @@ class WorkoutSessionController extends Controller
             'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec ?? 90,
         ]);
 
-        $sessionExercise->load('exercise.category');
+        $sessionExercise->load(WorkoutSession::SESSION_EXERCISE_RELATIONS);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($sessionExercise),
@@ -425,7 +419,7 @@ class WorkoutSessionController extends Controller
             'rest_seconds',
         ]));
 
-        $exercise->load('exercise.category');
+        $exercise->load(WorkoutSession::SESSION_EXERCISE_RELATIONS);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($exercise),
@@ -448,10 +442,7 @@ class WorkoutSessionController extends Controller
 
         $sessionExercise->update(['exercise_id' => $request->validated('exercise_id')]);
 
-        $session->load([
-            'workoutSessionExercises.exercise.category',
-            'setLogs' => fn ($q) => $q->orderBy('set_number'),
-        ]);
+        $session->load(WorkoutSession::detailRelations());
 
         return response()->json([
             'data' => new WorkoutSessionResource($session),
@@ -473,10 +464,18 @@ class WorkoutSessionController extends Controller
             }
         });
 
-        $session->load('workoutSessionExercises.exercise.category');
+        $session->load(array_map(
+            fn (string $relation) => 'workoutSessionExercises.'.$relation,
+            WorkoutSession::SESSION_EXERCISE_RELATIONS
+        ));
 
         return response()->json([
-            'data' => WorkoutSessionExerciseResource::collection($session->workoutSessionExercises),
+            // collectionForRows, not ::collection(): the latter leaves every row
+            // to resolve its own progression, one history query each.
+            'data' => WorkoutSessionExerciseResource::collectionForRows(
+                $session->workoutSessionExercises,
+                $request->user()
+            ),
             'message' => 'Exercises reordered successfully',
         ]);
     }

@@ -20,6 +20,7 @@ class SetLogResource extends JsonResource
         return [
             'id' => $this->id,
             'workout_session_id' => $this->workout_session_id,
+            'workout_session_exercise_id' => $this->workout_session_exercise_id,
             'exercise_id' => $this->exercise_id,
             'set_number' => $this->set_number,
             'weight' => $this->formatMeasured($this->weight, 'workout_session_set_logs', 'weight', auth()->user()?->unitSystem()),

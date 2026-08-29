@@ -80,15 +80,12 @@ class WorkoutGenerationService
                     'exercises_count' => count($exercisesToInsert),
                 ]);
 
-                return $session->fresh([
-                    'workoutSessionExercises.exercise.category',
-                    'workoutSessionExercises.exercise.muscleGroups',
-                    'workoutSessionExercises.exercise.movementPattern',
-                    'workoutSessionExercises.exercise.targetRegion',
-                    'workoutSessionExercises.exercise.equipmentType',
-                    'workoutSessionExercises.exercise.angle',
-                    'setLogs',
-                ]);
+                // targetRegion on top of the standard set: the draft preview
+                // renders it, the session detail view does not.
+                return $session->fresh(array_merge(
+                    WorkoutSession::detailRelations(),
+                    ['workoutSessionExercises.exercise.targetRegion']
+                ));
             });
         } catch (\Exception $e) {
             Log::error('Workout generation failed', [
@@ -119,11 +116,7 @@ class WorkoutGenerationService
             'session_id' => $session->id,
         ]);
 
-        return $session->fresh([
-            'workoutSessionExercises.exercise.category',
-            'workoutSessionExercises.exercise.muscleGroups',
-            'setLogs',
-        ]);
+        return $session->fresh(WorkoutSession::detailRelations());
     }
 
     /**

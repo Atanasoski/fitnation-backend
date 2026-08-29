@@ -19,18 +19,33 @@ class WorkoutSessionResource extends JsonResource
         if ($this->relationLoaded('workoutSessionExercises') && $this->relationLoaded('setLogs')) {
             $exerciseIds = $this->workoutSessionExercises->pluck('exercise_id')->toArray();
             $previousSetLogs = $this->getPreviousSetLogsForExercises($exerciseIds);
+            // Exercises appearing on more than one row: legacy sets carrying no
+            // row id cannot be attributed to either, so they are not shown under
+            // both.
+            $duplicatedExerciseIds = $this->workoutSessionExercises
+                ->groupBy('exercise_id')
+                ->filter(fn ($rows) => $rows->count() > 1)
+                ->keys();
+
+            $progression = WorkoutSessionExerciseResource::batchProgression(
+                $this->workoutSessionExercises,
+                $request->user()
+            );
 
             foreach ($this->workoutSessionExercises as $sessionExercise) {
 
-                $loggedSets = $this->setLogs
-                    ->where('exercise_id', $sessionExercise->exercise_id)
-                    ->sortBy('set_number')
-                    ->values();
+                $loggedSets = $sessionExercise->ownedSetsFrom(
+                    $this->setLogs,
+                    ! $duplicatedExerciseIds->contains($sessionExercise->exercise_id)
+                );
 
                 $previousSets = $previousSetLogs->get($sessionExercise->exercise_id, collect());
 
                 $exercisesData[] = [
-                    'session_exercise' => new WorkoutSessionExerciseResource($sessionExercise),
+                    'session_exercise' => WorkoutSessionExerciseResource::forRow(
+                        $sessionExercise,
+                        $progression[$sessionExercise->exercise_id] ?? null
+                    ),
                     'logged_sets' => SetLogResource::collection($loggedSets),
                     'previous_sets' => SetLogResource::collection($previousSets),
                     'is_completed' => $loggedSets->count() >= ($sessionExercise->target_sets ?? 3),
@@ -47,10 +62,10 @@ class WorkoutSessionResource extends JsonResource
             'workout_template_id' => $this->workout_template_id,
             'performed_at' => $this->performed_at,
             'completed_at' => $this->completed_at,
-            "status" => $this->status,           // ← missing from GET
-            "rationale" => $this->notes,
-            "is_auto_generated" => $this->is_auto_generated,
-            "replaced_session_id" => $this->replaced_session_id,
+            'status' => $this->status,           // ← missing from GET
+            'rationale' => $this->notes,
+            'is_auto_generated' => $this->is_auto_generated,
+            'replaced_session_id' => $this->replaced_session_id,
             'notes' => $this->notes,
             'exercises' => $exercisesData,
             'progress' => [

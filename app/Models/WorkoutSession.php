@@ -34,6 +34,42 @@ class WorkoutSession extends Model
     protected $appends = ['status_label', 'status_badge_classes'];
 
     /**
+     * Exercise relations WorkoutSessionExerciseResource needs loaded.
+     *
+     * category/partners/muscleGroups feed ExerciseResource; movementPattern,
+     * equipmentType and angle feed ProgressionCalculatorService. Loading them
+     * up front is what keeps session serialization off the lazy-load path.
+     */
+    public const SESSION_EXERCISE_RELATIONS = [
+        'exercise.category',
+        'exercise.partners',
+        'exercise.muscleGroups',
+        'exercise.primaryMuscleGroups',
+        'exercise.secondaryMuscleGroups',
+        'exercise.movementPattern',
+        'exercise.equipmentType',
+        'exercise.angle',
+    ];
+
+    /**
+     * Everything WorkoutSessionResource needs to serialize a session without
+     * issuing a query per exercise row. Pass to with(), load() or fresh().
+     *
+     * @return array<int|string, mixed>
+     */
+    public static function detailRelations(): array
+    {
+        $relations = array_map(
+            fn (string $relation) => 'workoutSessionExercises.'.$relation,
+            self::SESSION_EXERCISE_RELATIONS
+        );
+
+        $relations['setLogs'] = fn ($query) => $query->orderBy('set_number');
+
+        return $relations;
+    }
+
+    /**
      * Display label for the session status (for UI badges).
      */
     public function getStatusLabelAttribute(): string

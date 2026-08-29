@@ -45,7 +45,7 @@ class UserWorkoutSessionController extends Controller
         );
         $totalExercises = $workoutSession->workoutSessionExercises->count();
         $exercisesWithSets = $workoutSession->workoutSessionExercises->filter(
-            fn ($e) => $workoutSession->setLogs->where('exercise_id', $e->exercise_id)->isNotEmpty()
+            fn ($e) => $this->setsFor($workoutSession, $e)->isNotEmpty()
         )->count();
         $progressPercent = $totalExercises > 0 ? (int) round(($exercisesWithSets / $totalExercises) * 100) : 0;
         $durationMinutes = null;
@@ -54,10 +54,7 @@ class UserWorkoutSessionController extends Controller
         }
 
         $exerciseRows = $workoutSession->workoutSessionExercises->map(function ($sessionExercise) use ($workoutSession) {
-            $setsForExercise = $workoutSession->setLogs
-                ->where('exercise_id', $sessionExercise->exercise_id)
-                ->sortBy('set_number')
-                ->values()
+            $setsForExercise = $this->setsFor($workoutSession, $sessionExercise)
                 ->map(fn ($log) => (object) [
                     'set_number' => $log->set_number,
                     'weight' => (float) $log->weight,
@@ -84,5 +81,13 @@ class UserWorkoutSessionController extends Controller
             'durationMinutes',
             'exerciseRows'
         ));
+    }
+
+    /**
+     * The sets logged against one session-exercise row, ordered.
+     */
+    private function setsFor(WorkoutSession $workoutSession, $sessionExercise): \Illuminate\Support\Collection
+    {
+        return $sessionExercise->ownedSetsFrom($workoutSession->setLogs);
     }
 }

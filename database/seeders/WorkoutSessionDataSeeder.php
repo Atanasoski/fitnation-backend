@@ -136,13 +136,25 @@ class WorkoutSessionDataSeeder extends Seeder
             }
         }
 
-        $selectedExercises = $selectedExercises->unique('id')->take(8);
+        $selectedExercises = $selectedExercises->unique('id')->take(8)->values();
 
         // Create set logs for each exercise
-        foreach ($selectedExercises as $exercise) {
+        foreach ($selectedExercises as $order => $exercise) {
             $sets = fake()->numberBetween(3, 5);
             $baseWeight = $this->getBaseWeightForExercise($exercise->name);
             $baseReps = fake()->numberBetween(8, 12);
+
+            // Every set belongs to a session-exercise row; seeding the logs
+            // without one leaves them unattached and invisible in the API.
+            $sessionExercise = $session->workoutSessionExercises()->create([
+                'exercise_id' => $exercise->id,
+                'order' => $order,
+                'target_sets' => $sets,
+                'min_target_reps' => 8,
+                'max_target_reps' => 12,
+                'target_weight' => $baseWeight,
+                'rest_seconds' => $exercise->default_rest_sec ?? 60,
+            ]);
 
             for ($setNumber = 1; $setNumber <= $sets; $setNumber++) {
                 // Progressive overload: weight increases slightly, reps may decrease
@@ -155,6 +167,7 @@ class WorkoutSessionDataSeeder extends Seeder
 
                 SetLog::create([
                     'workout_session_id' => $session->id,
+                    'workout_session_exercise_id' => $sessionExercise->id,
                     'exercise_id' => $exercise->id,
                     'set_number' => $setNumber,
                     'weight' => round($weight, 2),

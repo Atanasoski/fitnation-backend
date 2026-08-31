@@ -2,6 +2,35 @@
 
 Glossary for the muscle-hustle domain. Terms only — no implementation detail.
 
+## Workout Sessions
+
+### Session Detail
+
+A workout session resolved for the athlete performing it: the exercises it
+holds, the sets logged against each, what the athlete did the last time they
+trained that exercise, and what they are aiming for now.
+
+Distinct from the session record itself, which holds only when the session
+happened and how it went. A Session Detail is **derived** — asking for the same
+session twice can legitimately give different answers, because an athlete's
+history moves underneath it.
+
+_Avoid_: session payload, session response.
+
+### Session Exercise Detail
+
+One exercise within a [Session Detail](#session-detail): the exercise, the
+targets the athlete is working to, the sets they have logged against it, what
+they did last time, and whether they are done with it.
+
+The unit an athlete actually interacts with mid-workout — they work through a
+session one Session Exercise Detail at a time. An exercise is **done** when the
+number of sets logged against it reaches its target sets.
+
+A session can carry the same exercise on more than one Session Exercise Detail
+— a top set early and back-off sets later, or a superset repeat — so an
+exercise does not identify one of these; the row does.
+
 ## Measurement
 
 ### Unit System

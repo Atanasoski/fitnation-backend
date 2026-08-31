@@ -1816,7 +1816,10 @@ GET /api/workout-sessions/today
 interface TodayWorkoutResponse {
   data: {
     template: WorkoutTemplate | null;  // Scheduled template for today
-    session: WorkoutSessionResource | null;  // Active session if exists
+    // Active or draft session if one exists. A full Session Detail — byte for
+    // byte what GET /api/workout-sessions/{session} returns for the same
+    // session, exercises and progress included.
+    session: WorkoutSessionResource | null;
   };
 }
 ```
@@ -2103,9 +2106,13 @@ interface SessionDetailResponse {
     id: number;
     user_id: number;
     workout_template_id: number | null;
-    performed_at: string;      // ISO 8601
+    performed_at: string | null;  // ISO 8601, null for draft sessions
     completed_at: string | null;
-    notes: string | null;
+    status: 'draft' | 'active' | 'completed' | 'cancelled';
+    rationale: string | null;
+    is_auto_generated: boolean;
+    replaced_session_id: number | null;
+    notes: string | null;         // same value as `rationale`
     exercises: SessionExerciseDetail[];
     progress: SessionProgress;
     created_at: string;
@@ -2524,7 +2531,7 @@ interface ExerciseResource {
   default_rest_sec: number;
   angle?: AngleResource | null;                    // Optional: loaded via relationship
   movement_pattern?: MovementPatternResource | null;  // Optional: loaded via relationship
-  target_region?: TargetRegionResource | null;     // Optional: loaded via relationship
+  target_region?: TargetRegionResource | null;     // Optional: loaded via relationship. Never present on an exercise reached through a workout session.
   equipment_type?: EquipmentTypeResource | null;   // Optional: loaded via relationship
   created_at: string;
   updated_at: string;
@@ -2701,24 +2708,24 @@ interface TemplateExercisePivot {
 // WORKOUT SESSION RESOURCES
 // ============================================
 
+// Every endpoint returning a workout session returns this same shape — a full
+// Session Detail. There is no reduced variant: /today, /start, /complete,
+// /{session}, and all three workout-generator endpoints agree.
 interface WorkoutSessionResource {
   id: number;
   user_id: number;
   workout_template_id: number | null;
   performed_at: string | null;          // ISO 8601, null for draft sessions
   completed_at: string | null;
-  notes: string | null;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
-  exercises: WorkoutSessionExerciseResource[];
-  set_logs: SetLogResource[];
+  rationale: string | null;             // explanation of the workout selection
+  is_auto_generated: boolean;
+  replaced_session_id: number | null;   // session this replaced (null for first generation)
+  notes: string | null;                 // same value as `rationale`
+  exercises: SessionExerciseDetail[];   // see SessionDetailResponse below
+  progress: SessionProgress;            // see SessionDetailResponse below
   created_at: string;
   updated_at: string;
-}
-
-interface GeneratedSessionResource extends WorkoutSessionResource {
-  is_auto_generated: boolean;           // true for auto-generated sessions
-  replaced_session_id: number | null;   // ID of session this replaced (null for first generation)
-  rationale: string | null;             // explanation of the workout selection
 }
 
 interface WorkoutSessionCalendarResource {

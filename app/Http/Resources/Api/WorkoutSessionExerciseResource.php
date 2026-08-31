@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api;
 
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
+use App\Services\WorkoutSession\SessionExerciseDetail;
 use App\Services\WorkoutSession\SessionProgression;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -23,6 +24,28 @@ class WorkoutSessionExerciseResource extends JsonResource
      * @var array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}|null
      */
     private ?array $progression = null;
+
+    /**
+     * Targets and progression status already resolved by SessionDetail. When
+     * set, this resource decides nothing and only writes them out.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $resolvedTargets = null;
+
+    private ?string $resolvedStatus = null;
+
+    /**
+     * Serialize a row whose detail SessionDetail has already resolved.
+     */
+    public static function forDetail(SessionExerciseDetail $detail): self
+    {
+        $resource = new self($detail->row);
+        $resource->resolvedTargets = $detail->targets;
+        $resource->resolvedStatus = $detail->progressionStatus;
+
+        return $resource;
+    }
 
     /**
      * Hand this row its share of a batch-resolved progression.
@@ -79,47 +102,10 @@ class WorkoutSessionExerciseResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = $request->user();
-        $progression = app(SessionProgression::class);
 
-        [$targets, $lastPerformance] = $this->resolveProgression($progression, $user);
-
-        $targetSets = $this->target_sets;
-        $minTargetReps = $this->min_target_reps;
-        $maxTargetReps = $this->max_target_reps;
-        $restSeconds = $this->rest_seconds;
-
-        // target_weight is always taken from the progression calculator so it
-        // reflects the user's latest completed session, not a stale stored value.
-        $targetWeight = $targets['target_weight'];
-
-        if (! $targetSets) {
-            $targetSets = $targets['target_sets'];
-        }
-        if (! $minTargetReps) {
-            $minTargetReps = $targets['min_target_reps'];
-        }
-        if (! $maxTargetReps) {
-            $maxTargetReps = $targets['max_target_reps'];
-        }
-        if (! $restSeconds) {
-            $restSeconds = $targets['rest_seconds'];
-        }
-        if (($targets['progression_mode'] ?? 'double_progression') === 'total_reps') {
-            $minTargetReps = null;
-            $maxTargetReps = null;
-        }
-
-        $progressionStatus = 'no_history';
-
-        if ($user) {
-            // Pure: reads the already-loaded equipment type, issues no queries.
-            $progressionStatus = $progression->statusFor(
-                $lastPerformance,
-                (int) ($minTargetReps ?? 0),
-                (int) ($maxTargetReps ?? 0),
-                $this->exercise
-            );
-        }
+        [$targets, $progressionStatus] = $this->resolvedTargets !== null
+            ? [$this->resolvedTargets, $this->resolvedStatus]
+            : $this->resolveOwnDetail($user);
 
         return [
             'id' => $this->id,
@@ -129,15 +115,15 @@ class WorkoutSessionExerciseResource extends JsonResource
                 return new ExerciseResource($this->exercise);
             }),
             'order' => $this->order,
-            'target_sets' => $targetSets,
-            'min_target_reps' => $minTargetReps,
-            'max_target_reps' => $maxTargetReps,
+            'target_sets' => $targets['target_sets'],
+            'min_target_reps' => $targets['min_target_reps'],
+            'max_target_reps' => $targets['max_target_reps'],
             'progression_mode' => $targets['progression_mode'],
             'progression_status' => $progressionStatus,
-            'target_weight' => $this->formatMeasured($targetWeight, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
+            'target_weight' => $this->formatMeasured($targets['target_weight'], 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
             'total_reps_previous' => $targets['total_reps_previous'],
             'total_reps_target' => $targets['total_reps_target'],
-            'rest_seconds' => $restSeconds,
+            'rest_seconds' => $targets['rest_seconds'],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
@@ -149,14 +135,28 @@ class WorkoutSessionExerciseResource extends JsonResource
      *
      * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
      */
-    private function resolveProgression(SessionProgression $progression, $user): array
+    private function resolveOwnDetail(?User $user): array
     {
+        $progressions = app(SessionProgression::class);
+
         $resolved = match (true) {
             $this->progression !== null => $this->progression,
-            $user === null => $progression->withoutUser($this->exercise),
-            default => $progression->forExercise($this->exercise, $user),
+            $user === null => $progressions->withoutUser($this->exercise),
+            default => $progressions->forExercise($this->exercise, $user),
         };
 
-        return [$resolved['targets'], $resolved['last_performance']];
+        $targets = $progressions->targetsFor($this->resource, $resolved['targets']);
+
+        $status = $user === null
+            ? 'no_history'
+            // Pure: reads the already-loaded equipment type, issues no queries.
+            : $progressions->statusFor(
+                $resolved['last_performance'],
+                (int) ($targets['min_target_reps'] ?? 0),
+                (int) ($targets['max_target_reps'] ?? 0),
+                $this->exercise
+            );
+
+        return [$targets, $status];
     }
 }

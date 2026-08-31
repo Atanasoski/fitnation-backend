@@ -77,16 +77,17 @@ class SessionDetailCharacterizationTest extends TestCase
     }
 
     /**
-     * Current behaviour, and wrong: WorkoutSessionResource emits an empty
-     * exercise list unless BOTH workoutSessionExercises and setLogs are loaded,
-     * and today() loads only the first. No client reads the field, so nothing
-     * breaks today — but API_DOCUMENTATION.md:2704 and the front-end's own type
-     * at packages/shared/src/types/api.ts:290 both declare it present.
+     * today() used to emit an empty exercise list and zeroed progress: the
+     * resource returned those unless BOTH workoutSessionExercises and setLogs
+     * were loaded, and today() loaded only the first. No client read the field,
+     * so nothing broke — but API_DOCUMENTATION.md:2704 and the front-end's own
+     * type at packages/shared/src/types/api.ts:290 both declare it present.
      *
-     * This assertion is expected to be replaced, not deleted, by the commit
-     * that puts today() behind SessionDetail.
+     * Now that SessionDetail loads its own relations there is no way for a
+     * caller to get that wrong, and today() agrees with show() exactly. That
+     * equality is the assertion worth holding — not a count.
      */
-    public function test_today_currently_returns_a_session_without_its_exercises(): void
+    public function test_today_returns_the_same_session_payload_as_show(): void
     {
         ['user' => $user] = $this->makeFixture();
 
@@ -95,11 +96,7 @@ class SessionDetailCharacterizationTest extends TestCase
 
         $response->assertOk();
 
-        $this->assertSame([], $response->json('data.session.exercises'));
-        $this->assertSame(
-            ['total_exercises' => 0, 'completed_exercises' => 0, 'progress_percent' => 0],
-            $response->json('data.session.progress')
-        );
+        $this->assertSame($this->expectedSessionPayload(), $response->json('data.session'));
     }
 
     /**

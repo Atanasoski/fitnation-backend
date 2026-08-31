@@ -65,7 +65,7 @@ final class SessionDetail
             $resolved = $progression[$row->exercise_id]
                 ?? $progressions->withoutUser($row->exercise);
 
-            $targets = self::resolveTargets($row, $resolved['targets']);
+            $targets = $progressions->targetsFor($row, $resolved['targets']);
 
             $loggedSets = $row->ownedSetsFrom(
                 $setLogs,
@@ -123,37 +123,5 @@ final class SessionDetail
             'completed_exercises' => $completed,
             'progress_percent' => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
         ];
-    }
-
-    /**
-     * Which target a user actually sees, per CONTEXT.md.
-     *
-     * A stored sets/reps/rest value wins when it holds anything; target_weight
-     * never does, because a Session Target Weight is recomputed on every read
-     * from the user's latest completed session. In total_reps mode the rep
-     * bounds are meaningless and are suppressed.
-     *
-     * @param  array<string, mixed>  $calculated
-     * @return array<string, mixed>
-     */
-    private static function resolveTargets($row, array $calculated): array
-    {
-        $targets = [
-            'progression_mode' => $calculated['progression_mode'],
-            'target_sets' => $row->target_sets ?: $calculated['target_sets'],
-            'min_target_reps' => $row->min_target_reps ?: $calculated['min_target_reps'],
-            'max_target_reps' => $row->max_target_reps ?: $calculated['max_target_reps'],
-            'target_weight' => $calculated['target_weight'],
-            'total_reps_previous' => $calculated['total_reps_previous'],
-            'total_reps_target' => $calculated['total_reps_target'],
-            'rest_seconds' => $row->rest_seconds ?: $calculated['rest_seconds'],
-        ];
-
-        if (($calculated['progression_mode'] ?? 'double_progression') === 'total_reps') {
-            $targets['min_target_reps'] = null;
-            $targets['max_target_reps'] = null;
-        }
-
-        return $targets;
     }
 }

@@ -4,7 +4,7 @@ namespace App\Http\Resources\Api;
 
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
-use App\Services\WorkoutGenerator\ProgressionCalculatorService;
+use App\Services\WorkoutSession\SessionProgression;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,47 +42,6 @@ class WorkoutSessionExerciseResource extends JsonResource
     }
 
     /**
-     * Resolve progression for a set of session-exercise rows in one batch.
-     *
-     * One history query for the whole set instead of one (in fact two) per row.
-     *
-     * @param  iterable<int, \App\Models\WorkoutSessionExercise>  $sessionExercises
-     * @return array<int, array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}>
-     */
-    public static function batchProgression(iterable $sessionExercises, ?User $user): array
-    {
-        if (! $user) {
-            return [];
-        }
-
-        $exercises = collect($sessionExercises)
-            ->map(fn ($sessionExercise) => $sessionExercise->exercise)
-            ->filter()
-            ->unique('id');
-
-        if ($exercises->isEmpty()) {
-            return [];
-        }
-
-        $calculator = app(ProgressionCalculatorService::class);
-        $experience = $user->profile?->training_experience;
-        $lastPerformances = $calculator->getLastPerformanceForExercises($exercises, $user);
-
-        $progression = [];
-
-        foreach ($exercises as $exercise) {
-            $lastPerformance = $lastPerformances[$exercise->id] ?? null;
-
-            $progression[$exercise->id] = [
-                'targets' => $calculator->calculateTargetsFrom($exercise, $user, $experience, $lastPerformance),
-                'last_performance' => $lastPerformance,
-            ];
-        }
-
-        return $progression;
-    }
-
-    /**
      * Build resources for many rows at once, each seeded from a single batched
      * progression lookup. Use this instead of ::collection() anywhere a set of
      * session exercises is serialized.
@@ -92,7 +51,7 @@ class WorkoutSessionExerciseResource extends JsonResource
      */
     public static function collectionForRows($sessionExercises, ?User $user)
     {
-        $progression = self::batchProgression($sessionExercises, $user);
+        $progression = app(SessionProgression::class)->forRows($sessionExercises, $user);
 
         return collect($sessionExercises)->map(
             fn ($sessionExercise) => self::forRow($sessionExercise, $progression[$sessionExercise->exercise_id] ?? null)
@@ -120,9 +79,9 @@ class WorkoutSessionExerciseResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = $request->user();
-        $progressionCalculator = app(ProgressionCalculatorService::class);
+        $progression = app(SessionProgression::class);
 
-        [$targets, $lastPerformance] = $this->resolveProgression($progressionCalculator, $user);
+        [$targets, $lastPerformance] = $this->resolveProgression($progression, $user);
 
         $targetSets = $this->target_sets;
         $minTargetReps = $this->min_target_reps;
@@ -154,7 +113,7 @@ class WorkoutSessionExerciseResource extends JsonResource
 
         if ($user) {
             // Pure: reads the already-loaded equipment type, issues no queries.
-            $progressionStatus = $progressionCalculator->getProgressionStatus(
+            $progressionStatus = $progression->statusFor(
                 $lastPerformance,
                 (int) ($minTargetReps ?? 0),
                 (int) ($maxTargetReps ?? 0),
@@ -190,44 +149,14 @@ class WorkoutSessionExerciseResource extends JsonResource
      *
      * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
      */
-    private function resolveProgression(ProgressionCalculatorService $progressionCalculator, $user): array
+    private function resolveProgression(SessionProgression $progression, $user): array
     {
-        if ($this->progression !== null) {
-            return [$this->progression['targets'], $this->progression['last_performance']];
-        }
+        $resolved = match (true) {
+            $this->progression !== null => $this->progression,
+            $user === null => $progression->withoutUser($this->exercise),
+            default => $progression->forExercise($this->exercise, $user),
+        };
 
-        if (! $user) {
-            return [$this->defaultTargets(), null];
-        }
-
-        $lastPerformance = $progressionCalculator->getLastPerformance($this->exercise, $user);
-
-        $targets = $progressionCalculator->calculateTargetsFrom(
-            $this->exercise,
-            $user,
-            $user->profile?->training_experience,
-            $lastPerformance
-        );
-
-        return [$targets, $lastPerformance];
-    }
-
-    /**
-     * Targets used when there is no authenticated user to calculate against.
-     *
-     * @return array<string, mixed>
-     */
-    private function defaultTargets(): array
-    {
-        return [
-            'progression_mode' => 'double_progression',
-            'target_sets' => 3,
-            'min_target_reps' => 8,
-            'max_target_reps' => 12,
-            'target_weight' => 0,
-            'total_reps_previous' => null,
-            'total_reps_target' => null,
-            'rest_seconds' => $this->exercise->default_rest_sec ?? 90,
-        ];
+        return [$resolved['targets'], $resolved['last_performance']];
     }
 }

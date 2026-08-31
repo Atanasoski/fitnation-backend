@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Services\WorkoutSession\SessionProgression;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,7 +28,7 @@ class WorkoutSessionResource extends JsonResource
                 ->filter(fn ($rows) => $rows->count() > 1)
                 ->keys();
 
-            $progression = WorkoutSessionExerciseResource::batchProgression(
+            $progression = app(SessionProgression::class)->forRows(
                 $this->workoutSessionExercises,
                 $request->user()
             );

@@ -8,7 +8,6 @@ use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
-use App\Http\Resources\Api\GeneratedWorkoutSessionResource;
 use App\Http\Resources\Api\WorkoutSessionResource;
 use App\Models\Category;
 use App\Models\Exercise;
@@ -100,25 +99,29 @@ class SessionDetailCharacterizationTest extends TestCase
     }
 
     /**
-     * The claim behind deleting GeneratedWorkoutSessionResource: it is a no-op
-     * over WorkoutSessionResource. A backed enum encodes to its value, so
-     * `status` and `status->value` are the same JSON, and the other three keys
-     * it re-merges are already emitted by the base.
+     * GeneratedWorkoutSessionResource existed to serialize `status` as a string
+     * rather than an enum. It never needed to: a backed enum encodes to its
+     * value, which is why deleting it changed no bytes. This holds the property
+     * the deleted subclass was there to guarantee, on the resource that
+     * replaced it and for the draft status the generator endpoints return.
      */
-    public function test_generated_resource_emits_the_same_json_as_the_base_resource(): void
+    public function test_status_serializes_as_a_string_for_a_draft_session(): void
     {
         ['user' => $user, 'session' => $session] = $this->makeFixture();
 
+        $session->update(['status' => WorkoutSessionStatus::Draft]);
+
         // Deliberately unloaded: SessionDetail loads what it needs, so a bare
-        // session is all either resource requires.
+        // session is all the resource requires.
         $request = Request::create('/api/workout-generator/generate');
         $request->setUserResolver(fn () => $user->fresh());
 
-        $this->assertSame(
+        $payload = json_decode(
             json_encode((new WorkoutSessionResource($session->fresh()))->toArray($request)),
-            json_encode((new GeneratedWorkoutSessionResource($session->fresh()))->toArray($request)),
-            'GeneratedWorkoutSessionResource is meant to be a no-op wrapper; it is not.'
+            associative: true
         );
+
+        $this->assertSame('draft', $payload['status']);
     }
 
     /**

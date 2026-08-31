@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GenerateWorkoutSessionRequest;
 use App\Http\Requests\RegenerateWorkoutSessionRequest;
-use App\Http\Resources\Api\GeneratedWorkoutSessionResource;
+use App\Http\Resources\Api\WorkoutSessionResource;
 use App\Models\WorkoutSession;
 use App\Services\WorkoutGenerator\WorkoutGenerationService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -47,7 +47,7 @@ class WorkoutGeneratorController extends Controller
             $session = $this->workoutGenerationService->generate($user, $preferences);
 
             return response()->json([
-                'data' => new GeneratedWorkoutSessionResource($session),
+                'data' => new WorkoutSessionResource($session),
                 'message' => 'Draft workout session created successfully',
             ], 201);
         } catch (\Exception $e) {
@@ -66,7 +66,7 @@ class WorkoutGeneratorController extends Controller
             $confirmedSession = $this->workoutGenerationService->confirmSession($session);
 
             return response()->json([
-                'data' => new GeneratedWorkoutSessionResource($confirmedSession),
+                'data' => new WorkoutSessionResource($confirmedSession),
                 'message' => 'Workout session confirmed and started successfully',
             ]);
         } catch (AuthorizationException $e) {
@@ -121,7 +121,7 @@ class WorkoutGeneratorController extends Controller
             $newSession = $this->workoutGenerationService->regenerateSession($session, $preferences);
 
             return response()->json([
-                'data' => new GeneratedWorkoutSessionResource($newSession),
+                'data' => new WorkoutSessionResource($newSession),
                 'message' => 'New workout session generated successfully',
             ], 201);
         } catch (AuthorizationException $e) {

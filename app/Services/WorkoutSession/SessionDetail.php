@@ -4,6 +4,7 @@ namespace App\Services\WorkoutSession;
 
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Models\WorkoutSessionExercise;
 use Illuminate\Support\Collection;
 
 /**
@@ -36,7 +37,7 @@ final class SessionDetail
 
     public static function for(WorkoutSession $session, ?User $user): self
     {
-        $session->load(WorkoutSession::detailRelations());
+        $session->load(self::relations());
 
         $rows = $session->workoutSessionExercises;
         $setLogs = $session->setLogs;
@@ -100,6 +101,26 @@ final class SessionDetail
     public function session(): WorkoutSession
     {
         return $this->session;
+    }
+
+    /**
+     * Everything a session needs loaded to be resolved without issuing a query
+     * per exercise row. Private on purpose: this used to live on the model as
+     * WorkoutSession::detailRelations(), where every caller had to remember to
+     * pass it, and one of them didn't.
+     *
+     * @return array<int|string, mixed>
+     */
+    private static function relations(): array
+    {
+        $relations = array_map(
+            fn (string $relation) => 'workoutSessionExercises.'.$relation,
+            WorkoutSessionExercise::EXERCISE_RELATIONS
+        );
+
+        $relations['setLogs'] = fn ($query) => $query->orderBy('set_number');
+
+        return $relations;
     }
 
     /**

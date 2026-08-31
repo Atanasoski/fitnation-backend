@@ -109,14 +109,14 @@ class SessionDetailCharacterizationTest extends TestCase
     {
         ['user' => $user, 'session' => $session] = $this->makeFixture();
 
-        $loaded = $session->fresh(WorkoutSession::detailRelations());
-
+        // Deliberately unloaded: SessionDetail loads what it needs, so a bare
+        // session is all either resource requires.
         $request = Request::create('/api/workout-generator/generate');
         $request->setUserResolver(fn () => $user->fresh());
 
         $this->assertSame(
-            json_encode((new WorkoutSessionResource($loaded))->toArray($request)),
-            json_encode((new GeneratedWorkoutSessionResource($loaded))->toArray($request)),
+            json_encode((new WorkoutSessionResource($session->fresh()))->toArray($request)),
+            json_encode((new GeneratedWorkoutSessionResource($session->fresh()))->toArray($request)),
             'GeneratedWorkoutSessionResource is meant to be a no-op wrapper; it is not.'
         );
     }

@@ -8,6 +8,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkoutSessionExercise extends Model
 {
+    /**
+     * The exercise relations a session-exercise row needs loaded to be
+     * serialized without falling onto the lazy-load path.
+     *
+     * category/partners/muscleGroups feed ExerciseResource; movementPattern,
+     * equipmentType and angle feed the progression calculation.
+     *
+     * Note the absence of targetRegion: nothing reads `target_region` off a
+     * session response.
+     */
+    public const EXERCISE_RELATIONS = [
+        'exercise.category',
+        'exercise.partners',
+        'exercise.muscleGroups',
+        'exercise.primaryMuscleGroups',
+        'exercise.secondaryMuscleGroups',
+        'exercise.movementPattern',
+        'exercise.equipmentType',
+        'exercise.angle',
+    ];
+
     protected $fillable = [
         'workout_session_id',
         'exercise_id',

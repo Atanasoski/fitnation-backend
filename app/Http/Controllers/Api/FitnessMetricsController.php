@@ -13,14 +13,9 @@ class FitnessMetricsController extends Controller
     /**
      * Get fitness metrics for the authenticated user.
      */
-    public function index(): JsonResponse
+    public function index(FitnessMetricsService $metrics): JsonResponse
     {
-        $user = Auth::user();
-
-        $service = new FitnessMetricsService($user);
-        $metrics = $service->getMetrics();
-
-        $resource = new FitnessMetricsResource($metrics);
+        $resource = new FitnessMetricsResource($metrics->getMetrics(Auth::user()));
 
         return response()->json($resource->toArray(request()));
     }

@@ -270,6 +270,7 @@ class FitnessMetricsTest extends TestCase
             for ($j = 0; $j < $workoutCount; $j++) {
                 WorkoutSession::factory()->create([
                     'user_id' => $user->id,
+                    'status' => WorkoutSessionStatus::Completed,
                     'performed_at' => fake()->dateTimeBetween($weekStart, $weekEnd),
                     'completed_at' => now(),
                 ]);
@@ -549,6 +550,7 @@ class FitnessMetricsTest extends TestCase
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,
+            'status' => WorkoutSessionStatus::Completed,
             'performed_at' => $recent30Days,
             'completed_at' => $recent30Days->copy()->addHours(1),
         ]);
@@ -599,6 +601,7 @@ class FitnessMetricsTest extends TestCase
         for ($i = 0; $i < $sessionCount; $i++) {
             $session = WorkoutSession::factory()->create([
                 'user_id' => $user->id,
+                'status' => WorkoutSessionStatus::Completed,
                 'performed_at' => $recent30Days->copy()->addDays($i * 2),
                 'completed_at' => $recent30Days->copy()->addDays($i * 2)->addHours(1),
             ]);

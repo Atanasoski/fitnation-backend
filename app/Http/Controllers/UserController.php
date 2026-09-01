@@ -9,9 +9,8 @@ use App\Mail\UserInvitationMail;
 use App\Models\Partner;
 use App\Models\User;
 use App\Models\UserInvitation;
-use App\Models\WorkoutSession;
+use App\Services\FitnessMetrics\WeeklyProgress;
 use App\Services\FitnessMetricsService;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -44,8 +43,12 @@ class UserController extends Controller
     /**
      * Display the specified user.
      */
-    public function show(Request $request, User $user): View
-    {
+    public function show(
+        Request $request,
+        User $user,
+        FitnessMetricsService $metrics,
+        WeeklyProgress $weeklyProgress,
+    ): View {
         $currentUser = $request->user();
 
         // Ensure the user belongs to the trainer's partner
@@ -78,11 +81,18 @@ class UserController extends Controller
             ->paginate(7);
 
         // Get fitness metrics for the user
-        $fitnessMetricsService = new FitnessMetricsService($user);
-        $fitnessMetrics = $fitnessMetricsService->getMetrics();
+        $fitnessMetrics = $metrics->getMetrics($user);
 
-        // Get weekly workout frequency data for chart (last 12 weeks)
-        $weeklyWorkoutData = $this->getWeeklyWorkoutFrequency($user, 12);
+        // Weekly workout frequency for the chart. The metrics payload's own
+        // historical_weeks is fixed at 8 weeks and labels only, so the chart
+        // asks WeeklyProgress for its 12 directly rather than re-deriving them.
+        // Its `week` is the Y-m-d — the payload's key of the same name is a
+        // label. Only `label` and `count` are read, by user-progress.js.
+        $weeklyWorkoutData = array_map(fn (array $week) => [
+            'week' => $week['week_start'],
+            'label' => $week['label'],
+            'count' => $week['workouts'],
+        ], $weeklyProgress->historicalWeeks($user, 12));
 
         $profile = $user->profile;
         $completionRate = $totalWorkouts > 0 ? (int) round(($completedWorkouts / $totalWorkouts) * 100) : null;
@@ -217,50 +227,6 @@ class UserController extends Controller
 
         return redirect()->back()
             ->with('success', "Invitation to {$email} has been cancelled.");
-    }
-
-    /**
-     * Get weekly workout frequency data for the last N weeks.
-     */
-    private function getWeeklyWorkoutFrequency(User $user, int $weeks = 12): array
-    {
-        $endDate = Carbon::now()->endOfWeek(); // End of current week (Sunday)
-        $startDate = Carbon::now()->subWeeks($weeks - 1)->startOfWeek(); // Start of N weeks ago (Monday)
-
-        // Get all completed workouts in the date range
-        $workouts = WorkoutSession::where('user_id', $user->id)
-            ->where('status', WorkoutSessionStatus::Completed)
-            ->whereBetween('performed_at', [$startDate, $endDate])
-            ->get(['performed_at']);
-
-        // Group by week manually to avoid MySQL-specific functions
-        $weeklyCounts = [];
-        foreach ($workouts as $workout) {
-            $weekStart = Carbon::parse($workout->performed_at)->startOfWeek()->format('Y-m-d');
-            if (! isset($weeklyCounts[$weekStart])) {
-                $weeklyCounts[$weekStart] = 0;
-            }
-            $weeklyCounts[$weekStart]++;
-        }
-
-        // Build complete array for last N weeks with zeros for weeks without workouts
-        $result = [];
-        $currentWeekStart = $startDate->copy();
-
-        for ($i = 0; $i < $weeks; $i++) {
-            $weekKey = $currentWeekStart->format('Y-m-d');
-            $weekLabel = $currentWeekStart->format('M d');
-
-            $result[] = [
-                'week' => $weekKey,
-                'label' => $weekLabel,
-                'count' => $weeklyCounts[$weekKey] ?? 0,
-            ];
-
-            $currentWeekStart->addWeek();
-        }
-
-        return $result;
     }
 
     /**

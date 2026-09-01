@@ -47,8 +47,6 @@ class ProfileController extends Controller
             'fitness_goal',
             'age',
             'gender',
-            'height',
-            'weight',
             'training_experience',
             'training_days_per_week',
             'workout_duration_minutes',

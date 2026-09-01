@@ -29,13 +29,10 @@ use Illuminate\Support\Collection;
  */
 final class SetOwnership
 {
-    /** Partition key for sets no row can claim. */
-    private const UNATTRIBUTED = 'unattributed';
-
     /** @var Collection<int, WorkoutSessionExercise> rows in tiebreak order */
     private Collection $rows;
 
-    /** @var Collection<array-key, Collection<int, SetLog>>|null */
+    /** @var Collection<int, Collection<int, SetLog>>|null */
     private ?Collection $partition = null;
 
     private function __construct(private WorkoutSession $session)
@@ -46,8 +43,17 @@ final class SetOwnership
     }
 
     /**
-     * Loads only what it is missing, so a caller that has already refreshed the
-     * session's relations keeps its copy rather than being handed a stale one.
+     * Reads the session's rows as the caller has them, loading them only if
+     * they are absent — deliberately the opposite of SessionDetail, which
+     * reloads unconditionally. SessionDetail is a read endpoint's whole answer,
+     * so a stale copy would be served to a client; this is a predicate applied
+     * inside a caller's own unit of work, and reloading would both discard the
+     * nested exercise relations SessionDetail just eager-loaded and answer a
+     * mid-transaction question against rows the transaction has since changed.
+     *
+     * So: a caller that has written rows in this request must load them before
+     * asking. Every caller today either holds route-bound models with nothing
+     * loaded, or has just called load() itself.
      */
     public static function forSession(WorkoutSession $session): self
     {
@@ -64,17 +70,6 @@ final class SetOwnership
     public function setsFor(WorkoutSessionExercise $row): Collection
     {
         return $this->partition()->get($row->id, collect());
-    }
-
-    /**
-     * The session's sets that no row can claim: unattributable legacy sets, and
-     * sets still pointing at a row that has since been removed.
-     *
-     * @return Collection<int, SetLog>
-     */
-    public function unattributedSets(): Collection
-    {
-        return $this->partition()->get(self::UNATTRIBUTED, collect());
     }
 
     /**
@@ -116,11 +111,11 @@ final class SetOwnership
     }
 
     /**
-     * Constrain a set-log query to one row's sets, session scope and legacy
-     * fallback included, selecting exactly what setsFor() returns.
+     * Constrain a set-log query to the sets one row owns — session scope and
+     * legacy fallback included — selecting exactly what setsFor() returns.
      *
-     * Self-nesting: safe to apply directly to a query that carries other
-     * conditions.
+     * Self-nesting, so apply it directly to a query carrying other conditions
+     * rather than wrapping it in a closure of your own.
      *
      * @template TQuery of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
      *
@@ -162,11 +157,20 @@ final class SetOwnership
      */
     private function partition(): Collection
     {
-        return $this->partition ??= $this->session
-            ->loadMissing('setLogs')
-            ->setLogs
-            ->sortBy('set_number')
-            ->groupBy(fn (SetLog $setLog) => $this->rowFor($setLog)?->id ?? self::UNATTRIBUTED)
-            ->map(fn (Collection $sets) => $sets->values());
+        if ($this->partition !== null) {
+            return $this->partition;
+        }
+
+        $owned = [];
+
+        // Sets no row can claim — an unattributable legacy set, or one still
+        // pointing at a row since removed — fall out here and belong nowhere.
+        foreach ($this->session->loadMissing('setLogs')->setLogs->sortBy('set_number') as $setLog) {
+            if ($row = $this->rowFor($setLog)) {
+                $owned[$row->id][] = $setLog;
+            }
+        }
+
+        return $this->partition = collect($owned)->map(fn (array $sets) => collect($sets));
     }
 }

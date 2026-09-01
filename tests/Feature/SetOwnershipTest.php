@@ -92,16 +92,24 @@ class SetOwnershipTest extends TestCase
 
         $ownership = SetOwnership::forSession($session);
 
+        $claimed = collect();
+
         foreach ([$first, $second, $otherRow] as $row) {
+            $constrained = $ownership->constrain(SetLog::query(), $row)->pluck('id')->all();
+
             $this->assertEqualsCanonicalizing(
                 $ownership->setsFor($row)->pluck('id')->all(),
-                SetLog::query()->where(fn ($q) => $ownership->constrain($q, $row))->pluck('id')->all(),
+                $constrained,
                 "constrain() and setsFor() disagree for row {$row->id}."
             );
+
+            $claimed = $claimed->merge($constrained);
         }
 
-        // The unattributable legacy set is claimed by no row at all.
-        $this->assertCount(1, SetOwnership::forSession($session)->unattributedSets());
+        // Every set except the unattributable legacy one is claimed, and by
+        // exactly one row.
+        $this->assertSame($claimed->unique()->count(), $claimed->count(), 'No set may be claimed twice.');
+        $this->assertSame(3, $claimed->count(), 'The legacy set on the duplicated exercise belongs to no row.');
     }
 
     public function test_the_write_side_places_a_row_less_set_on_the_earliest_row(): void

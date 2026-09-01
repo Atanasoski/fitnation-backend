@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ConvertsIncomingUnits;
+use App\Services\WorkoutSession\SetOwnership;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -61,14 +62,16 @@ class LogSetRequest extends FormRequest
     {
         return [
             function (\Illuminate\Validation\Validator $validator) {
-                if (! $this->workout_session_exercise_id || $validator->errors()->isNotEmpty()) {
+                $session = $this->route('session');
+
+                if (! $this->workout_session_exercise_id || $session === null || $validator->errors()->isNotEmpty()) {
                     return;
                 }
 
-                $rowExerciseId = \App\Models\WorkoutSessionExercise::whereKey($this->workout_session_exercise_id)
-                    ->value('exercise_id');
+                $row = SetOwnership::forSession($session)
+                    ->rowById((int) $this->workout_session_exercise_id);
 
-                if ($rowExerciseId !== null && (int) $rowExerciseId !== (int) $this->exercise_id) {
+                if ($row !== null && (int) $row->exercise_id !== (int) $this->exercise_id) {
                     $validator->errors()->add(
                         'exercise_id',
                         'The exercise does not match the session exercise the set is being logged against.'

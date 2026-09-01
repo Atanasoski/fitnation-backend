@@ -40,38 +40,27 @@ final class SessionDetail
         $session->load(self::relations());
 
         $rows = $session->workoutSessionExercises;
-        $setLogs = $session->setLogs;
 
+        $ownership = SetOwnership::forSession($session);
         $progressions = app(SessionProgression::class);
         $progression = $progressions->forRows($rows, $user);
         $previousSetLogs = $session->getPreviousSetLogsForExercises(
             $rows->pluck('exercise_id')->all()
         );
 
-        // Exercises appearing on more than one row: legacy sets carrying no row
-        // id cannot be attributed to either, so they are not shown under both.
-        $duplicatedExerciseIds = $rows
-            ->groupBy('exercise_id')
-            ->filter(fn ($group) => $group->count() > 1)
-            ->keys();
-
         $exercises = $rows->map(function ($row) use (
             $user,
-            $setLogs,
+            $ownership,
             $progressions,
             $progression,
-            $previousSetLogs,
-            $duplicatedExerciseIds
+            $previousSetLogs
         ) {
             $resolved = $progression[$row->exercise_id]
                 ?? $progressions->withoutUser($row->exercise);
 
             $targets = $progressions->targetsFor($row, $resolved['targets']);
 
-            $loggedSets = $row->ownedSetsFrom(
-                $setLogs,
-                ! $duplicatedExerciseIds->contains($row->exercise_id)
-            );
+            $loggedSets = $ownership->setsFor($row);
 
             return new SessionExerciseDetail(
                 row: $row,

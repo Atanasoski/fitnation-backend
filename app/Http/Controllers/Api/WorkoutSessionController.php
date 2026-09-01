@@ -22,6 +22,7 @@ use App\Models\SetLog;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
+use App\Services\WorkoutSession\SetOwnership;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -224,34 +225,31 @@ class WorkoutSessionController extends Controller
         // stays contiguous (1..N). target_sets is owned by the client, which
         // decrements it via updateSessionExercise, so we don't touch it here.
         DB::transaction(function () use ($session, $setLog) {
-            $exerciseId = $setLog->exercise_id;
             $deleted = $setLog->set_number;
 
-            // A legacy set carries no row id of its own, so resolve the row the
+            // A legacy set carries no row id of its own, so ask which row the
             // read path renders it under; otherwise re-sequencing would cover
             // only the other legacy sets and leave the attached ones stranded.
-            $rows = $session->workoutSessionExercises()
-                ->where('exercise_id', $exerciseId)
-                ->orderBy('order')
-                ->orderBy('id')
-                ->pluck('id');
-
-            $sessionExerciseId = $setLog->workout_session_exercise_id ?? $rows->first();
-            $matchLegacy = $rows->count() <= 1;
+            // Null means no row can claim it, so nothing rendered moved and
+            // there is nothing to re-sequence.
+            $ownership = SetOwnership::forSession($session);
+            $row = $ownership->rowFor($setLog);
 
             $setLog->delete();
 
+            if ($row === null) {
+                return;
+            }
+
             // Shift every later set down by one. Safe as a single bulk UPDATE:
-            // there is no unique constraint on set_number. Scoped to the
-            // session-exercise row so a duplicate row's numbering is untouched;
-            // legacy sets predating that column fall back to the old scope.
-            // Re-sequence over exactly the sets the read path renders under this
-            // row. Scoping to one branch would renumber only half of a row that
-            // holds both attached and legacy sets, breaking the 1..N invariant.
-            SetLog::where('workout_session_id', $session->id)
-                ->where('set_number', '>', $deleted)
-                ->where(fn ($query) => $this->scopeToRow($query, $sessionExerciseId, $exerciseId, $matchLegacy))
-                ->decrement('set_number');
+            // there is no unique constraint on set_number. Scoped to exactly
+            // the sets the read path renders under this row, so a duplicate
+            // row's numbering is untouched and a row holding both attached and
+            // legacy sets is renumbered whole.
+            $ownership->constrain(
+                SetLog::query()->where('set_number', '>', $deleted),
+                $row
+            )->decrement('set_number');
         });
 
         return response()->json([
@@ -400,7 +398,7 @@ class WorkoutSessionController extends Controller
 
         // Delete only this row's set logs. Scoping by exercise_id would take
         // the sets of any duplicate row carrying the same exercise with it.
-        $this->deleteSetLogsFor($exercise);
+        $this->deleteSetLogsFor($session, $exercise);
 
         // Delete the exercise
         $exercise->delete();
@@ -454,8 +452,8 @@ class WorkoutSessionController extends Controller
         // The logged sets belong to the exercise being swapped out, not to the
         // one replacing it, so they go with it rather than being re-pointed at
         // a movement they were never performed on.
-        DB::transaction(function () use ($sessionExercise, $request) {
-            $this->deleteSetLogsFor($sessionExercise);
+        DB::transaction(function () use ($session, $sessionExercise, $request) {
+            $this->deleteSetLogsFor($session, $sessionExercise);
 
             $sessionExercise->update(['exercise_id' => $request->validated('exercise_id')]);
         });
@@ -499,10 +497,8 @@ class WorkoutSessionController extends Controller
     /**
      * Which session-exercise row a logged set belongs to.
      *
-     * Clients that know the row send it. Older builds send only exercise_id, so
-     * fall back to the session's row for that exercise — taking the earliest
-     * when the exercise appears more than once, which is the only defensible
-     * guess available when the client cannot tell us.
+     * Clients that know the row send it; older builds send only exercise_id and
+     * SetOwnership picks the row for them.
      */
     private function resolveSessionExerciseId(LogSetRequest $request, WorkoutSession $session): ?int
     {
@@ -510,52 +506,18 @@ class WorkoutSessionController extends Controller
             return (int) $request->workout_session_exercise_id;
         }
 
-        return $session->workoutSessionExercises()
-            ->where('exercise_id', $request->exercise_id)
-            ->orderBy('order')
-            ->orderBy('id')
-            ->value('id');
+        return SetOwnership::forSession($session)
+            ->rowForExercise((int) $request->exercise_id)
+            ?->id;
     }
 
     /**
      * Remove the set logs belonging to one session-exercise row.
      */
-    private function deleteSetLogsFor(WorkoutSessionExercise $sessionExercise): void
+    private function deleteSetLogsFor(WorkoutSession $session, WorkoutSessionExercise $sessionExercise): void
     {
-        SetLog::where('workout_session_id', $sessionExercise->workout_session_id)
-            ->where(fn ($query) => $this->scopeToRow(
-                $query,
-                $sessionExercise->id,
-                $sessionExercise->exercise_id,
-                $sessionExercise->isOnlyRowForItsExercise()
-            ))
+        SetOwnership::forSession($session)
+            ->constrain(SetLog::query(), $sessionExercise)
             ->delete();
-    }
-
-    /**
-     * Constrain a set-log query to one session-exercise row.
-     *
-     * Sets written before workout_session_exercise_id existed carry null and are
-     * matched on the old (session, exercise) pair, mirroring what the read path
-     * renders. That branch is skipped when the exercise occupies several rows:
-     * such a set belongs to no identifiable row, and sweeping it while deleting
-     * one row would take data still shown under the survivor.
-     */
-    private function scopeToRow($query, ?int $sessionExerciseId, ?int $exerciseId, bool $includeLegacy = true)
-    {
-        if ($sessionExerciseId !== null) {
-            $query->where('workout_session_exercise_id', $sessionExerciseId);
-        }
-
-        if ($includeLegacy && $exerciseId !== null) {
-            $method = $sessionExerciseId === null ? 'where' : 'orWhere';
-
-            $query->{$method}(fn ($legacy) => $legacy
-                ->whereNull('workout_session_exercise_id')
-                ->where('exercise_id', $exerciseId)
-            );
-        }
-
-        return $query;
     }
 }

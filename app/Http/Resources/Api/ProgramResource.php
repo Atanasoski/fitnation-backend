@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Models\User;
+use App\Services\Plan\ProgramProgress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +17,11 @@ class ProgramResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // $request->user() rather than auth(): a program has to be serializable
+        // from a queue job or a test, where there is no authenticated session.
+        $user = $request->user();
+        $progress = ProgramProgress::for($this->resource, $user);
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -24,20 +31,28 @@ class ProgramResource extends JsonResource
             'is_active' => $this->is_active,
             'is_auto_generated' => $this->is_auto_generated,
             'is_library_plan' => $this->isPartnerLibraryPlan(),
-            'cover_image' => $this->cover_image ? Storage::url($this->cover_image) : null,
             'progress_percentage' => $this->when(
                 $this->user_id,
-                fn () => $this->getProgressPercentage(auth()->user())
+                fn () => $progress->percentComplete()
             ),
             'next_workout' => $this->when(
                 $this->user_id,
-                fn () => new WorkoutTemplateResource($this->nextWorkout(auth()->user()))
+                fn () => ($next = $progress->nextWorkout())
+                    ? WorkoutTemplateResource::forTemplate($next, $user, $progress)
+                    : null
             ),
             'current_active_week' => $this->when(
                 $this->user_id,
-                fn () => $this->getCurrentActiveWeek(auth()->user())
+                fn () => $progress->currentWeek()
             ),
-            'workout_templates' => WorkoutTemplateResource::collection($this->whenLoaded('workoutTemplates')),
+            'workout_templates' => $this->whenLoaded(
+                'workoutTemplates',
+                fn () => WorkoutTemplateResource::collectionForTemplates(
+                    $this->workoutTemplates,
+                    $user,
+                    $progress
+                )
+            ),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

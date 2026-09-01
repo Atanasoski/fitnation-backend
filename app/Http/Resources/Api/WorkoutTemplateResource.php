@@ -2,8 +2,10 @@
 
 namespace App\Http\Resources\Api;
 
-use App\Enums\WorkoutSessionStatus;
 use App\Http\Resources\Concerns\FormatsMeasurements;
+use App\Models\User;
+use App\Models\WorkoutTemplate;
+use App\Services\Plan\ProgramProgress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +13,74 @@ use Illuminate\Support\Facades\Storage;
 class WorkoutTemplateResource extends JsonResource
 {
     use FormatsMeasurements;
+
+    /**
+     * The id of the user's most recent completed session against this template,
+     * as already resolved by a batched lookup — see ProgramProgress.
+     *
+     * Deliberately a setter rather than a constructor argument: JsonResource
+     * builds collections with mapInto(), which passes the collection key as the
+     * second constructor argument, so an optional second parameter would be
+     * filled with an int whenever ::collection() is used.
+     */
+    private bool $lastCompletedSessionIdWasSeeded = false;
+
+    private ?int $lastCompletedSessionId = null;
+
+    /**
+     * Hand this template its share of a batched completion lookup.
+     *
+     * A seeded null is a real answer — the user has never completed this
+     * template — which is why the seeding is tracked separately rather than
+     * inferred from the value.
+     */
+    public function withLastCompletedSessionId(?int $sessionId): static
+    {
+        $this->lastCompletedSessionIdWasSeeded = true;
+        $this->lastCompletedSessionId = $sessionId;
+
+        return $this;
+    }
+
+    /**
+     * Serialize one template with its completion already resolved by a
+     * ProgramProgress. A null user leaves the template to answer for itself,
+     * where it correctly omits the key.
+     */
+    public static function forTemplate(
+        WorkoutTemplate $template,
+        ?User $user,
+        ProgramProgress $progress,
+    ): self {
+        $resource = new self($template);
+
+        if ($user === null) {
+            return $resource;
+        }
+
+        return $resource->withLastCompletedSessionId(
+            $progress->lastCompletedSessionId($template)
+        );
+    }
+
+    /**
+     * Build resources for many templates at once, each seeded from the one
+     * batched completion lookup. Use this instead of ::collection() anywhere a
+     * set of templates is serialized: left to themselves, each issues its own
+     * query.
+     *
+     * @param  \Illuminate\Support\Collection<int, WorkoutTemplate>  $templates
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public static function collectionForTemplates(
+        $templates,
+        ?User $user,
+        ProgramProgress $progress,
+    ) {
+        return collect($templates)->map(
+            fn (WorkoutTemplate $template) => self::forTemplate($template, $user, $progress)
+        );
+    }
 
     /**
      * Transform the resource into an array.
@@ -27,14 +97,15 @@ class WorkoutTemplateResource extends JsonResource
             'day_of_week' => $this->day_of_week,
             'week_number' => $this->week_number,
             'order_index' => $this->order_index,
-            'last_completed_session_id' => $this->when(
-                auth()->check(),
-                fn () => $this->workoutSessions()
-                    ->where('user_id', auth()->id())
-                    ->where('status', WorkoutSessionStatus::Completed)
-                    ->latest('completed_at')
-                    ->value('id')
-            ),
+            'last_completed_session_id' => $this->lastCompletedSessionIdWasSeeded
+                ? $this->lastCompletedSessionId
+                : $this->when(
+                    $request->user() !== null,
+                    fn () => ProgramProgress::lastCompletedSessionIdFor(
+                        $this->resource,
+                        $request->user()
+                    )
+                ),
             'plan' => $this->whenLoaded('plan', function () {
                 return new PlanResource($this->plan);
             }),

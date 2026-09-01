@@ -2,7 +2,7 @@
 
 **Area:** back-end / domain rule
 **Severity:** medium (user-visible — wrong and noisy celebrations)
-**Status:** open
+**Status:** done — see *Resolved* below
 **Answers:** the two product questions parked in
 [010](010-personal-record-detection-has-no-seam.md)
 **Conflicts with:** [003](003-session-status-transitions-unguarded.md) and
@@ -152,3 +152,44 @@ Every other test in that file must stay green untouched — in particular
 - Per the house rules: this changes numbers users see, so it does not ride along
   with anything else, and the characterization commit does not apply — the two
   tests above already lock the old behaviour and are meant to change.
+
+## Resolved
+
+Both decisions are implemented in `PersonalRecords::recordsFor()`.
+
+- No prior bests for an exercise means no records: `priorBests()` returns both
+  maxima from one aggregate, so a single `$priorBest === []` check covers it.
+  The `?? 0` fallbacks are gone, `priorBests()` no longer widens to null, and
+  `PersonalRecord`'s docblock no longer excuses a zero previous best.
+- `recordsFrom()` answers what one set beat — nothing at all unless it beat a
+  prior best — and `recordsFor()` sorts the exercise's sets by
+  `StrengthScore::oneRepMax()` and takes the first set that answers non-empty.
+  Only that set's records are emitted, so both types describe one performance,
+  and "does this set qualify" and "what does it record" cannot drift apart.
+
+`ProgressionCalculatorService::estimateOneRepMax()` is deleted — Epley now has
+one home, `StrengthScore::oneRepMax()`.
+
+The payload shape is unchanged: `PersonalRecordType::Weight` and `::Reps`, at
+most one of each per exercise.
+
+Both tests named above were rewritten in place —
+`test_a_first_ever_session_records_nothing` and
+`test_a_record_describes_a_single_set` — and four added: one set beating both
+dimensions, the e1RM winner over the heavier set (101 × 1 vs 100 × 20), a
+session of three sets beating nothing, and one exercise going backwards while
+another records.
+`test_detecting_records_changes_nothing_about_the_session` needed history added
+to its fixture, since its first-ever session now records nothing; its assertion
+— that detection does not touch the session — is unchanged.
+
+Still open and untouched here: the unconverted kilograms (010) and the
+session-excludes-itself-by-id re-completion bug (003).
+
+`CONTEXT.md`'s *Personal Record* entry described both old rules as the domain
+vocabulary and is rewritten to the rules as they now are. Issue
+[005](005-session-resource-duplication-and-pr-detection.md)'s part B is marked
+mostly superseded there: its points 1, 2 and 4 are done between 010 and this,
+and its reference to the deleted `estimateOneRepMax()` now points at
+`StrengthScore::oneRepMax()`. Its point 3 — `previous_best`/`new_best` typed
+`float` in one branch and `int` in the other — is untouched and still open.

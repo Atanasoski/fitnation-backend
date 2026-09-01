@@ -72,13 +72,22 @@ if ($histReps   === null || $sessionMaxReps   > $histReps)   { $newPrs[] = [...'
 
 ### Proposed fix (B)
 
+> **Mostly superseded.** [010](010-personal-record-detection-has-no-seam.md) did
+> point 4 — the logic lives in `App\Services\WorkoutSession\PersonalRecords`
+> with a test file of its own — and [017](017-personal-record-rules.md) decided
+> and did points 1 and 2: a first-ever session records nothing, and one
+> record-setting set per exercise is chosen by estimated 1RM. Epley now has one
+> home, `StrengthScore::oneRepMax()`; the
+> `ProgressionCalculatorService::estimateOneRepMax()` named below was a second
+> copy with no callers and is deleted. Point 3 — the mixed
+> `previous_best`/`new_best` type — is the part still open.
+
 1. Suppress PRs entirely when there is no prior history for that exercise (`$historic === null`),
    or mark them with a distinct `pr_type` (e.g. `first_time`) the client can render differently.
    Decide with the product owner and record the choice.
 2. Qualify the reps PR by weight: compare `MAX(reps)` *at or above* the historic best weight,
    not globally. A single `selectRaw` won't express this cleanly — consider comparing estimated
-   1RM (`ProgressionCalculatorService::estimateOneRepMax()`, already implemented) instead of
-   two independent maxima.
+   1RM (`StrengthScore::oneRepMax()`) instead of two independent maxima.
 3. Normalize `previous_best`/`new_best` to a consistent type per `pr_type`.
 4. Extract this into a `PersonalRecordDetector` service — it is ~50 lines of domain logic
    sitting in a controller action, and it needs unit tests, which it currently has none of.

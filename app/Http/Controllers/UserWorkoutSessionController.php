@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Services\WorkoutSession\SetOwnership;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -40,12 +41,17 @@ class UserWorkoutSessionController extends Controller
 
         $workoutSession->load(['workoutTemplate', 'workoutSessionExercises.exercise', 'setLogs']);
 
+        // Same answer the API gives on which sets belong to which row: an
+        // exercise on two rows owns its sets separately, and a legacy set that
+        // could belong to either is shown under neither.
+        $ownership = SetOwnership::forSession($workoutSession);
+
         $totalSessionVolume = $workoutSession->setLogs->sum(
             fn ($log) => (float) $log->weight * (int) $log->reps
         );
         $totalExercises = $workoutSession->workoutSessionExercises->count();
         $exercisesWithSets = $workoutSession->workoutSessionExercises->filter(
-            fn ($e) => $this->setsFor($workoutSession, $e)->isNotEmpty()
+            fn ($e) => $ownership->setsFor($e)->isNotEmpty()
         )->count();
         $progressPercent = $totalExercises > 0 ? (int) round(($exercisesWithSets / $totalExercises) * 100) : 0;
         $durationMinutes = null;
@@ -53,8 +59,8 @@ class UserWorkoutSessionController extends Controller
             $durationMinutes = (int) $workoutSession->performed_at->diffInMinutes($workoutSession->completed_at);
         }
 
-        $exerciseRows = $workoutSession->workoutSessionExercises->map(function ($sessionExercise) use ($workoutSession) {
-            $setsForExercise = $this->setsFor($workoutSession, $sessionExercise)
+        $exerciseRows = $workoutSession->workoutSessionExercises->map(function ($sessionExercise) use ($ownership) {
+            $setsForExercise = $ownership->setsFor($sessionExercise)
                 ->map(fn ($log) => (object) [
                     'set_number' => $log->set_number,
                     'weight' => (float) $log->weight,
@@ -81,13 +87,5 @@ class UserWorkoutSessionController extends Controller
             'durationMinutes',
             'exerciseRows'
         ));
-    }
-
-    /**
-     * The sets logged against one session-exercise row, ordered.
-     */
-    private function setsFor(WorkoutSession $workoutSession, $sessionExercise): \Illuminate\Support\Collection
-    {
-        return $sessionExercise->ownedSetsFrom($workoutSession->setLogs);
     }
 }

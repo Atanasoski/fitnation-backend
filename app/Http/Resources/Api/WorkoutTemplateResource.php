@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api;
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
 use App\Models\WorkoutTemplate;
+use App\Services\Exercise\PartnerExerciseView;
 use App\Services\Plan\ProgramProgress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -110,18 +111,22 @@ class WorkoutTemplateResource extends JsonResource
                 return new PlanResource($this->plan);
             }),
             'exercises' => $this->whenLoaded('exercises', function () {
-                $partner = auth()->user()?->partner;
+                // One batched resolution for the whole template: asked one at
+                // a time, each exercise would load `partners` for itself.
+                $views = PartnerExerciseView::forExercises(
+                    $this->exercises,
+                    auth()->user()?->partner
+                );
 
-                return $this->exercises->map(function ($exercise) use ($partner) {
-                    $image = $exercise->getImage($partner);
-                    $video = $exercise->getVideo($partner);
+                return $this->exercises->map(function ($exercise) use ($views) {
+                    $view = $views[$exercise->getKey()];
 
                     return [
                         'id' => $exercise->id,
                         'name' => $exercise->name,
-                        'description' => $exercise->getDescription($partner),
-                        'image' => $image ? Storage::url($image) : null,
-                        'video' => $video ? Storage::url($video) : null,
+                        'description' => $view->description,
+                        'image' => $view->imageUrl,
+                        'video' => $view->videoUrl,
                         'muscle_group_image' => $exercise->muscle_group_image ? Storage::url($exercise->muscle_group_image) : null,
                         'default_rest_sec' => $exercise->default_rest_sec,
                         'category' => $exercise->category ? new CategoryResource($exercise->category) : null,

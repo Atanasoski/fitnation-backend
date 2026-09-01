@@ -16,6 +16,7 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
+use App\Services\Exercise\PartnerExerciseView;
 use App\Services\MuscleGroupImageService;
 use App\Services\PartnerExerciseFileService;
 use Illuminate\Http\JsonResponse;
@@ -82,19 +83,8 @@ class ExerciseController extends Controller
                 // Set link status
                 $exercise->is_linked = in_array($exercise->id, $linkedExerciseIds);
 
-                // Get pivot data if available
-                $pivot = null;
-                if ($exercise->relationLoaded('partners') && $exercise->partners->isNotEmpty()) {
-                    $pivot = $exercise->partners->first()->pivot;
-                }
-
-                // Compute values for partner (pivot override or exercise default)
-                $exercise->descriptionForPartner = $exercise->getDescription($partner);
-                $exercise->imageForPartner = $exercise->getImage($partner);
-                $exercise->videoForPartner = $exercise->getVideo($partner);
-
-                // Store pivot data for editing forms
-                $exercise->pivot_data = $pivot;
+                // How this partner sees the exercise: overrides applied, URLs resolved
+                $exercise->partnerView = PartnerExerciseView::of($exercise, $partner);
             }
         }
 
@@ -538,21 +528,13 @@ class ExerciseController extends Controller
                 ->withPivot(['description', 'image', 'video']);
         }, 'category']);
 
-        // Get pivot data if available
-        $pivot = null;
-        if ($exercise->relationLoaded('partners') && $exercise->partners->isNotEmpty()) {
-            $pivot = $exercise->partners->first()->pivot;
-        }
-
-        // Get values for partner (pivot override or exercise default)
-        $descriptionForPartner = $exercise->getDescription($partner);
-        $imageForPartner = $exercise->getImage($partner);
-        $videoForPartner = $exercise->getVideo($partner);
+        // How this partner sees the exercise: overrides applied, URLs resolved
+        $partnerView = PartnerExerciseView::of($exercise, $partner);
 
         // Check if exercise is linked
         $isLinked = $partner->exercises()->where('workout_exercises.id', $exercise->id)->exists();
 
-        return view('exercises.partner.show', compact('exercise', 'partner', 'pivot', 'descriptionForPartner', 'imageForPartner', 'videoForPartner', 'isLinked'));
+        return view('exercises.partner.show', compact('exercise', 'partner', 'partnerView', 'isLinked'));
     }
 
     /**

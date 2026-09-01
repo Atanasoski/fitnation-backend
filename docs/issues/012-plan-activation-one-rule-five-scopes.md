@@ -2,7 +2,7 @@
 
 **Area:** back-end / domain rule
 **Severity:** medium (correctness — a user-visible bug)
-**Status:** open
+**Status:** done — the rule is one active plan per type; see [ADR-0002](../adr/0002-one-active-plan-per-type.md)
 **Independent:** shares only `app/Models/Plan.php` with
 [011](011-program-progress-leaks-into-the-resource.md).
 
@@ -85,3 +85,16 @@ There is no test covering activation today. `tests/Feature/CustomPlanApiTest.php
   naming and placement.
 - Worth an [ADR](../adr/) once the product question is answered: it is hard to reverse,
   surprising without context, and a real trade-off.
+
+## Resolved
+
+The product question was answered **one active plan per type**: a user may hold
+an active Program and an active Routine at once. `User::activePlan()` and
+`User::activeProgram()` had always assumed it; the write paths now agree.
+
+`App\Services\Plan\PlanActivation` holds the rule. All eight sites call it,
+`WelcomePlanGenerationService`'s `is_auto_generated` narrowing was folded in as
+another divergence, and the deactivate/activate pair is one transaction. The
+behaviour change to `customPlansStore` needs a release note — see ADR-0002.
+
+Covered by `tests/Feature/PlanActivationTest.php`.

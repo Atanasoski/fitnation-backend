@@ -14,6 +14,7 @@ use App\Http\Resources\Api\ProgramResource;
 use App\Http\Resources\Api\RoutinePlanResource;
 use App\Http\Resources\Api\WorkoutTemplateResource;
 use App\Models\Plan;
+use App\Services\Plan\PlanActivation;
 use App\Services\Plan\ProgramProgress;
 use App\Services\PlanCloningService;
 use App\Services\WelcomePlanGenerationService;
@@ -86,18 +87,24 @@ class PlanController extends Controller
      */
     public function store(StorePlanRequest $request): JsonResponse
     {
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', auth()->id())
-                ->update(['is_active' => false]);
-        }
-
         $plan = Plan::create([
             'user_id' => auth()->id(),
             'name' => $request->name,
             'description' => $request->description,
-            'is_active' => $request->is_active ?? false,
+            'is_active' => false,
+            // Hardcoded, and NOT what the request asked for: StorePlanRequest
+            // validates `type` (and duration_weeks) and this endpoint has
+            // always dropped both, falling back to the column default. Written
+            // out rather than left to the database because PlanActivation
+            // scopes by the plan's type, and a type the database supplied is
+            // absent from the model instance create() hands back — the rule
+            // would run against a null type. Honouring $request->type is a
+            // behaviour change to a shipped endpoint, so it is left alone
+            // here; see docs/issues/012.
+            'type' => PlanType::Routine,
         ]);
+
+        PlanActivation::apply($plan, $request->is_active);
 
         return response()->json([
             'message' => 'Plan created successfully',
@@ -136,14 +143,12 @@ class PlanController extends Controller
             ], 403);
         }
 
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', auth()->id())
-                ->where('id', '!=', $plan->id)
-                ->update(['is_active' => false]);
-        }
+        // is_active is deliberately withheld from this update: PlanActivation
+        // owns that column, and writing it here would commit the plan active
+        // before the transaction that deactivates its siblings even opens.
+        $plan->update(collect($request->validated())->except('is_active')->all());
 
-        $plan->update($request->validated());
+        PlanActivation::apply($plan, $request->is_active);
 
         $plan->load(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with('exercises.category')]);
 
@@ -195,19 +200,15 @@ class PlanController extends Controller
      */
     public function customPlansStore(StoreCustomPlanRequest $request): JsonResponse
     {
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', auth()->id())
-                ->update(['is_active' => false]);
-        }
-
         $customPlan = Plan::create([
             'user_id' => auth()->id(),
             'name' => $request->name,
             'description' => $request->description,
-            'is_active' => $request->is_active ?? false,
+            'is_active' => false,
             'type' => PlanType::Routine,
         ]);
+
+        PlanActivation::apply($customPlan, $request->is_active);
 
         return response()->json([
             'message' => 'Routine created successfully',
@@ -260,15 +261,10 @@ class PlanController extends Controller
             ], 400);
         }
 
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', auth()->id())
-                ->where('type', PlanType::Routine)
-                ->where('id', '!=', $customPlan->id)
-                ->update(['is_active' => false]);
-        }
+        // See update(): PlanActivation owns is_active.
+        $customPlan->update(collect($request->validated())->except('is_active')->all());
 
-        $customPlan->update($request->validated());
+        PlanActivation::apply($customPlan, $request->is_active);
 
         $customPlan->load(['workoutTemplates' => fn ($query) => $query->orderedByDayOfWeek()->with('exercises.category')]);
 
@@ -407,15 +403,7 @@ class PlanController extends Controller
             'is_active' => 'required|boolean',
         ]);
 
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', auth()->id())
-                ->where('type', PlanType::Program)
-                ->where('id', '!=', $program->id)
-                ->update(['is_active' => false]);
-        }
-
-        $program->update(['is_active' => $request->is_active]);
+        PlanActivation::apply($program, $request->boolean('is_active'));
 
         $program->load(['workoutTemplates' => fn ($query) => $query->orderedByProgram()->with(['exercises.category', 'exercises.partners'])]);
 

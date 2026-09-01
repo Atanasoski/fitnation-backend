@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WorkoutSplit;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
+use App\Services\Plan\PlanActivation;
 use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,19 +25,14 @@ class WelcomePlanGenerationService
 
     /**
      * Generate a personalized program from the user's profile.
-     * Deactivates any existing active auto-generated plan for this user.
+     * Becomes the user's active program, deactivating whichever program held
+     * that slot (see PlanActivation). Their active routine is untouched.
      */
     public function generatePlan(User $user, ?string $planName = null, array $preferences = []): Plan
     {
         $this->validateUserProfile($user);
 
         return DB::transaction(function () use ($user, $planName, $preferences) {
-            Plan::query()
-                ->where('user_id', $user->id)
-                ->where('is_auto_generated', true)
-                ->where('is_active', true)
-                ->update(['is_active' => false]);
-
             $splitFocus = match ($user->profile->gender) {
                 Gender::Female => SplitFocus::LowerFocus,
                 default => SplitFocus::Balanced,
@@ -51,9 +47,16 @@ class WelcomePlanGenerationService
                 'description' => 'Auto-generated '.self::DURATION_WEEKS.'-week program based on your profile',
                 'type' => PlanType::Program,
                 'duration_weeks' => self::DURATION_WEEKS,
-                'is_active' => true,
+                'is_active' => false,
                 'is_auto_generated' => true,
             ]);
+
+            // The generated program becomes THE active program, replacing
+            // whichever one held that slot. This used to deactivate only
+            // is_auto_generated plans, which left a hand-made program active
+            // alongside it — two active programs, which User::activeProgram()
+            // cannot represent.
+            PlanActivation::activate($plan);
 
             Log::info('Personalized plan created', [
                 'user_id' => $user->id,

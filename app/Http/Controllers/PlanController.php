@@ -11,6 +11,7 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\Plan\PlanActivation;
 use App\Services\PlanFileService;
 use App\Services\PlanService;
 use Illuminate\Http\RedirectResponse;
@@ -85,17 +86,15 @@ class PlanController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', $user->id)
-                ->update(['is_active' => false]);
-        }
-
         $attributes = $this->planService->createAttributes($request->validated(), 'user', $user);
+        $requestedActive = $attributes['is_active'] ?? false;
+        $attributes['is_active'] = false;
         if ($request->hasFile('cover_image')) {
             $attributes['cover_image'] = $this->planFileService->storeCoverImage($request->file('cover_image'), null);
         }
         $plan = Plan::create($attributes);
+
+        PlanActivation::apply($plan, $requestedActive);
 
         return redirect()->route('plans.show', $plan)
             ->with('success', 'Plan created successfully!');
@@ -228,19 +227,16 @@ class PlanController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        // Deactivate all other plans if this one is being set as active
-        if ($request->is_active) {
-            Plan::where('user_id', $plan->user_id)
-                ->where('id', '!=', $plan->id)
-                ->update(['is_active' => false]);
-        }
-
-        $data = collect($request->validated())->except('cover_image')->all();
+        // is_active is excluded on purpose — PlanActivation owns it, and
+        // writing it here would land outside its transaction.
+        $data = collect($request->validated())->except('cover_image', 'is_active')->all();
         if ($request->hasFile('cover_image')) {
             $this->planFileService->deleteCoverImage($plan->cover_image);
             $data['cover_image'] = $this->planFileService->storeCoverImage($request->file('cover_image'), null);
         }
         $plan->update($data);
+
+        PlanActivation::apply($plan, $request->is_active);
 
         return redirect()->route('plans.index', $plan->user)
             ->with('success', 'Plan updated successfully!');

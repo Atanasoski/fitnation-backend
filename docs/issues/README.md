@@ -20,6 +20,7 @@ run agents inventing seven different module shapes.
 | [007](007-set-log-row-id-not-null-followup.md) | Make the new set-log row id NOT NULL and drop the legacy fallback | medium | migration, `ownedSetsFrom`, `LogSetRequest` |
 | [008](008-is-completed-uses-stored-target-sets.md) | `is_completed` judged against a different target than the one displayed | low–medium | `SessionDetail`, `UserWorkoutSessionController` |
 | [016](016-api-resources-read-global-auth.md) | Four API resources read global `auth()` instead of the request | low | `WorkoutTemplateResource`, `SetLogResource`, `ExerciseResource` |
+| [017](017-personal-record-rules.md) | Personal records: one set, and nothing on a first session | medium | `PersonalRecords`, `complete()` |
 
 ## Done
 
@@ -54,15 +55,14 @@ owner — still needs 002's backfill verified against production first), **008**
 one-line change to `SessionDetail`, but it moves progress percentages, so give it its
 own PR), **006**, and **016**.
 
-Two product questions are parked in [010](010-personal-record-detection-has-no-seam.md)
-— whether weight and reps records should come from the same set, and whether a
-first-ever session should record a PR for every exercise. Both are locked by named
-tests, so answering them is an edit to a test plus an edit to `PersonalRecords`. They
-need a human, not an agent.
+The two product questions [010](010-personal-record-detection-has-no-seam.md) parked
+have been answered — a record must come from one set, and a first-ever session records
+nothing. They are now [017](017-personal-record-rules.md), ready to implement. It
+shares `complete()` and `PersonalRecordDetectionTest` with 003 and 005, so it queues
+with the session domain rather than running alongside it.
 
-**012 needs a release note.** Creating an active Routine no longer deactivates the
-user's Program, so some users are carrying a program they never switched off. See
-[ADR-0002](../adr/0002-one-active-plan-per-type.md).
+**Nothing else is waiting on a decision.** Every open issue above can be started as
+written.
 
 ## House rules
 

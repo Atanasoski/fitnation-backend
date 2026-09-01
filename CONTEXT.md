@@ -31,6 +31,28 @@ A session can carry the same exercise on more than one Session Exercise Detail
 — a top set early and back-off sets later, or a superset repeat — so an
 exercise does not identify one of these; the row does.
 
+### Personal Record
+
+A best an athlete beat in one session: the exercise, what kind of best it was,
+the number that stood before and the number that beat it. Detected when a
+session is completed, against that athlete's own completed sessions only.
+
+Two kinds, and they are found **independently of one another**: a *weight*
+record for the heaviest set, a *reps* record for the highest-rep set. Because
+neither knows about the other, one session can take both without any single set
+being a record — a heavy single takes the first, a light high-rep set the
+second.
+
+An exercise with no history at all counts as beaten by both kinds, so its
+records report a previous best of 0, meaning "beat nothing" rather than "beat
+zero".
+
+Like a [Session Detail](#session-detail), a Personal Record is **derived**,
+never stored: nothing records that a record was ever set, so the same session
+completed twice reports the same records twice.
+
+_Avoid_: PR — it reads as pull request.
+
 ## Measurement
 
 ### Unit System

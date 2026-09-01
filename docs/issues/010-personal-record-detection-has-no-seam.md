@@ -2,7 +2,7 @@
 
 **Area:** back-end / API
 **Severity:** medium (correctness, untested)
-**Status:** open
+**Status:** done — the seam exists; see *Left open by the extraction* below
 **Overlaps:** [003](003-session-status-transitions-unguarded.md) and
 [005](005-session-resource-duplication-and-pr-detection.md) — all three rewrite
 `complete()`. Land them together or in a fixed order; do not run them in parallel.
@@ -74,3 +74,31 @@ Then, after extraction, the same assertions against the module directly with no 
 - Records are in Canonical Units. Any formatting belongs in the resource, per
   [ADR-0001](../adr/0001-convert-units-at-the-http-boundary.md).
 - Conflicts with [009](009-set-ownership-has-no-owner.md) on the same controller.
+
+## Left open by the extraction
+
+The rules moved out of `complete()` unchanged, so all three of these survive it.
+Each is now locked by a named test in
+`tests/Feature/PersonalRecordDetectionTest.php`, which is the point: changing one
+means editing a test that says the current behaviour is questionable, rather than
+editing code nobody could run.
+
+1. **Independent maxima** (problem 1 above) —
+   `test_weight_and_reps_prs_need_not_come_from_the_same_set`. Product question.
+2. **A first-ever session records everything** (problem 2 above) —
+   `test_a_first_ever_session_records_a_weight_and_a_reps_pr_for_every_exercise`.
+   Product question.
+3. **Record weights go out in kilograms, unconverted** —
+   `test_a_fractional_weight_survives_unconverted`. Not in the problem statement
+   above; found while extracting. `new_prs` carries Canonical Units straight to
+   the client, so an imperial user reads kilograms as pounds — a plain
+   [ADR-0001](../adr/0001-convert-units-at-the-http-boundary.md) breach, and not
+   a product question. Nothing catches it either:
+   `MeasurementInvariantsTest` guards Measured Fields — columns — and a record's
+   numbers are computed, so they are not one.
+
+   The extraction is what makes it fixable: `PersonalRecordResource` is now the
+   one place it happens, and the record's `pr_type` is there to branch on —
+   convert a weight record, leave a reps record alone. It was not fixed here
+   because that moves a number users see, which house rules say belongs in its
+   own change.

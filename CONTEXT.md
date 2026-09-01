@@ -53,6 +53,60 @@ completed twice reports the same records twice.
 
 _Avoid_: PR — it reads as pull request.
 
+## Fitness Metrics
+
+### Completed Session
+
+A workout session whose status is `completed`. The single definition — a session
+carries both a status and a `completed_at` timestamp, and only the status
+decides. Nothing derived from a user's training counts a session that is not
+completed, however far through it they got.
+
+_Avoid_: finished session, logged session.
+
+### Strength Score
+
+How strong a user is as a multiple of their own body weight: the sum of their
+best estimated one-rep max per exercise over the last 30 days, divided by their
+body weight, times 100.
+
+Relative on purpose — an absolute total would rank every heavy user above every
+light one. **Best per exercise**, not per set, so extra sets of the same lift
+describe the same capability once rather than reading as extra strength.
+
+A user with no recorded body weight has no Strength Score at all, because the
+whole quantity is a ratio to it.
+
+### Strength Balance
+
+How evenly a user spreads training volume across the seventeen tracked muscle
+groups over the last 30 days.
+
+Two independent things, multiplied: **coverage**, the fraction of groups trained
+at all, and **evenness**, how uniformly volume is split among the ones that
+were. Neither carries the other — three groups trained perfectly evenly is not
+balance, and nor is touching all seventeen while putting nine tenths of the
+volume into one.
+
+### Weekly Progress
+
+A user's last **full** week of training measured against the week before it:
+workouts, volume, time, and a day-by-day breakdown.
+
+The week in progress is never the subject. Comparing a Tuesday against a
+finished week would make the number fall every Monday and climb back by Sunday,
+which says nothing about the user.
+
+### Partner Cohort
+
+The people at the same partner a user's [Strength Score](#strength-score) or
+[Strength Balance](#strength-balance) is ranked against: same gender, same
+training experience, within five years of age, and at least five
+[Completed Sessions](#completed-session) in the last 30 days.
+
+Fewer than ten such people is no cohort and produces no percentile at all,
+rather than a percentile drawn from three gym-mates.
+
 ## Measurement
 
 ### Unit System

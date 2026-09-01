@@ -146,8 +146,6 @@ class WorkoutSessionController extends Controller
             });
         }
 
-        $session->load(WorkoutSession::detailRelations());
-
         return response()->json([
             'data' => new WorkoutSessionResource($session),
             'message' => 'Workout session started successfully',
@@ -160,8 +158,6 @@ class WorkoutSessionController extends Controller
     public function show(WorkoutSession $session): JsonResponse
     {
         $this->authorize('view', $session);
-
-        $session->load(WorkoutSession::detailRelations());
 
         return response()->json([
             'data' => new WorkoutSessionResource($session),
@@ -336,8 +332,6 @@ class WorkoutSessionController extends Controller
             }
         }
 
-        $session->load(WorkoutSession::detailRelations());
-
         return response()->json([
             'data' => new WorkoutSessionResource($session),
             'message' => 'Workout completed! Great job! 💪',
@@ -385,7 +379,7 @@ class WorkoutSessionController extends Controller
             'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec ?? 90,
         ]);
 
-        $sessionExercise->load(WorkoutSession::SESSION_EXERCISE_RELATIONS);
+        $sessionExercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($sessionExercise),
@@ -436,7 +430,7 @@ class WorkoutSessionController extends Controller
             'rest_seconds',
         ]));
 
-        $exercise->load(WorkoutSession::SESSION_EXERCISE_RELATIONS);
+        $exercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($exercise),
@@ -466,8 +460,6 @@ class WorkoutSessionController extends Controller
             $sessionExercise->update(['exercise_id' => $request->validated('exercise_id')]);
         });
 
-        $session->load(WorkoutSession::detailRelations());
-
         return response()->json([
             'data' => new WorkoutSessionResource($session),
         ]);
@@ -490,7 +482,7 @@ class WorkoutSessionController extends Controller
 
         $session->load(array_map(
             fn (string $relation) => 'workoutSessionExercises.'.$relation,
-            WorkoutSession::SESSION_EXERCISE_RELATIONS
+            WorkoutSessionExercise::EXERCISE_RELATIONS
         ));
 
         return response()->json([

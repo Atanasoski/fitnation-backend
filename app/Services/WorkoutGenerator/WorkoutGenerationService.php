@@ -80,12 +80,12 @@ class WorkoutGenerationService
                     'exercises_count' => count($exercisesToInsert),
                 ]);
 
-                // targetRegion on top of the standard set: the draft preview
-                // renders it, the session detail view does not.
-                return $session->fresh(array_merge(
-                    WorkoutSession::detailRelations(),
-                    ['workoutSessionExercises.exercise.targetRegion']
-                ));
+                // No relations: SessionDetail loads what serialization needs.
+                // The targetRegion this used to add on top of the standard set
+                // fed nothing — no client reads `target_region` off a session
+                // response, and the comment claiming the draft preview rendered
+                // it was wrong.
+                return $session->fresh();
             });
         } catch (\Exception $e) {
             Log::error('Workout generation failed', [
@@ -116,7 +116,7 @@ class WorkoutGenerationService
             'session_id' => $session->id,
         ]);
 
-        return $session->fresh(WorkoutSession::detailRelations());
+        return $session->fresh();
     }
 
     /**

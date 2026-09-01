@@ -38,7 +38,7 @@ class OnboardingController extends Controller
 
             return response()->json([
                 'message' => 'Welcome plan created successfully',
-                'data' => new CustomPlanResource($plan->load(['workoutTemplates.exercises.category', 'workoutTemplates.exercises.muscleGroups'])),
+                'data' => new CustomPlanResource($plan->load(['workoutTemplates.exercises.category', 'workoutTemplates.exercises.muscleGroups', 'workoutTemplates.exercises.partners'])),
             ], 201);
         } catch (\Exception $e) {
             Log::error('Onboarding completion failed', [

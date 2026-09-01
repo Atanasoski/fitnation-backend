@@ -81,13 +81,13 @@
                             Custom Description
                         </label>
                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                            @if($descriptionForPartner)
-                                <p class="text-base text-gray-800 dark:text-white/90 whitespace-pre-wrap">{{ $descriptionForPartner }}</p>
+                            @if($partnerView->description)
+                                <p class="text-base text-gray-800 dark:text-white/90 whitespace-pre-wrap">{{ $partnerView->description }}</p>
                             @else
                                 <p class="text-base text-gray-500 dark:text-gray-400 italic">No custom description (using default)</p>
                             @endif
                         </div>
-                        @if($exercise->description && (!$pivot || !$pivot->description))
+                        @if($exercise->description && ! $partnerView->hasDescriptionOverride)
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Currently using default description</p>
                         @endif
                     </div>
@@ -118,7 +118,7 @@
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                             Custom Image
                         </label>
-                        @if($pivot && $pivot->image)
+                        @if($partnerView->hasImageOverride)
                             <x-ui.badge variant="light" color="success" size="sm">
                                 Custom Set
                             </x-ui.badge>
@@ -128,12 +128,12 @@
                             </x-ui.badge>
                         @endif
                     </div>
-                    @if($imageForPartner || $exercise->image)
+                    @if($partnerView->imageUrl)
                         <div class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
-                            <img src="{{ Storage::url(($imageForPartner ?? $exercise->image)) }}" alt="Exercise image" class="h-auto w-full object-contain">
+                            <img src="{{ $partnerView->imageUrl }}" alt="Exercise image" class="h-auto w-full object-contain">
                         </div>
                         <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                            @if($pivot && $pivot->image)
+                            @if($partnerView->hasImageOverride)
                                 Custom image is currently set
                             @else
                                 Currently using default image
@@ -153,7 +153,7 @@
                         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                             Custom Video
                         </label>
-                        @if($pivot && $pivot->video)
+                        @if($partnerView->hasVideoOverride)
                             <x-ui.badge variant="light" color="success" size="sm">
                                 Custom Set
                             </x-ui.badge>
@@ -163,14 +163,14 @@
                             </x-ui.badge>
                         @endif
                     </div>
-                    @if($videoForPartner || $exercise->video)
+                    @if($partnerView->videoUrl)
                         <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
-                            <video src="{{ Storage::url($videoForPartner ?? $exercise->video) }}" controls preload="metadata" playsinline muted class="video-no-sound max-h-96 w-full rounded-lg">
+                            <video src="{{ $partnerView->videoUrl }}" controls preload="metadata" playsinline muted class="video-no-sound max-h-96 w-full rounded-lg">
                                 Your browser does not support the video tag.
                             </video>
                         </div>
                         <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                            @if($pivot && $pivot->video)
+                            @if($partnerView->hasVideoOverride)
                                 Custom video is currently set
                             @else
                                 Currently using default video
@@ -229,7 +229,7 @@
                         <div class="space-y-2">
                             <!-- Custom Description -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                @if($pivot && $pivot->description)
+                                @if($partnerView->hasDescriptionOverride)
                                     <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
@@ -243,7 +243,7 @@
 
                             <!-- Custom Image -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                @if($pivot && $pivot->image)
+                                @if($partnerView->hasImageOverride)
                                     <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
@@ -257,7 +257,7 @@
 
                             <!-- Custom Video -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                @if($pivot && $pivot->video)
+                                @if($partnerView->hasVideoOverride)
                                     <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>

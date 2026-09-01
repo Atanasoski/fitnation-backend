@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Services\Exercise\PartnerExerciseView;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -15,10 +16,7 @@ class ExerciseResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $partner = auth()->user()?->partner;
-        $description = $this->resource->getDescription($partner);
-        $image = $this->resource->getImage($partner);
-        $video = $this->resource->getVideo($partner);
+        $view = PartnerExerciseView::of($this->resource, auth()->user()?->partner);
 
         return [
             'id' => $this->id,
@@ -47,10 +45,10 @@ class ExerciseResource extends JsonResource
                 return new EquipmentTypeResource($this->equipmentType);
             }),
             'name' => $this->name,
-            'description' => $description,
+            'description' => $view->description,
             'muscle_group_image' => $this->muscle_group_image ? Storage::url($this->muscle_group_image) : null,
-            'image' => $image ? Storage::url($image) : null,
-            'video' => $video ? Storage::url($video) : null,
+            'image' => $view->imageUrl,
+            'video' => $view->videoUrl,
             'default_rest_sec' => $this->default_rest_sec,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

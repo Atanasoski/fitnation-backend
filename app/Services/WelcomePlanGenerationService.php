@@ -81,7 +81,7 @@ class WelcomePlanGenerationService
                 'templates_count' => $plan->workoutTemplates()->count(),
             ]);
 
-            return $plan->load(['workoutTemplates.exercises']);
+            return $plan->load(['workoutTemplates.exercises', 'workoutTemplates.exercises.partners']);
         });
     }
 

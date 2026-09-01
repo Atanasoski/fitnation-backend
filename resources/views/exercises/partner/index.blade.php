@@ -285,8 +285,8 @@
                                         </td>
                                         <td class="px-5 py-4 sm:px-6">
                                             <div class="flex items-center gap-2">
-                                                @if($exercise->getImage($partner))
-                                                    <img src=" {{Storage::url($exercise->getImage($partner))}}" class="w-24 rounded" ></img>
+                                                @if($exercise->partnerView->imageUrl)
+                                                    <img src="{{ $exercise->partnerView->imageUrl }}" class="w-24 rounded">
                                                 @else
                                             <span class="text-gray-400">No image set</span>
                                                 @endif

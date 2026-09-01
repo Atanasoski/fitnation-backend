@@ -59,7 +59,7 @@ class PlanController extends Controller
 
             return response()->json([
                 'message' => 'Personalized plan created successfully',
-                'data' => new CustomPlanResource($plan->load(['workoutTemplates.exercises.category', 'workoutTemplates.exercises.muscleGroups'])),
+                'data' => new CustomPlanResource($plan->load(['workoutTemplates.exercises.category', 'workoutTemplates.exercises.muscleGroups', 'workoutTemplates.exercises.partners'])),
             ], 201);
         } catch (\Exception $e) {
             Log::error('Plan regeneration failed', [

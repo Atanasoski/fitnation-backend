@@ -18,23 +18,6 @@ enum MeasurementKind: string
     case Height = 'height';
 
     /**
-     * The canonical storage unit for this kind. Nothing is ever persisted in
-     * any other unit — see docs/adr/0001-convert-units-at-the-http-boundary.md.
-     */
-    public function canonicalUnit(): string
-    {
-        return $this === self::Height ? 'cm' : 'kg';
-    }
-
-    /**
-     * The imperial unit this kind is displayed and submitted in.
-     */
-    public function imperialUnit(): string
-    {
-        return $this === self::Height ? 'in' : 'lbs';
-    }
-
-    /**
      * The step imperial display values snap to. Metric values are never
      * stepped — they pass through as stored.
      */
@@ -45,13 +28,5 @@ enum MeasurementKind: string
             self::BodyWeight => 0.5,
             self::Height => 1.0,
         };
-    }
-
-    /**
-     * Whether values of this kind are whole numbers once converted for display.
-     */
-    public function isWholeNumber(): bool
-    {
-        return $this === self::Height;
     }
 }

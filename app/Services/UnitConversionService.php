@@ -11,10 +11,6 @@ class UnitConversionService
 
     private const CM_TO_INCHES = 0.3937007874;
 
-    private const TRAINING_WEIGHT_STEP_LBS = 5.0;
-
-    private const BODY_WEIGHT_STEP_LBS = 0.5;
-
     /**
      * Format a stored canonical value for display in the given unit system.
      * Metric passes through; imperial converts and snaps to the kind's step.
@@ -22,19 +18,18 @@ class UnitConversionService
      * This and toStorage() are inverses, and every read/write pair in the app
      * must go through them so the two can never disagree about a field. The
      * kind comes from MeasuredFields, which is the single place a column's
-     * measurement kind is declared.
+     * measurement kind is declared, and the kind is the single place a
+     * rounding step is declared — there is no per-kind entry point here.
      */
-    public function toDisplay(string|float|null $stored, MeasurementKind $kind, ?UnitSystem $unitSystem): float|int|null
+    public function toDisplay(int|string|float|null $stored, MeasurementKind $kind, ?UnitSystem $unitSystem): float|int|null
     {
         if ($stored === null) {
             return null;
         }
 
-        if ($kind === MeasurementKind::Height) {
-            return $this->formatHeight($stored, $unitSystem);
-        }
-
-        return $this->formatWeightToStep($stored, $unitSystem, $kind->imperialStep());
+        return $kind === MeasurementKind::Height
+            ? $this->toInches($stored, $unitSystem)
+            : $this->toLbsAtStep($stored, $unitSystem, $kind->imperialStep());
     }
 
     /**
@@ -46,43 +41,6 @@ class UnitConversionService
         return $kind === MeasurementKind::Height
             ? $this->toCm($input, $unitSystem)
             : $this->toKg($input, $unitSystem);
-    }
-
-    /**
-     * Format a stored kg training weight for display: metric passthrough
-     * (trailing zeros stripped), imperial rounds to the nearest 5 lbs.
-     */
-    public function formatTrainingWeight(string|float|null $weightKg, ?UnitSystem $unitSystem): float|int|null
-    {
-        return $this->formatWeightToStep($weightKg, $unitSystem, self::TRAINING_WEIGHT_STEP_LBS);
-    }
-
-    /**
-     * Format a stored kg body weight for display: metric passthrough,
-     * imperial rounds to the nearest 0.5 lb.
-     */
-    public function formatBodyWeight(string|float|null $weightKg, ?UnitSystem $unitSystem): float|int|null
-    {
-        return $this->formatWeightToStep($weightKg, $unitSystem, self::BODY_WEIGHT_STEP_LBS);
-    }
-
-    /**
-     * Format a stored cm height for display: metric passthrough, imperial
-     * converts to total inches rounded to the nearest whole inch.
-     */
-    public function formatHeight(int|string|null $heightCm, ?UnitSystem $unitSystem): ?int
-    {
-        if ($heightCm === null) {
-            return null;
-        }
-
-        $cm = (float) $heightCm;
-
-        if ($unitSystem !== UnitSystem::Imperial) {
-            return (int) $cm;
-        }
-
-        return (int) round($cm * self::CM_TO_INCHES);
     }
 
     /**
@@ -105,15 +63,24 @@ class UnitConversionService
     }
 
     /**
-     * Shared display formatting for stored kg weights: metric passes through,
+     * Display formatting for a stored cm height: metric passes through,
+     * imperial converts to total inches rounded to the nearest whole inch.
+     */
+    private function toInches(int|string|float $heightCm, ?UnitSystem $unitSystem): int
+    {
+        $cm = (float) $heightCm;
+
+        return $unitSystem === UnitSystem::Imperial
+            ? (int) round($cm * self::CM_TO_INCHES)
+            : (int) $cm;
+    }
+
+    /**
+     * Display formatting for a stored kg weight: metric passes through,
      * imperial converts to lbs and snaps to the given step.
      */
-    private function formatWeightToStep(string|float|null $weightKg, ?UnitSystem $unitSystem, float $stepLbs): float|int|null
+    private function toLbsAtStep(int|string|float $weightKg, ?UnitSystem $unitSystem, float $stepLbs): float|int
     {
-        if ($weightKg === null) {
-            return null;
-        }
-
         $kg = (float) $weightKg;
 
         if ($unitSystem !== UnitSystem::Imperial) {

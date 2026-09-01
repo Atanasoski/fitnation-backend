@@ -67,12 +67,4 @@ class MeasuredFields
     {
         return self::FIELDS[$table.'.'.$column] ?? null;
     }
-
-    /**
-     * Whether a column name carries a measurement regardless of its table.
-     */
-    public static function isMeasuredColumnName(string $column): bool
-    {
-        return in_array($column, self::MEASURED_COLUMN_NAMES, true);
-    }
 }

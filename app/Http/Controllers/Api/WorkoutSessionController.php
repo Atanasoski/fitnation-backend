@@ -12,6 +12,7 @@ use App\Http\Requests\SwapWorkoutSessionExerciseRequest;
 use App\Http\Requests\UpdateSessionExerciseRequest;
 use App\Http\Requests\UpdateSetRequest;
 use App\Http\Requests\WorkoutSessionCalendarRequest;
+use App\Http\Resources\Api\PersonalRecordResource;
 use App\Http\Resources\Api\SetLogResource;
 use App\Http\Resources\Api\WorkoutSessionCalendarResource;
 use App\Http\Resources\Api\WorkoutSessionExerciseResource;
@@ -22,6 +23,7 @@ use App\Models\SetLog;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
+use App\Services\WorkoutSession\PersonalRecords;
 use App\Services\WorkoutSession\SetOwnership;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -274,66 +276,10 @@ class WorkoutSessionController extends Controller
             'status' => WorkoutSessionStatus::Completed,
         ]);
 
-        $sessionSetLogs = SetLog::query()
-            ->where('workout_session_id', $session->id)
-            ->with('exercise:id,name')
-            ->get();
-
-        $exerciseIds = $sessionSetLogs->pluck('exercise_id')->unique()->values()->all();
-
-        $allTimeBests = collect();
-
-        if ($exerciseIds !== []) {
-            $allTimeBests = SetLog::query()
-                ->whereIn('exercise_id', $exerciseIds)
-                ->whereHas('workoutSession', fn ($q) => $q
-                    ->where('user_id', $session->user_id)
-                    ->where('status', WorkoutSessionStatus::Completed)
-                    ->where('id', '!=', $session->id)
-                )
-                ->selectRaw('exercise_id, MAX(weight) as best_weight, MAX(reps) as best_reps')
-                ->groupBy('exercise_id')
-                ->get()
-                ->keyBy('exercise_id');
-        }
-
-        $newPrs = [];
-
-        foreach ($sessionSetLogs->groupBy('exercise_id') as $exerciseId => $logs) {
-            $exerciseId = (int) $exerciseId;
-            $sessionMaxWeight = (float) $logs->max(fn (SetLog $log) => (float) $log->weight);
-            $sessionMaxReps = (int) $logs->max(fn (SetLog $log) => (int) $log->reps);
-            $exerciseName = $logs->first()->exercise?->name ?? '';
-
-            $historic = $allTimeBests->get($exerciseId);
-            $histWeight = $historic && $historic->best_weight !== null ? (float) $historic->best_weight : null;
-            $histReps = $historic && $historic->best_reps !== null ? (int) $historic->best_reps : null;
-
-            if ($histWeight === null || $sessionMaxWeight > $histWeight) {
-                $newPrs[] = [
-                    'exercise_id' => (int) $exerciseId,
-                    'exercise_name' => $exerciseName,
-                    'pr_type' => 'weight',
-                    'previous_best' => $histWeight ?? 0,
-                    'new_best' => $sessionMaxWeight,
-                ];
-            }
-
-            if ($histReps === null || $sessionMaxReps > $histReps) {
-                $newPrs[] = [
-                    'exercise_id' => (int) $exerciseId,
-                    'exercise_name' => $exerciseName,
-                    'pr_type' => 'reps',
-                    'previous_best' => $histReps ?? 0,
-                    'new_best' => $sessionMaxReps,
-                ];
-            }
-        }
-
         return response()->json([
             'data' => new WorkoutSessionResource($session),
             'message' => 'Workout completed! Great job! 💪',
-            'new_prs' => $newPrs,
+            'new_prs' => PersonalRecordResource::collection(PersonalRecords::detect($session)),
         ]);
     }
 

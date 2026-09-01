@@ -20,7 +20,6 @@ run agents inventing seven different module shapes.
 | [007](007-set-log-row-id-not-null-followup.md) | Make the new set-log row id NOT NULL and drop the legacy fallback | medium | migration, `ownedSetsFrom`, `LogSetRequest` |
 | [008](008-is-completed-uses-stored-target-sets.md) | `is_completed` judged against a different target than the one displayed | low–medium | `SessionDetail`, `UserWorkoutSessionController` |
 | [009](009-set-ownership-has-no-owner.md) | "Which row owns this set" is written ten times | medium | `WorkoutSessionExercise`, session controllers, `SessionDetail` |
-| [010](010-personal-record-detection-has-no-seam.md) | Personal record detection has no seam and no test | medium | `complete()` |
 | [011](011-program-progress-leaks-into-the-resource.md) | Program progress runs three full scans per serialized program | medium | `ProgramResource`, `Plan` |
 | [012](012-plan-activation-one-rule-five-scopes.md) | "Only one plan may be active" written eight times, five ways | medium | both `PlanController`s, `WelcomePlanGenerationService` |
 | [013](013-fitness-metrics-service-is-wide-not-deep.md) | `FitnessMetricsService` is wide, not deep | low–medium | `FitnessMetricsService`, `UserController` |
@@ -31,16 +30,16 @@ run agents inventing seven different module shapes.
 
 - [001](001-session-exercise-resource-n-plus-1.md) — `306fcda`
 - [002](002-set-logs-keyed-by-exercise-id.md) — `eda4e40`
+- [010](010-personal-record-detection-has-no-seam.md) — `fix/personal-records-seam` — three follow-ups recorded in the issue, one of them new
 
 ## Suggested order
 
-**Session domain** — these four all rewrite `Api/WorkoutSessionController`. One at a
+**Session domain** — these three all rewrite `Api/WorkoutSessionController`. One at a
 time, in this order:
 
 1. **003** — smallest, and 004 depends on the transition rules it defines.
 2. **004**.
 3. **009** — set ownership. Land before 007, which then shrinks to a deletion.
-4. **010** — personal records. Overlaps 005; consider landing them together.
 
 Then **005** (cleanup, last), **007** (needs 002's backfill verified against production
 first), and **008** (a one-line change to `SessionDetail`, but it moves progress
@@ -89,7 +88,10 @@ sprouting a new shape per issue.
   `tests/Feature/SessionDetailCharacterizationTest.php` locks the `show` and `today`
   payloads by equality, so any issue that changes a session response will fail it — that
   is the intended signal, and the expected payload should be updated deliberately rather
-  than loosened. `complete`, `start` and `cancel` remain untested. Other existing
+  than loosened. `tests/Feature/PersonalRecordDetectionTest.php` does the same for the
+  records `complete` emits, against both the endpoint and
+  `App\Services\WorkoutSession\PersonalRecords`. `start` and `cancel` remain untested,
+  as do `complete`'s status transition (003) and its response body. Other existing
   coverage (`WorkoutSessionGenerationTest.php`, `WorkoutPreviewTest.php`,
   `WorkoutGeneratorDiversityTest.php`) is generator-focused. Add new tests under
   `tests/Feature/` per the conventions in `CLAUDE.md`.

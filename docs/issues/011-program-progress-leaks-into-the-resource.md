@@ -2,7 +2,7 @@
 
 **Area:** back-end / API serialization
 **Severity:** medium (performance, with two correctness bugs)
-**Status:** open
+**Status:** done — the module exists; see *Left open by the extraction* below
 **Independent:** touches no file the workout-session issues touch, except `Plan.php`,
 which it shares with [012](012-plan-activation-one-rule-five-scopes.md).
 
@@ -80,3 +80,30 @@ exercises the endpoints around it.
   naming and placement. This is the same pattern applied to the Plan side.
 - Shares `app/Models/Plan.php` with [012](012-plan-activation-one-rule-five-scopes.md).
   Different methods, so a merge is usually clean, but do not run both against one branch.
+
+## Left open by the extraction
+
+1. **The enum defect was latent, not live.** `WorkoutSessionStatus::Completed`
+   backs onto the same `'completed'` string the raw comparisons used, so no
+   payload was ever wrong and the test asked for above
+   (`ProgramProgressTest::test_only_completed_sessions_count_towards_progress`)
+   passes before the fix as well as after. It is kept because it fails if that
+   backing value ever moves, which is the defect the issue actually names.
+2. **`GET /api/programs/active` still 500s when the user has no active
+   program.** `PlanController::activeProgram()` hands a null plan to
+   `ProgramResource`. This predates the extraction — it 500s identically at
+   `334d2e3`, only with `ErrorException` instead of `TypeError` — and fixing it
+   means deciding what that endpoint returns when there is nothing active,
+   which belongs to [012](012-plan-activation-one-rule-five-scopes.md).
+3. **`WorkoutTemplateResource` still reads global `auth()`** for the partner
+   whose exercise presentation it picks and for the unit system it formats
+   with, so serializing a program outside a request gets default images and
+   Canonical Units. `ProgramResource` itself no longer does. The two remaining
+   reads belong to [014](014-partner-exercise-presentation.md) and
+   [015](015-measured-field-residue.md), which own those payload areas.
+4. **`percentComplete()` counts the templates it was handed**, where the old
+   code took its denominator from a separate `count()` query. A caller that
+   eager-loads `workoutTemplates` through a constrained closure would therefore
+   change the percentage. None does, and every caller serializes the same set it
+   measures — which the old shape could not promise, since its numerator and
+   denominator came from two different reads.

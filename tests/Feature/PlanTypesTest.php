@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutTemplate;
+use App\Services\Plan\ProgramProgress;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -82,7 +83,7 @@ class PlanTypesTest extends TestCase
             'order_index' => 1,
         ]);
 
-        $nextWorkout = $plan->nextWorkout($user);
+        $nextWorkout = ProgramProgress::for($plan, $user)->nextWorkout();
 
         $this->assertNotNull($nextWorkout);
         $this->assertEquals($template1->id, $nextWorkout->id);
@@ -115,7 +116,7 @@ class PlanTypesTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $nextWorkout = $plan->nextWorkout($user);
+        $nextWorkout = ProgramProgress::for($plan, $user)->nextWorkout();
 
         $this->assertNotNull($nextWorkout);
         $this->assertEquals($template2->id, $nextWorkout->id);
@@ -142,7 +143,7 @@ class PlanTypesTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $nextWorkout = $plan->nextWorkout($user);
+        $nextWorkout = ProgramProgress::for($plan, $user)->nextWorkout();
 
         $this->assertNull($nextWorkout);
     }
@@ -168,7 +169,7 @@ class PlanTypesTest extends TestCase
         ]);
 
         // No workouts completed - 0%
-        $this->assertEquals(0, $plan->getProgressPercentage($user));
+        $this->assertEquals(0, ProgramProgress::for($plan, $user)->percentComplete());
 
         // Complete first workout - 50%
         WorkoutSession::factory()->create([
@@ -177,7 +178,7 @@ class PlanTypesTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $this->assertEquals(50, $plan->getProgressPercentage($user));
+        $this->assertEquals(50, ProgramProgress::for($plan, $user)->percentComplete());
 
         // Complete second workout - 100%
         WorkoutSession::factory()->create([
@@ -186,7 +187,7 @@ class PlanTypesTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $this->assertEquals(100, $plan->getProgressPercentage($user));
+        $this->assertEquals(100, ProgramProgress::for($plan, $user)->percentComplete());
     }
 
     public function test_partner_library_plan_identification(): void

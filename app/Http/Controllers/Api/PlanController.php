@@ -14,6 +14,7 @@ use App\Http\Resources\Api\ProgramResource;
 use App\Http\Resources\Api\RoutinePlanResource;
 use App\Http\Resources\Api\WorkoutTemplateResource;
 use App\Models\Plan;
+use App\Services\Plan\ProgramProgress;
 use App\Services\PlanCloningService;
 use App\Services\WelcomePlanGenerationService;
 use Illuminate\Http\JsonResponse;
@@ -480,7 +481,7 @@ class PlanController extends Controller
     /**
      * Get the next workout for a program.
      */
-    public function programsNextWorkout(Plan $program): JsonResponse
+    public function programsNextWorkout(Request $request, Plan $program): JsonResponse
     {
         // Authorization check
         if ($program->user_id !== auth()->id()) {
@@ -496,7 +497,7 @@ class PlanController extends Controller
             ], 400);
         }
 
-        $nextWorkout = $program->nextWorkout(auth()->user());
+        $nextWorkout = ProgramProgress::for($program, $request->user())->nextWorkout();
 
         return response()->json([
             'data' => $nextWorkout ? new WorkoutTemplateResource($nextWorkout) : null,

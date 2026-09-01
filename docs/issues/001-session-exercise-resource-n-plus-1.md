@@ -2,7 +2,7 @@
 
 **Area:** back-end / API serialization
 **Severity:** high (performance)
-**Status:** open
+**Status:** done — `306fcda`
 
 ## Problem
 

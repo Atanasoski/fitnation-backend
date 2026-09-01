@@ -6,6 +6,7 @@ use App\Enums\PersonalRecordType;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\SetLog;
 use App\Models\WorkoutSession;
+use App\Services\FitnessMetrics\StrengthScore;
 use Illuminate\Support\Collection;
 
 /**
@@ -18,23 +19,17 @@ use Illuminate\Support\Collection;
  * below used to be reachable only by issuing a completed HTTP request, so
  * nobody could try a case against them.
  *
- * The rules, extracted exactly as they shipped and deliberately not corrected:
+ * The rules:
  *
- * - Weight and reps are **independent maxima**. The session's heaviest set and
- *   its highest-rep set are compared against the all-time heaviest and all-time
- *   highest-rep sets separately, and those four need not be the same sets. One
- *   heavy single plus one light high-rep set therefore emits two records, and
- *   neither describes a performance anyone achieved in one set.
- * - **No history counts as beaten.** The first time an exercise is logged it
- *   produces a weight record and a reps record with a previous best of 0, so a
- *   first workout of six exercises produces twelve records.
+ * - **A record describes one set.** Per exercise, the sets that beat a prior
+ *   best are gathered and the best single one among them — by estimated 1RM,
+ *   not by load — is the only one judged. A heavy single and a light high-rep
+ *   set are two performances, and only the better one is celebrated.
+ * - **No history records nothing.** An exercise with nothing logged before it
+ *   has no best to beat, so a first-ever session is silent.
  * - **The session excludes itself from its own history**, by id and not by
  *   status. Detecting twice for the same session therefore returns the same
- *   records twice rather than nothing the second time.
- *
- * Whether those are bugs is a product question, and it is now a question that
- * can be asked: tests/Feature/PersonalRecordDetectionTest.php holds each of
- * them, and changing one means changing the test that says so. Issue 010.
+ *   records twice rather than nothing the second time. Issue 003.
  *
  * Records are in Canonical Units (ADR-0001).
  */
@@ -71,38 +66,68 @@ final class PersonalRecords
      * exercise's prior bests.
      *
      * @param  Collection<int, SetLog>  $logs
-     * @param  array{weight?: float|null, reps?: int|null}  $priorBest
+     * @param  array{weight: float, reps: int}|array{}  $priorBest
      * @return list<PersonalRecord>
      */
     private static function recordsFor(int $exerciseId, Collection $logs, array $priorBest): array
     {
+        if ($priorBest === []) {
+            return [];
+        }
+
         $exerciseName = $logs->first()->exercise?->name ?? '';
 
-        $sessionWeight = (float) $logs->max(fn (SetLog $log) => (float) $log->weight);
-        $sessionReps = (int) $logs->max(fn (SetLog $log) => (int) $log->reps);
+        return $logs
+            ->sortByDesc(fn (SetLog $log) => StrengthScore::oneRepMax((float) $log->weight, (int) $log->reps))
+            ->map(fn (SetLog $log) => self::recordsFrom(
+                $exerciseId, $exerciseName, $log, $priorBest['weight'], $priorBest['reps']
+            ))
+            ->first(fn (array $records) => $records !== [], []);
+    }
 
-        $priorWeight = $priorBest['weight'] ?? null;
-        $priorReps = $priorBest['reps'] ?? null;
+    /**
+     * What one set beat, which is nothing at all unless it beat a prior best.
+     *
+     * A set qualifies as record-setting exactly when this is non-empty, so the
+     * two questions cannot drift apart: recordsFor() sorts the exercise's sets
+     * by estimated 1RM and takes the first set this answers for.
+     *
+     * Estimated 1RM rather than load, so that a session's best set is the best
+     * set and not merely its heaviest — against a 100 × 12 history, 100 × 20
+     * beats 101 × 1 and deserves the rep record it earned. Sets tying on 1RM
+     * are left in the order the query returned them; nothing depends on which.
+     *
+     * @return list<PersonalRecord>
+     */
+    private static function recordsFrom(
+        int $exerciseId,
+        string $exerciseName,
+        SetLog $log,
+        float $priorWeight,
+        int $priorReps,
+    ): array {
+        $weight = (float) $log->weight;
+        $reps = (int) $log->reps;
 
         $records = [];
 
-        if ($priorWeight === null || $sessionWeight > $priorWeight) {
+        if ($weight > $priorWeight) {
             $records[] = new PersonalRecord(
                 exerciseId: $exerciseId,
                 exerciseName: $exerciseName,
                 type: PersonalRecordType::Weight,
-                previousBest: $priorWeight ?? 0,
-                newBest: $sessionWeight,
+                previousBest: $priorWeight,
+                newBest: $weight,
             );
         }
 
-        if ($priorReps === null || $sessionReps > $priorReps) {
+        if ($reps > $priorReps) {
             $records[] = new PersonalRecord(
                 exerciseId: $exerciseId,
                 exerciseName: $exerciseName,
                 type: PersonalRecordType::Reps,
-                previousBest: $priorReps ?? 0,
-                newBest: $sessionReps,
+                previousBest: $priorReps,
+                newBest: $reps,
             );
         }
 
@@ -113,12 +138,11 @@ final class PersonalRecords
      * The athlete's heaviest set and highest-rep set for each exercise, across
      * their completed sessions other than this one.
      *
-     * Two maxima from one aggregate, which is what makes them independent: the
-     * query cannot say whether they came from the same set, and neither can
-     * anything downstream.
+     * Two maxima from one aggregate over the same rows: an exercise is either
+     * absent — no history at all, and so nothing to beat — or has both.
      *
      * @param  list<int>  $exerciseIds
-     * @return Collection<int, array{weight: float|null, reps: int|null}>
+     * @return Collection<int, array{weight: float, reps: int}>
      */
     private static function priorBests(WorkoutSession $session, array $exerciseIds): Collection
     {
@@ -138,8 +162,8 @@ final class PersonalRecords
             ->get()
             ->mapWithKeys(fn (SetLog $best) => [
                 (int) $best->exercise_id => [
-                    'weight' => $best->best_weight !== null ? (float) $best->best_weight : null,
-                    'reps' => $best->best_reps !== null ? (int) $best->best_reps : null,
+                    'weight' => (float) $best->best_weight,
+                    'reps' => (int) $best->best_reps,
                 ],
             ]);
     }

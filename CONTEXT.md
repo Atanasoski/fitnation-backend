@@ -37,15 +37,16 @@ A best an athlete beat in one session: the exercise, what kind of best it was,
 the number that stood before and the number that beat it. Detected when a
 session is completed, against that athlete's own completed sessions only.
 
-Two kinds, and they are found **independently of one another**: a *weight*
-record for the heaviest set, a *reps* record for the highest-rep set. Because
-neither knows about the other, one session can take both without any single set
-being a record — a heavy single takes the first, a light high-rep set the
-second.
+Two kinds — a *weight* record and a *reps* record — but **one set**. Per
+exercise, the session's sets that beat a prior best are gathered and the best
+single one among them wins, judged by estimated one-rep max rather than by
+load; only what *that* set beat is reported. So a session takes at most one of
+each kind per exercise, and a set that beat both produces two records of one
+performance. A heavy single and a light high-rep set are two performances, and
+only the better one is celebrated.
 
-An exercise with no history at all counts as beaten by both kinds, so its
-records report a previous best of 0, meaning "beat nothing" rather than "beat
-zero".
+An exercise with no history at all has no best to beat, so it records nothing:
+a first-ever session is silent.
 
 Like a [Session Detail](#session-detail), a Personal Record is **derived**,
 never stored: nothing records that a record was ever set, so the same session

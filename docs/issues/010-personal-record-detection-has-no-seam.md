@@ -3,6 +3,7 @@
 **Area:** back-end / API
 **Severity:** medium (correctness, untested)
 **Status:** done — the seam exists; see *Left open by the extraction* below
+**Follow-up:** the two product questions below are answered in [017](017-personal-record-rules.md)
 **Overlaps:** [003](003-session-status-transitions-unguarded.md) and
 [005](005-session-resource-duplication-and-pr-detection.md) — all three rewrite
 `complete()`. Land them together or in a fixed order; do not run them in parallel.
@@ -84,10 +85,13 @@ means editing a test that says the current behaviour is questionable, rather tha
 editing code nobody could run.
 
 1. **Independent maxima** (problem 1 above) —
-   `test_weight_and_reps_prs_need_not_come_from_the_same_set`. Product question.
+   `test_weight_and_reps_prs_need_not_come_from_the_same_set`. ~~Product
+   question.~~ **Decided: a record must come from one set.** Now
+   [017](017-personal-record-rules.md).
 2. **A first-ever session records everything** (problem 2 above) —
    `test_a_first_ever_session_records_a_weight_and_a_reps_pr_for_every_exercise`.
-   Product question.
+   ~~Product question.~~ **Decided: a first-ever session records nothing.** Now
+   [017](017-personal-record-rules.md).
 3. **Record weights go out in kilograms, unconverted** —
    `test_a_fractional_weight_survives_unconverted`. Not in the problem statement
    above; found while extracting. `new_prs` carries Canonical Units straight to

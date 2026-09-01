@@ -219,23 +219,6 @@ class ProgressionCalculatorService
     }
 
     /**
-     * Estimate one rep max using Epley formula
-     */
-    public function estimateOneRepMax(float $weight, int $reps): float
-    {
-        if ($reps <= 0) {
-            return $weight;
-        }
-
-        if ($reps === 1) {
-            return $weight;
-        }
-
-        // Epley formula: 1RM = weight × (1 + reps/30)
-        return $weight * (1 + ($reps / 30));
-    }
-
-    /**
      * Apply progressive overload based on last performance
      */
     public function applyProgressiveOverload(array $lastPerformance, ?Exercise $exercise = null, int $maxTargetReps = 12): array

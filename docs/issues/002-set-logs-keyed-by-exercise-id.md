@@ -2,7 +2,7 @@
 
 **Area:** back-end / data model
 **Severity:** high (data correctness)
-**Status:** open
+**Status:** done — `eda4e40`
 
 ## Problem
 

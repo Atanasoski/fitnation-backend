@@ -2,7 +2,7 @@
 
 **Area:** back-end / measurement
 **Severity:** low
-**Status:** open
+**Status:** done — see *Resolved* below
 **Independent:** touches no file any other open issue touches.
 
 ## Read this first — it is smaller than it first looks
@@ -98,3 +98,34 @@ docblock records.
 - Do **not** widen `MeasurementInvariantsTest`'s `api/` filter (`:81`) without a
   decision to change ADR-0001's staff-facing exclusion. If you think the exclusion is
   wrong, that is an ADR amendment, not a test change.
+
+## Resolved
+
+The imperial step has one home. `UnitConversionService` no longer declares
+`TRAINING_WEIGHT_STEP_LBS` or `BODY_WEIGHT_STEP_LBS`; everything reads
+`MeasurementKind::imperialStep()`.
+
+The three format aliases collapsed into `toDisplay()`. The public surface is now
+`toDisplay`, `toStorage`, `toKg`, `toCm` — four methods, none of them a
+kind-specific wrapper. `tests/Unit/UnitConversionServiceTest.php` was rewritten
+against `toDisplay()`/`toStorage()` keeping the existing rounding cases, so the
+5 lb and 0.5 lb behaviour is still pinned.
+
+Dead code removed: `MeasurementKind::canonicalUnit()`, `imperialUnit()` and
+`isWholeNumber()`; `MeasuredFields::isMeasuredColumnName()`; and the unreachable
+`height`/`weight` rules on the web `ProfileUpdateRequest`.
+
+`MeasuredFields` itself was kept, as instructed.
+
+**The `api/` filter in `MeasurementInvariantsTest:81` was left alone**, which is
+the right call — widening it would enforce conversion on the staff-facing Blade
+tooling ADR-0001 deliberately leaves in kilograms. Verified: that file is
+untouched by this branch.
+
+Landed as `fix/measured-field-residue` (PR #43).
+
+**Not picked up here:** [011](011-program-progress-leaks-into-the-resource.md)
+handed the global-`auth()` unit-system reads in `WorkoutTemplateResource` and
+`SetLogResource` to this issue and to
+[014](014-partner-exercise-presentation.md). Neither took them. Now tracked as
+[016](016-api-resources-read-global-auth.md).

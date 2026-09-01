@@ -19,38 +19,50 @@ run agents inventing seven different module shapes.
 | [006](006-reorder-request-validation-n-plus-1.md) | `exists` rules fan out one query per array element | low | `ReorderSessionExercisesRequest` |
 | [007](007-set-log-row-id-not-null-followup.md) | Make the new set-log row id NOT NULL and drop the legacy fallback | medium | migration, `ownedSetsFrom`, `LogSetRequest` |
 | [008](008-is-completed-uses-stored-target-sets.md) | `is_completed` judged against a different target than the one displayed | low–medium | `SessionDetail`, `UserWorkoutSessionController` |
-| [009](009-set-ownership-has-no-owner.md) | "Which row owns this set" is written ten times | medium | `WorkoutSessionExercise`, session controllers, `SessionDetail` |
-| [011](011-program-progress-leaks-into-the-resource.md) | Program progress runs three full scans per serialized program | medium | `ProgramResource`, `Plan` |
-| [012](012-plan-activation-one-rule-five-scopes.md) | "Only one plan may be active" written eight times, five ways | medium | both `PlanController`s, `WelcomePlanGenerationService` |
-| [013](013-fitness-metrics-service-is-wide-not-deep.md) | `FitnessMetricsService` is wide, not deep | low–medium | `FitnessMetricsService`, `UserController` |
-| [014](014-partner-exercise-presentation.md) | Partner exercise overrides resolved three times | low | `Exercise`, exercise resources |
-| [015](015-measured-field-residue.md) | A second imperial step, and dead validation rules | low | `UnitConversionService`, `MeasurementKind` |
+| [016](016-api-resources-read-global-auth.md) | Four API resources read global `auth()` instead of the request | low | `WorkoutTemplateResource`, `SetLogResource`, `ExerciseResource` |
+| [017](017-personal-record-rules.md) | Personal records: one set, and nothing on a first session | medium | `PersonalRecords`, `complete()` |
 
 ## Done
 
 - [001](001-session-exercise-resource-n-plus-1.md) — `306fcda`
 - [002](002-set-logs-keyed-by-exercise-id.md) — `eda4e40`
-- [010](010-personal-record-detection-has-no-seam.md) — `fix/personal-records-seam` — three follow-ups recorded in the issue, one of them new
+- [009](009-set-ownership-has-no-owner.md) — PR #37 — `SetOwnership`; unblocks 007
+- [010](010-personal-record-detection-has-no-seam.md) — PR #38 — three follow-ups recorded in the issue, one of them new
+- [011](011-program-progress-leaks-into-the-resource.md) — PR #39 — four follow-ups recorded in the issue
+- [012](012-plan-activation-one-rule-five-scopes.md) — PR #40 — [ADR-0002](../adr/0002-one-active-plan-per-type.md); **needs a release note**
+- [013](013-fitness-metrics-service-is-wide-not-deep.md) — PR #41 — 896 lines → 45; two review findings recorded in the issue
+- [014](014-partner-exercise-presentation.md) — PR #42 — `PartnerExerciseView`
+- [015](015-measured-field-residue.md) — PR #43 — one home for the imperial step
 
 ## Suggested order
 
-**Session domain** — these three all rewrite `Api/WorkoutSessionController`. One at a
-time, in this order:
+Everything from the architecture review has landed. What remains is the original
+session-domain backlog plus two follow-ups it produced.
 
-1. **003** — smallest, and 004 depends on the transition rules it defines.
+**Session domain** — 003, 004 and 005 all rewrite `Api/WorkoutSessionController`, so
+one at a time:
+
+1. **003** — smallest, and 004 depends on the transition rules it defines. Note 010
+   locked the current `complete()` behaviour in
+   `tests/Feature/PersonalRecordDetectionTest.php`, including that completing an
+   already-completed session re-emits its records. Those assertions describe the bug
+   003 is here to fix, so expect to edit them — deliberately, not by loosening them.
 2. **004**.
-3. **009** — set ownership. Land before 007, which then shrinks to a deletion.
+3. **005** — cleanup, last.
 
-Then **005** (cleanup, last), **007** (needs 002's backfill verified against production
-first), and **008** (a one-line change to `SessionDetail`, but it moves progress
-percentages, so give it its own PR).
+**Then, in any order:** **007** (now a deletion, since 009 gave the predicate one
+owner — still needs 002's backfill verified against production first), **008** (a
+one-line change to `SessionDetail`, but it moves progress percentages, so give it its
+own PR), **006**, and **016**.
 
-**Everything else runs in parallel.** 011, 012, 013, 014 and 015 touch disjoint files —
-except 011 and 012, which share `app/Models/Plan.php` in different methods, so avoid
-running those two against the same branch.
+The two product questions [010](010-personal-record-detection-has-no-seam.md) parked
+have been answered — a record must come from one set, and a first-ever session records
+nothing. They are now [017](017-personal-record-rules.md), ready to implement. It
+shares `complete()` and `PersonalRecordDetectionTest` with 003 and 005, so it queues
+with the session domain rather than running alongside it.
 
-By user-visible impact rather than architecture, **012** is the one to take first: it
-has a bug users hit today.
+**Nothing else is waiting on a decision.** Every open issue above can be started as
+written.
 
 ## House rules
 
@@ -61,12 +73,20 @@ sprouting a new shape per issue.
 - **Read the precedent.** `app/Services/WorkoutSession/SessionDetail.php` is the worked
   example for module shape, naming, placement and docblock tone. Modules live in
   `app/Services/<Area>/`, named for the domain concept, not the mechanism.
-- **Characterization test first.** Before changing behaviour, write a test that locks
-  the current payload by equality and commit it green. The refactor then *demonstrates*
-  it changed nothing rather than asserting it.
-  `tests/Feature/SessionDetailCharacterizationTest.php` is the pattern — note that it
-  reads ids from the fixture rather than hardcoding them, because `RefreshDatabase`
-  rolls transactions back but does not reset auto-increment counters.
+- **Characterization test first — in its own commit.** Before changing behaviour, write
+  a test that locks the current payload by equality and **commit it green against
+  unchanged code**. The refactor then *demonstrates* it changed nothing rather than
+  asserting it. `tests/Feature/SessionDetailCharacterizationTest.php` is the pattern —
+  note that it reads ids from the fixture rather than hardcoding them, because
+  `RefreshDatabase` rolls transactions back but does not reset auto-increment counters.
+
+  The separate commit is the whole mechanism, not ceremony. Bundled with the refactor, a
+  "characterization" test cannot be distinguished from one written to match the new
+  output — and that is not hypothetical: every PR from 009–015 bundled them, and
+  `FitnessMetricsPayloadTest` turned out to describe the post-refactor payload. It fails
+  when replayed against its own parent commit, which is how a key-order change in
+  `strength_balance.muscle_groups` shipped unnoticed. Harmless there; it will not always
+  be. To check your own: `git stash` the implementation and run the test.
 - **A module owns its own loading.** Do not require callers to eager-load before calling
   you. A precondition nobody can violate beats one everybody has to remember — that was
   the whole bug behind `today()` returning an empty exercise list.

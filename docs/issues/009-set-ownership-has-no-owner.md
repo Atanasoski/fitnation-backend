@@ -2,7 +2,7 @@
 
 **Area:** back-end / data model
 **Severity:** medium (maintainability, with one live bug)
-**Status:** open
+**Status:** done — `App\Services\WorkoutSession\SetOwnership`; see *Resolved* below
 **Depends on:** nothing. **Blocks:** [007](007-set-log-row-id-not-null-followup.md), which shrinks to a deletion once this lands.
 
 ## Problem
@@ -94,3 +94,24 @@ Add:
   change; 007 is the schema follow-up and should stay separate.
 - Do not run alongside [010](010-personal-record-detection-has-no-seam.md): both
   rewrite `Api/WorkoutSessionController`.
+
+## Resolved
+
+`App\Services\WorkoutSession\SetOwnership` holds the predicate. `forSession()`
+answers the duplicate-row question once from the rows it already has, and the
+five readers — `setsFor()`, `rowFor()`, `rowById()`, `rowForExercise()`,
+`constrain()` — cover both the in-memory and the SQL form. No caller passes a
+flag, because there is no flag to pass.
+
+All ten sites route through it. `ownedSetsFrom()`, `isOnlyRowForItsExercise()`,
+`scopeToRow()` and every inline `$matchLegacy` derivation are gone — a grep for
+any of them across `app/` returns nothing.
+
+`UserWorkoutSessionController::setsFor()` is deleted, which fixes the live bug:
+the Blade view and the API now agree on which sets belong to which row.
+
+Covered by `tests/Feature/SetOwnershipTest.php`;
+`tests/Feature/WorkoutSessionDuplicateExerciseTest.php` stayed green unchanged
+throughout, which is what makes the consolidation believable.
+
+Landed as `fix/set-ownership-module` (PR #37).

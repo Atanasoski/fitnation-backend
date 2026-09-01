@@ -2,7 +2,7 @@
 
 **Area:** back-end / models
 **Severity:** low (maintainability, with a silent failure mode)
-**Status:** open
+**Status:** done — `App\Services\Exercise\PartnerExerciseView`; see *Resolved* below
 **Independent:** touches no file any other open issue touches.
 
 ## Problem
@@ -78,3 +78,34 @@ There is no coverage of the override resolution today.
 - Lowest-value item in the backlog. The duplication is real but cheap, and partner
   branding is not currently a hot spot — take this only when the surrounding code is
   already open.
+
+## Resolved
+
+`App\Services\Exercise\PartnerExerciseView` is a readonly value object carrying
+`description`, `imageUrl`, `videoUrl` and three `has*Override` flags. `of()`
+resolves one exercise; `forExercises()` resolves many in a single query, which
+matters because `WorkoutTemplateResource` serializes a whole template's worth at
+once and would otherwise load `partners` per exercise.
+
+The three twenty-line methods on `Exercise` are gone — a grep for
+`getDescription(`, `getImage(` or `getVideo(` across `app/` and
+`resources/views/` returns nothing. `Storage::url()` moved inside, so the five
+call sites stopped applying it individually.
+
+The precondition is satisfied rather than assumed, and there is a test for
+exactly that:
+`test_the_answer_does_not_depend_on_the_caller_eager_loading_partners`. The
+second branch is covered too
+(`test_an_exercise_reached_through_the_partner_resolves_from_its_own_pivot`), as
+is the batching (`test_resolving_many_exercises_at_once_costs_one_query`).
+
+Covered by `tests/Feature/PartnerExerciseViewTest.php` (11 tests) and
+`tests/Feature/PartnerExercisePagesTest.php`.
+
+Landed as `fix/partner-exercise-presentation` (PR #42).
+
+**Not picked up here:** [011](011-program-progress-leaks-into-the-resource.md)
+handed the global-`auth()` reads in `WorkoutTemplateResource` to this issue and
+to [015](015-measured-field-residue.md). Neither took them —
+`WorkoutTemplateResource:118` still resolves the partner from `auth()`. Now
+tracked as [016](016-api-resources-read-global-auth.md).

@@ -2,7 +2,7 @@
 
 **Area:** back-end / services
 **Severity:** low–medium (maintainability, test cost, one latent inconsistency)
-**Status:** open
+**Status:** done — five modules under `App\Services\FitnessMetrics`; see *Resolved* below
 **Independent:** touches no file any other open issue touches.
 
 ## Read this first
@@ -106,3 +106,55 @@ not change.
   array by index and does no arithmetic. Its trend→colour mapping at `:193` is
   presentation over the `trend` value the service decides at `:204`, not duplication.
   Leave it alone; it is the one caller not making this worse.
+
+## Resolved
+
+`FitnessMetricsService` went from 896 lines to 45 — a façade returning the same
+three-key array over `StrengthScore`, `StrengthBalance`, `WeeklyProgress` and
+`PartnerCohort`, all under `app/Services/FitnessMetrics/`.
+
+**Decision 1 — what "completed" means: `status = Completed`.**
+`CompletedSessions` is the only place it is decided, and its docblock gives the
+reason: that is what `Api\WorkoutSessionController::complete()` writes and what
+every other consumer already reads. The `completed_at IS NOT NULL` variant is
+gone.
+
+**Decision 2 — three modules, plus two the issue did not anticipate.**
+`CompletedSessions` holds the shared predicate; `PartnerCohort` holds the
+~40 lines that `calculateStrengthPercentile` and `calculateBalancePercentile`
+had a copy of each. All four duplicate pairs named above collapsed.
+
+`UserController` no longer reimplements `getHistoricalWeeklyProgress`; it
+injects the service and asks `WeeklyProgress` for its 12 weeks directly, with a
+comment explaining why it does not read `historical_weeks` off the payload (that
+one is fixed at 8 and label-only). Covered by
+`tests/Feature/UserShowWeeklyChartTest.php`.
+
+`RECENT_DAYS = 30` unifies the window across the metrics. This is not a
+behaviour change: the pre-refactor code already used `subDays(30)` at every site
+that had a window, and weekly progress uses week boundaries, which is a
+different thing.
+
+Unit tests now exist for the pure parts —
+`tests/Unit/FitnessMetrics/{StrengthScore,StrengthBalance,WeeklyProgress}Test.php`
+— which was the main return this issue was after.
+
+Landed as `fix/fitness-metrics-modules` (PR #41).
+
+### Two things found while reviewing the merge
+
+1. **`strength_balance.muscle_groups` changed key order.** Groups carrying
+   volume now come first; before, they were interleaved with the zero-filled
+   ones. Same keys, same values. Both `BalanceModal`s re-sort by percentage
+   before rendering (`apps/web/src/components/BalanceModal.tsx:90`, mobile
+   `:84`), so no client can observe it — but the issue asked for a
+   byte-identical payload and this is not one. Recorded rather than reverted:
+   the new order is arguably better, and nothing depends on either.
+
+2. **`FitnessMetricsPayloadTest` does not characterize.** Replayed against
+   `6f660e7^` it fails on exactly the ordering above, so it was written to
+   describe the post-refactor payload rather than to lock the pre-refactor one.
+   It is a perfectly good regression test going forward; it just never provided
+   the guarantee it was named for, which is why the ordering change went
+   unnoticed. See the house rules in the README — the test has to be committed
+   green against unchanged code for that guarantee to exist.

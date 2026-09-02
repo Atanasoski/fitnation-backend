@@ -62,9 +62,12 @@ nothing. They are now [017](017-personal-record-rules.md), ready to implement. I
 shares `complete()` and `PersonalRecordDetectionTest` with 003 and 005, so it queues
 with the session domain rather than running alongside it.
 
-**018** is a feature, not a review finding, and is independent of the session domain:
-three PRs in the order its *Order of work* gives, and it needs a scheduler and queue
-worker in production before PR 3 does anything. Its decisions are recorded in
+**018** is a feature, not a review finding, and is independent of the session domain.
+Its three PRs are written and stacked — `feat/push-notifications-spec` (docs) ←
+`feat/push-devices` ← `feat/push-expo-channel` ← `feat/push-inactivity-nudge` — merge
+them in that order. It needs a scheduler and queue worker in production before PR 3
+does anything, and the human steps in front-end spec 0012 (Firebase, EAS credentials,
+Expo access token) before any phone receives a push. Its decisions are recorded in
 [ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md) and the *Notifications*
 section of `CONTEXT.md`.
 

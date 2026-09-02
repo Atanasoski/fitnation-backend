@@ -19,10 +19,13 @@ class TestPush extends Notification
     public function __construct(
         public readonly string $title,
         public readonly string $body,
-        public readonly string $url = 'fitnation://dashboard',
+        ?string $url = null,
     ) {
+        $this->url = $url ?? config('notifications.urls.dashboard');
         $this->id = (string) Str::uuid();
     }
+
+    public readonly string $url;
 
     /**
      * @return list<string>

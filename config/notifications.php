@@ -72,4 +72,18 @@ return [
         'local_hour' => 18,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Where a tap lands
+    |--------------------------------------------------------------------------
+    |
+    | Deep links the app routes on (front-end spec 0012). Phase one only ever
+    | sends the dashboard.
+    |
+    */
+
+    'urls' => [
+        'dashboard' => 'fitnation://dashboard',
+    ],
+
 ];

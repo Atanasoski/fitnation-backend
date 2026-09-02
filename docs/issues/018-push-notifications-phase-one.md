@@ -132,9 +132,11 @@ Scheduled every 15 minutes. Selects `notifications` rows created between 15 and
 - `DeviceNotRegistered` ⇒ delete that Device (D7);
 - any other error ⇒ `Log::warning` with the ticket, device id and message.
 
-Then strips `expo_tickets` from the row so it is not fetched again. Receipts
-expire on Expo's side after 24 hours, so the 90-minute upper bound leaves
-slack for a stalled worker without letting the window grow unbounded.
+Then strips the tickets it got answers for from `expo_tickets` (removing the
+key once none remain), so each ticket is asked about once; a ticket Expo has no
+receipt for yet stays and is retried next run until the row leaves the window.
+Receipts expire on Expo's side after 24 hours, so the 90-minute upper bound
+leaves slack for a stalled worker without letting the window grow unbounded.
 
 ### `App\Services\Notifications\Inactivity`
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonTimeZone;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,21 @@ class Device extends Model
         return [
             'last_seen_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The Devices a push may go to: their user's Push Switch is on and, where
+     * production fences itself off, they were built with the right profile.
+     */
+    public function scopePushable(Builder $query): Builder
+    {
+        $query->whereHas('user', fn (Builder $user) => $user->where('push_enabled', true));
+
+        if ($profile = config('notifications.only_build_profile')) {
+            $query->where('build_profile', $profile);
+        }
+
+        return $query;
     }
 
     public function user(): BelongsTo

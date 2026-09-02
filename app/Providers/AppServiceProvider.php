@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Notifications\Channels\ExpoChannel;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,6 +30,8 @@ class AppServiceProvider extends ServiceProvider
         if (App::environment('production')) {
             URL::forceScheme('https');
         }
+
+        Notification::extend('expo', fn () => new ExpoChannel);
 
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
             $email = $notifiable->getEmailForPasswordReset();

@@ -33,6 +33,17 @@ class User extends Authenticatable implements MustVerifyEmail
         'social_provider',
         'social_provider_id',
         'email_verified_at',
+        'push_enabled',
+    ];
+
+    /**
+     * Defaults that mirror the column defaults, so a freshly built User answers
+     * the same way as one read back from the table.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'push_enabled' => true,
     ];
 
     /**
@@ -57,6 +68,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'last_login_at' => 'datetime',
             'onboarding_completed_at' => 'datetime',
+            'push_enabled' => 'boolean',
         ];
     }
 
@@ -98,6 +110,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function workoutSessions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(WorkoutSession::class);
+    }
+
+    /**
+     * The Devices this user is signed in on that can receive push (ADR-0003).
+     */
+    public function devices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Device::class);
     }
 
     /**

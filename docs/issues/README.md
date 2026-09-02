@@ -21,6 +21,7 @@ run agents inventing seven different module shapes.
 | [008](008-is-completed-uses-stored-target-sets.md) | `is_completed` judged against a different target than the one displayed | low–medium | `SessionDetail`, `UserWorkoutSessionController` |
 | [016](016-api-resources-read-global-auth.md) | Four API resources read global `auth()` instead of the request | low | `WorkoutTemplateResource`, `SetLogResource`, `ExerciseResource` |
 | [017](017-personal-record-rules.md) | Personal records: one set, and nothing on a first session | medium | `PersonalRecords`, `complete()` |
+| [018](018-push-notifications-phase-one.md) | Push notifications, phase one: Devices, Expo channel, Inactivity Nudge | feature | new `devices` table, `ExpoChannel`, scheduler; pairs with front-end spec 0012; needs [DEPLOY_LIGHTSAIL.md](../DEPLOY_LIGHTSAIL.md) |
 
 ## Done
 
@@ -60,6 +61,12 @@ have been answered — a record must come from one set, and a first-ever session
 nothing. They are now [017](017-personal-record-rules.md), ready to implement. It
 shares `complete()` and `PersonalRecordDetectionTest` with 003 and 005, so it queues
 with the session domain rather than running alongside it.
+
+**018** is a feature, not a review finding, and is independent of the session domain:
+three PRs in the order its *Order of work* gives, and it needs a scheduler and queue
+worker in production before PR 3 does anything. Its decisions are recorded in
+[ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md) and the *Notifications*
+section of `CONTEXT.md`.
 
 **Nothing else is waiting on a decision.** Every open issue above can be started as
 written.

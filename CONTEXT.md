@@ -166,3 +166,44 @@ kinds exist and they behave differently:
 - **Session target weight** — recomputed on every read from the user's latest
   completed session. A stored value on a session exercise is an input to that
   calculation, never the answer.
+
+## Notifications
+
+### Device
+
+One installation of the mobile app that a user is signed in on, able to receive
+push notifications. A Device **is** an authenticated session: it exists only
+while the API token it was registered under is valid, and revoking that token
+ends the Device with it. A user may hold many Devices at once.
+
+A Device knows the timezone its phone is set to. Anything the domain schedules
+"at a local time" for a user reads it from their most recently seen Device; a
+Device with no known timezone is treated as being in the app's home timezone.
+
+A phone has one owner at a time: a [Push Token](#push-token) re-registered
+under a different session moves to that session, and the Device it left is
+gone.
+
+_Avoid_: installation, push subscription, client.
+
+### Push Token
+
+The address a [Device](#device) can be reached at, issued by the push relay and
+opaque to the domain. A token is not stable — the same Device may be re-issued
+one — and a token reported dead by the relay ends the Device it belonged to.
+
+_Avoid_: device token, FCM token, APNs token — the domain never sees those.
+
+### Inactivity Nudge
+
+A push notification sent to a user who has not trained for a while, to bring
+them back. "Trained" means a [Completed Session](#completed-session); a user
+with none yet is measured from the day they finished onboarding.
+
+Sent on a **ladder** — 3, 7 and 14 days of inactivity — at 18:00 in the
+[Device](#device)'s local time, then never again until the user trains, which
+resets the ladder. A user is not nudged while onboarding is incomplete, while a
+session of theirs is in progress, or while they have push turned off.
+
+_Avoid_: reminder — a Reminder is tied to a scheduled workout day, not to
+silence; re-engagement, win-back.

@@ -1,18 +1,20 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MuscleGroupController;
+use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WorkoutGeneratorController;
 use App\Http\Controllers\Api\WorkoutPlannerController;
@@ -51,6 +53,10 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::get('/user', [UserController::class, 'show']);
     Route::delete('/user', [UserController::class, 'destroy']);
     Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
+
+    // Devices — the calling session registers itself for push (ADR-0003)
+    Route::put('/devices', [DeviceController::class, 'register']);
+    Route::patch('/notification-settings', [NotificationSettingsController::class, 'update']);
 
     // Profile endpoints
     Route::get('/profile', [ProfileController::class, 'show']);

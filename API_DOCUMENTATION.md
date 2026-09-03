@@ -7,23 +7,24 @@ This documentation provides complete information about all API resources and end
 1. [Base Configuration](#base-configuration)
 2. [Authentication & Partners](#authentication--partners)
 3. [User Management](#user-management)
-4. [User Profile](#user-profile)
+4. [Notifications](#notifications)
+5. [User Profile](#user-profile)
    - [Unit System](#unit-system)
-5. [Onboarding](#onboarding)
-6. [Exercises](#exercises)
-7. [Muscle Groups](#muscle-groups)
-8. [Categories](#categories)
-9. [Exercise Classifications](#exercise-classifications)
-10. [Fitness Metrics](#fitness-metrics)
-11. [Plans](#plans)
-12. [Routines](#routines)
-13. [Programs](#programs)
-14. [Browsable Routines](#browsable-routines)
-15. [Workout Templates](#workout-templates)
-16. [Workout Planner](#workout-planner)
-17. [Workout Sessions](#workout-sessions)
-18. [Complete TypeScript Definitions](#complete-typescript-definitions)
-19. [Error Responses](#error-responses)
+6. [Onboarding](#onboarding)
+7. [Exercises](#exercises)
+8. [Muscle Groups](#muscle-groups)
+9. [Categories](#categories)
+10. [Exercise Classifications](#exercise-classifications)
+11. [Fitness Metrics](#fitness-metrics)
+12. [Plans](#plans)
+13. [Routines](#routines)
+14. [Programs](#programs)
+15. [Browsable Routines](#browsable-routines)
+16. [Workout Templates](#workout-templates)
+17. [Workout Planner](#workout-planner)
+18. [Workout Sessions](#workout-sessions)
+19. [Complete TypeScript Definitions](#complete-typescript-definitions)
+20. [Error Responses](#error-responses)
 
 ---
 
@@ -314,6 +315,79 @@ interface DeleteUserRequest {
     }
   }
   ```
+
+---
+
+## Notifications
+
+Push notifications are delivered through the Expo Push Service. A **Device** is
+the calling session: it is bound to the bearer token that registered it and is
+gone when that token is revoked (logout, account deletion), so there is no
+unregister endpoint. See `docs/adr/0003-a-device-is-an-authenticated-session.md`.
+
+### Register Device
+```
+PUT /api/devices
+```
+*Requires authentication (bearer token — a cookie session cannot be a Device and gets 400)*
+
+Idempotent for one session. Call it after sign-in and whenever the push token
+or timezone changes; the same session always updates its one Device. A push
+token that is already held by a different session moves to the caller.
+
+**Request Body:**
+```typescript
+interface RegisterDeviceRequest {
+  push_token: string;            // ExponentPushToken[...] — required
+  platform: 'ios' | 'android';   // required
+  timezone?: string | null;      // IANA name, e.g. 'Europe/Skopje'. Drives "18:00 local" scheduling.
+  app_version?: string | null;   // e.g. '1.0.5'
+  build_profile?: string | null; // 'development' | 'preview' | 'production'
+  device_name?: string | null;   // e.g. 'iPhone 15'
+}
+```
+
+**Response:**
+```typescript
+interface RegisterDeviceResponse {
+  data: DeviceResource;
+}
+
+interface DeviceResource {
+  id: number;
+  platform: 'ios' | 'android';
+  timezone: string | null;
+  app_version: string | null;
+  last_seen_at: string;          // ISO 8601
+}
+```
+
+---
+
+### Update Notification Settings
+```
+PATCH /api/notification-settings
+```
+*Requires authentication*
+
+The one global push switch. Off stops every push to the user; their Devices are
+kept, so turning it back on is immediate.
+
+**Request Body:**
+```typescript
+interface UpdateNotificationSettingsRequest {
+  push_enabled: boolean;         // required
+}
+```
+
+**Response:**
+```typescript
+interface UpdateNotificationSettingsResponse {
+  user: UserResource;            // push_enabled reflects the new value
+}
+```
+
+`UserResource` carries `push_enabled: boolean` (default `true`).
 
 ---
 
@@ -2440,6 +2514,7 @@ interface UserResource {
   profile: UserProfileResource | null;
   partner: UserPartner | null;
   email_verified_at: string | null;  // ISO 8601
+  push_enabled: boolean;              // global push switch — see Notifications
   created_at: string;                 // ISO 8601
   updated_at: string;                 // ISO 8601
 }

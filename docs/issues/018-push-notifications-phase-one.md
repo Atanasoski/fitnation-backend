@@ -82,9 +82,9 @@ in the tone of `SessionDetail`.
 
 Relations: `user()`, `token()` (`belongsTo PersonalAccessToken`). Scope
 `pushable()` = joined to a user with `push_enabled` and, when
-`config('notifications.only_build_profile')` is set, matching `build_profile`.
-No business logic here beyond `timezone(): CarbonTimeZone` with the D4
-fallback.
+`config('notifications.only_build_profile')` is set, matching `build_profile`
+— added in PR 2 with its only consumer, `ExpoChannel`. No business logic here
+beyond `timezone(): CarbonTimeZone` with the D4 fallback.
 
 ### `App\Services\Notifications\DeviceRegistration`
 
@@ -202,7 +202,9 @@ Rules: `push_token` required, `regex:/^Expo(nent)?PushToken\[[\w-]+\]$/`, max
 255; `platform` required, `in:ios,android`; `timezone` nullable, `timezone`
 rule; the rest nullable strings. Response `200 {"data": DeviceResource}` where
 `DeviceResource` is `id, platform, timezone, app_version, last_seen_at`. The
-Sanctum token comes from `$request->user()->currentAccessToken()`.
+Sanctum token comes from `$request->user()->currentAccessToken()`; a stateful
+(cookie) session has a `TransientToken` with no row to bind to and gets **400**
+— only token-authenticated sessions can be Devices.
 
 **`PATCH /api/notification-settings`** — `{"push_enabled": bool}`, required
 boolean. Response `200 {"user": UserResource}`.
@@ -304,8 +306,8 @@ running it twice in the same slot sends nothing the second time.
 
 1. Migrations, `Device` model, `DeviceRegistration`, `PUT /devices`,
    settings endpoint, `UserResource` key. Tests. PR 1.
-2. `config/notifications.php`, `ExpoChannel`, `ExpoMessage`, `PushTest`
-   command, receipts job + schedule. Tests. PR 2. At this point a human can
+2. Remaining `config/notifications.php` keys, `Device::pushable()`,
+   `ExpoChannel`, `ExpoMessage`, `PushTest` command, receipts job + schedule. Tests. PR 2. At this point a human can
    `push:test` a real phone running the spec-0012 build.
 3. `Inactivity`, `InactivityNudge`, the command and its schedule, copy. Tests.
    PR 3.

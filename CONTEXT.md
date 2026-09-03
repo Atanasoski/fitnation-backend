@@ -194,6 +194,16 @@ one — and a token reported dead by the relay ends the Device it belonged to.
 
 _Avoid_: device token, FCM token, APNs token — the domain never sees those.
 
+### Push Switch
+
+A user's one global on/off for push notifications. Off means nothing is pushed
+to any of their [Devices](#device); the Devices themselves are kept, so turning
+it back on takes effect at once. On by default. On the wire it is
+`push_enabled`.
+
+_Avoid_: notification preferences (those are per category and do not exist
+yet), opt-out, mute.
+
 ### Inactivity Nudge
 
 A push notification sent to a user who has not trained for a while, to bring
@@ -203,7 +213,8 @@ with none yet is measured from the day they finished onboarding.
 Sent on a **ladder** — 3, 7 and 14 days of inactivity — at 18:00 in the
 [Device](#device)'s local time, then never again until the user trains, which
 resets the ladder. A user is not nudged while onboarding is incomplete, while a
-session of theirs is in progress, or while they have push turned off.
+session of theirs is in progress, or while their [Push Switch](#push-switch)
+is off.
 
 _Avoid_: reminder — a Reminder is tied to a scheduled workout day, not to
 silence; re-engagement, win-back.

@@ -19,7 +19,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'profile_photo' => asset($this->profile_photo),
-            'has_password' => !is_null($this->password),
+            'has_password' => ! is_null($this->password),
             'profile' => $this->whenLoaded('profile', function () {
                 return new UserProfileResource($this->profile);
             }),
@@ -34,6 +34,7 @@ class UserResource extends JsonResource
                 ];
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,
+            'push_enabled' => $this->push_enabled,
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

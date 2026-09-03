@@ -142,9 +142,11 @@ leaves slack for a stalled worker without letting the window grow unbounded.
 
 The Inactivity Nudge rule, as a read. `dueAt(CarbonImmutable $now):
 Collection<int, InactivityNudgeCandidate>` — every user who, evaluated at `$now`,
-is in a Device timezone where the local time is 18:00 (within the run's
-15-minute slot), whose inactivity in whole days is ≥ 3, and whose ladder step
-for that inactivity has not been sent:
+is in a Device timezone where the local hour is 18 (the whole hour, not one
+quarter of it: every 15-minute run in that hour finds the same users due, and
+the sent record makes all but the first a no-op, so a late or skipped tick
+costs nothing), whose inactivity in whole local calendar days is ≥ 3, and whose
+ladder step for that inactivity has not been sent:
 
 ```
 step  = 14 if days >= 14 else 7 if days >= 7 else 3 if days >= 3 else none
@@ -156,11 +158,14 @@ due   = step is not none and sent is empty and not excluded
 ```
 
 Exclusions per D9. Users with no Device are not candidates (nothing to send to,
-and no timezone). The whole thing is one query per timezone bucket, not one per
-user — start from `devices` grouped by `timezone`, filter buckets to those at
-18:00 local, then join users and aggregate their last completed session. Write
-it, then check it with `DB::enableQueryLog()` in the test: the count must not
-grow with the number of users.
+and no timezone). A constant number of queries, not one per user, and rows
+scoped to the users at the hour rather than the user base — start from the
+distinct `devices.timezone` values, keep those at 18:00 local, rank each user's
+Devices by `last_seen_at` in SQL and take the users whose latest is in one of
+them, then aggregate their last completed session and read their sent nudges
+bounded below by the earliest date any of them is measured from. Check it with
+`DB::enableQueryLog()` in the test: the count must not grow with the number of
+users.
 
 ### `App\Notifications\InactivityNudge`
 

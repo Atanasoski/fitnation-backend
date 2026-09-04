@@ -29,8 +29,8 @@
     <x-common.page-breadcrumb :pageTitle="$plan->name" :items="[['label' => 'Users', 'url' => route('users.index')], ['label' => $plan->user->name, 'url' => route('users.show', $plan->user)]]" />
 
     @if (session('success'))
-        <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
+        <div class="mb-6 rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <p class="text-sm text-success-800 dark:text-success-400">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -45,7 +45,7 @@
                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ $plan->description }}</p>
                 @endif
                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                         Program
                     </span>
                     @if($plan->duration_weeks)
@@ -55,17 +55,17 @@
                     @endif
                 </div>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Plan for <a href="{{ route('users.show', $plan->user) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">{{ $plan->user->name }}</a>
+                    Plan for <a href="{{ route('users.show', $plan->user) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">{{ $plan->user->name }}</a>
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 @if($plan->is_active)
-                    <div class="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-center dark:border-green-900/40 dark:bg-green-900/10">
-                        <div class="mt-1 text-sm font-semibold text-green-700 dark:text-green-300">Active</div>
+                    <div class="rounded-xl border border-success-100 bg-success-50 px-4 py-3 text-center dark:border-success-900/40 dark:bg-success-900/10">
+                        <div class="mt-1 text-sm font-semibold text-success-700 dark:text-success-300">Active</div>
                     </div>
                 @else
-                    <div class="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center dark:border-red-900/40 dark:bg-red-900/10">
-                        <div class="mt-1 text-sm font-semibold text-red-700 dark:text-red-300">Inactive</div>
+                    <div class="rounded-xl border border-error-100 bg-error-50 px-4 py-3 text-center dark:border-error-900/40 dark:bg-error-900/10">
+                        <div class="mt-1 text-sm font-semibold text-error-700 dark:text-error-300">Inactive</div>
                     </div>
                 @endif
                 <a href="{{ route('plans.index', $plan->user) }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -117,7 +117,7 @@
                                         <form action="{{ route('workouts.destroy', $workout) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this workout template? This will also delete all associated exercises.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="rounded p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300" title="Delete">
+                                            <button type="submit" class="rounded p-1.5 text-error-500 hover:bg-error-50 hover:text-error-700 dark:text-error-400 dark:hover:bg-error-900/20 dark:hover:text-error-300" title="Delete">
                                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                             </button>
                                         </form>

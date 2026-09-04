@@ -1,11 +1,11 @@
 # muscle-hustle
 
-Fitness tracking web app + mobile API. Laravel 12, Blade templates, Bootstrap 5, MySQL.
+Fitness tracking web app + mobile API. Laravel 12, Blade templates, Tailwind CSS 4 (TailAdmin-based admin panel) + Alpine.js, MySQL.
 
 ## Tech stack
 
 - **Backend**: Laravel 12 (PHP 8.2+)
-- **Frontend**: Blade + Bootstrap 5 + Vite
+- **Frontend**: Blade + Tailwind CSS 4 + Alpine.js + Vite (admin panel derived from the TailAdmin template)
 - **Database**: MySQL (SQLite optional for local dev)
 - **Auth**: Laravel Breeze + Laravel Sanctum (API tokens)
 - **Queue**: database driver (queue:listen in dev)
@@ -37,6 +37,15 @@ tests/
   Feature/                # Integration tests (hit real DB via RefreshDatabase)
   Unit/                   # Unit tests for isolated logic
 ```
+
+## Branding
+
+The admin panel must match the marketing site (`front-end/apps/landing_page`):
+
+- Colors live in `resources/css/app.css` `@theme`: `brand-*` is the teal ramp (`brand-500 = #14b3c1`), `orange-500 = #f86f33` is the accent. Use these tokens, never raw hex.
+- Fonts: Inter (body, `font-sans`) and Poppins (headings, `font-display`).
+- Logo is the globe icon: `public/images/logo/logo.png`, shown round (`rounded-full`); favicon/apple-touch-icon are next to it. Wordmark is "Fit Nation" (with a space), from `config('app.name')`.
+- There is no Blade landing page; the marketing site is deployed separately. `/get` is only a device-aware store redirect.
 
 ## Domain concepts
 

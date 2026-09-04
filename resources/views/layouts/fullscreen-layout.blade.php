@@ -6,7 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'Dashboard' }} | FitNation</title>
+    <title>{{ $title ?? 'Dashboard' }} | {{ config('app.name', 'Fit Nation') }}</title>
+
+    <!-- Brand icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo/favicon-32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo/apple-touch-icon.png') }}">
+    <meta name="theme-color" content="#14b3c1">
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])

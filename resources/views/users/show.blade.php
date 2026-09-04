@@ -58,15 +58,15 @@
                             {{ $profile?->height ? $profile->height.'cm' : '—' }}
                         </div>
                     </div>
-                    <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-center dark:border-blue-900/40 dark:bg-blue-900/10">
-                        <div class="text-[11px] font-semibold tracking-wider text-blue-400">GOAL</div>
-                        <div class="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                    <div class="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-center dark:border-brand-900/40 dark:bg-brand-900/10">
+                        <div class="text-[11px] font-semibold tracking-wider text-brand-400">GOAL</div>
+                        <div class="mt-1 text-sm font-semibold text-brand-700 dark:text-brand-300">
                             {{ $profile?->fitness_goal ? ucfirst(str_replace('_', ' ', $profile->fitness_goal->value)) : '—' }}
                         </div>
                     </div>
-                    <div class="rounded-xl border border-green-100 bg-green-50 px-5 py-3 text-center dark:border-green-900/40 dark:bg-green-900/10">
-                        <div class="text-[11px] font-semibold tracking-wider text-green-500">LEVEL</div>
-                        <div class="mt-1 text-sm font-semibold text-green-700 dark:text-green-300">
+                    <div class="rounded-xl border border-success-100 bg-success-50 px-5 py-3 text-center dark:border-success-900/40 dark:bg-success-900/10">
+                        <div class="text-[11px] font-semibold tracking-wider text-success-500">LEVEL</div>
+                        <div class="mt-1 text-sm font-semibold text-success-700 dark:text-success-300">
                             {{ $profile?->training_experience ? ucfirst($profile->training_experience->value) : '—' }}
                         </div>
                     </div>
@@ -85,7 +85,7 @@
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30">
             <div class="flex items-start justify-between">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
@@ -99,7 +99,7 @@
 
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30">
             <div class="flex items-start justify-between">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-300">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-900/20 dark:text-success-300">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
@@ -116,7 +116,7 @@
 
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30">
             <div class="flex items-start justify-between">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning-50 text-warning-600 dark:bg-warning-900/20 dark:text-warning-300">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422A12.083 12.083 0 0112 21.5c-2.305 0-4.45-.642-6.16-1.922L12 14z"></path>
@@ -136,13 +136,13 @@
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30">
                 <div class="flex items-start justify-between">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
                     </div>
                     @if(isset($fitnessMetrics['strength_score']['recent_gain']) && $fitnessMetrics['strength_score']['recent_gain'] != 0)
-                        <div class="text-xs font-semibold {{ $fitnessMetrics['strength_score']['recent_gain'] > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                        <div class="text-xs font-semibold {{ $fitnessMetrics['strength_score']['recent_gain'] > 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">
                             {{ $fitnessMetrics['strength_score']['recent_gain'] > 0 ? '+' : '' }}{{ $fitnessMetrics['strength_score']['recent_gain'] }}
                         </div>
                     @endif
@@ -158,13 +158,13 @@
 
             <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/30">
                 <div class="flex items-start justify-between">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-900/20 dark:text-success-300">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                     </div>
                     @if(isset($fitnessMetrics['strength_balance']['recent_change']) && $fitnessMetrics['strength_balance']['recent_change'] != 0)
-                        <div class="text-xs font-semibold {{ $fitnessMetrics['strength_balance']['recent_change'] > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                        <div class="text-xs font-semibold {{ $fitnessMetrics['strength_balance']['recent_change'] > 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">
                             {{ $fitnessMetrics['strength_balance']['recent_change'] > 0 ? '+' : '' }}{{ $fitnessMetrics['strength_balance']['recent_change'] }}%
                         </div>
                     @endif
@@ -190,7 +190,7 @@
                         </svg>
                     </div>
                     @if(isset($fitnessMetrics['weekly_progress']['trend']) && isset($fitnessMetrics['weekly_progress']['percentage']))
-                        <div class="text-xs font-semibold {{ $fitnessMetrics['weekly_progress']['trend'] === 'up' ? 'text-green-600 dark:text-green-400' : ($fitnessMetrics['weekly_progress']['trend'] === 'down' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400') }}">
+                        <div class="text-xs font-semibold {{ $fitnessMetrics['weekly_progress']['trend'] === 'up' ? 'text-success-600 dark:text-success-400' : ($fitnessMetrics['weekly_progress']['trend'] === 'down' ? 'text-error-600 dark:text-error-400' : 'text-gray-500 dark:text-gray-400') }}">
                             {{ $fitnessMetrics['weekly_progress']['trend'] === 'up' ? '+' : ($fitnessMetrics['weekly_progress']['trend'] === 'down' ? '-' : '') }}{{ $fitnessMetrics['weekly_progress']['percentage'] }}%
                         </div>
                     @endif
@@ -242,11 +242,11 @@
             @if($latestPlans->count() > 0)
                 <div class="space-y-4">
                     @foreach($latestPlans as $plan)
-                        <div class="rounded-xl border border-gray-200 p-4 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40 {{ $plan->is_active ? 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-900/40' : '' }}">
+                        <div class="rounded-xl border border-gray-200 p-4 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40 {{ $plan->is_active ? 'bg-success-50/40 dark:bg-success-900/10 border-success-200 dark:border-success-900/40' : '' }}">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-lg {{ $plan->is_active ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }}">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-lg {{ $plan->is_active ? 'bg-success-50 text-success-600 dark:bg-success-900/20 dark:text-success-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h2m-2 0V8m0 4v4m0-4H1m2 0h2m14-4h-2m2 0v4m0-4V8m0 4h2m-2 0h-2M6 12h12M6 12V8m0 4v4m12-4V8m0 4v4M6 12H4m14 0h2M6 16H4m14 0h2"></path>
                                             </svg>
@@ -278,11 +278,11 @@
 
                                 <div class="shrink-0">
                                     @if($plan->is_active)
-                                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                        <span class="inline-flex items-center rounded-full bg-success-100 px-2.5 py-1 text-xs font-semibold text-success-700 dark:bg-success-900/30 dark:text-success-300">
                                             Active
                                         </span>
                                     @else
-                                        <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-300">
+                                        <span class="inline-flex items-center rounded-full bg-error-50 px-2.5 py-1 text-xs font-semibold text-error-600 dark:bg-error-900/30 dark:text-error-300">
                                             Inactive
                                         </span>
                                     @endif
@@ -314,7 +314,7 @@
                     <a href="{{ route('users.workout-sessions.show', [$user, $workout]) }}" class="block w-[260px] shrink-0">
                         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900/30 dark:hover:border-gray-700">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-lg {{ $workout->status_label === 'Completed' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-300' : ($workout->status_label === 'Cancelled' ? 'bg-gray-50 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300') }}">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-lg {{ $workout->status_label === 'Completed' ? 'bg-success-50 text-success-600 dark:bg-success-900/20 dark:text-success-300' : ($workout->status_label === 'Cancelled' ? 'bg-gray-50 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : 'bg-warning-50 text-warning-600 dark:bg-warning-900/20 dark:text-warning-300') }}">
                                 @if($workout->status_label === 'Completed')
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>

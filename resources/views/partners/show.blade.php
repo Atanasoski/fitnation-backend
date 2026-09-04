@@ -24,7 +24,7 @@
                         <img src="{{ asset($partner->identity->logo) }}" alt="{{ $partner->name }}" class="w-full h-full object-contain">
                     </div>
                 @else
-                    <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-teal-400 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                    <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-brand-400 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
                         {{ strtoupper(substr($partner->name, 0, 1)) }}
                     </div>
                 @endif
@@ -93,8 +93,8 @@
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Users</p>
                 <p class="text-3xl font-bold text-gray-800 dark:text-white/90">{{ $usersCount }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center">
-                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 rounded-lg bg-brand-50 dark:bg-brand-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                 </svg>
             </div>
@@ -107,14 +107,14 @@
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Status</p>
                 <p class="text-lg font-semibold text-gray-800 dark:text-white/90">
                     @if($partner->is_active)
-                        <span class="text-green-600 dark:text-green-500">Active</span>
+                        <span class="text-success-600 dark:text-success-500">Active</span>
                     @else
                         <span class="text-gray-500 dark:text-gray-400">Inactive</span>
                     @endif
                 </p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-green-50 dark:bg-green-500/15 flex items-center justify-center">
-                <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 rounded-lg bg-success-50 dark:bg-success-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
@@ -129,8 +129,8 @@
                     {{ $partner->identity ? 'Configured' : 'Not Set' }}
                 </p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-purple-50 dark:bg-purple-500/15 flex items-center justify-center">
-                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 rounded-lg bg-orange-50 dark:bg-orange-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
                 </svg>
             </div>
@@ -152,7 +152,7 @@
     </div>
 
     <!-- Active This Week -->
-    <div class="bg-green-500 rounded-2xl shadow-sm p-6 text-white">
+    <div class="bg-success-500 rounded-2xl shadow-sm p-6 text-white">
         <div class="flex items-center">
             <div class="shrink-0">
                 <svg class="w-12 h-12 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +229,7 @@
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">File Path</p>
                                     <code class="text-xs text-gray-600 dark:text-gray-400 block mb-3 break-all">{{ $partner->identity->logo }}</code>
-                                    <a href="{{ asset($partner->identity->logo) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                                    <a href="{{ asset($partner->identity->logo) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                         </svg>
@@ -258,7 +258,7 @@
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">File Path</p>
                                     <code class="text-xs text-gray-600 dark:text-gray-400 block mb-3 break-all">{{ $partner->identity->background_pattern }}</code>
-                                    <a href="{{ asset($partner->identity->background_pattern) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                                    <a href="{{ asset($partner->identity->background_pattern) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                         </svg>
@@ -292,8 +292,8 @@
                 </div>
             @else
                 <div class="text-center py-12">
-                    <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-500/15 flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-500/15 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
                         </svg>
                     </div>
@@ -321,7 +321,7 @@
                 @if($partner->domain)
                     <div>
                         <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Domain</p>
-                        <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500">
+                        <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500">
                             {{ $partner->domain }}
                         </span>
                     </div>
@@ -346,8 +346,8 @@
     <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-500/15 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                     </svg>
                 </div>
@@ -356,7 +356,7 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ $usersCount }} {{ Str::plural('user', $usersCount) }} assigned</p>
                 </div>
             </div>
-            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500">
+            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500">
                 {{ $usersCount }}
             </span>
         </div>
@@ -390,7 +390,7 @@
                                             @if($user->profile_photo)
                                                 <img src="{{ asset($user->profile_photo) }}" alt="{{ $user->name }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700">
                                             @else
-                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold ring-2 ring-gray-200 dark:ring-gray-700">
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-orange-500 flex items-center justify-center text-white font-semibold ring-2 ring-gray-200 dark:ring-gray-700">
                                                     {{ strtoupper(substr($user->name, 0, 1)) }}
                                                 </div>
                                             @endif
@@ -404,7 +404,7 @@
                                     </td>
                                     <td class="px-5 py-4 sm:px-6">
                                         @if($user->email_verified_at)
-                                            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-500">
+                                            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500">
                                                 Verified
                                             </span>
                                         @else
@@ -425,8 +425,8 @@
             </div>
         @else
             <div class="text-center py-12">
-                <div class="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-16 h-16 rounded-full bg-brand-50 dark:bg-brand-500/15 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
                 </div>

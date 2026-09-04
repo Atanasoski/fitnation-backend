@@ -15,7 +15,7 @@
     <!-- Stats Cards Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <!-- Total Partners -->
-        <div class="bg-blue-500 rounded-lg shadow-sm p-6 text-white">
+        <div class="bg-brand-500 rounded-lg shadow-sm p-6 text-white">
             <div class="flex items-center">
                 <div class="shrink-0">
                     <svg class="w-12 h-12 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,13 +25,13 @@
                 <div class="ml-4">
                     <h3 class="text-3xl font-bold">{{ $totalPartners }}</h3>
                     <p class="text-sm opacity-90">Total Partners</p>
-                    <span class="inline-block mt-1 px-2 py-1 text-xs font-semibold bg-white text-blue-500 rounded">{{ $activePartners }} Active</span>
+                    <span class="inline-block mt-1 px-2 py-1 text-xs font-semibold bg-white text-brand-500 rounded">{{ $activePartners }} Active</span>
                 </div>
             </div>
         </div>
 
         <!-- Total Users -->
-        <div class="bg-green-500 rounded-lg shadow-sm p-6 text-white">
+        <div class="bg-success-500 rounded-lg shadow-sm p-6 text-white">
             <div class="flex items-center">
                 <div class="shrink-0">
                     <svg class="w-12 h-12 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +53,7 @@
             <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <div class="flex justify-between items-center">
                     <h5 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 mr-2 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
                         Partner Performance
@@ -86,7 +86,7 @@
                                                 @if($partner->identity && $partner->identity->logo_url)
                                                     <img src="{{ $partner->identity->logo_url }}" alt="{{ $partner->name }}" class="w-8 h-8 rounded mr-3 object-cover">
                                                 @else
-                                                    <div class="w-8 h-8 rounded mr-3 bg-blue-500 flex items-center justify-center text-white">
+                                                    <div class="w-8 h-8 rounded mr-3 bg-brand-500 flex items-center justify-center text-white">
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                                         </svg>
@@ -100,13 +100,13 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @if($partner->is_active)
-                                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">Active</span>
+                                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-100 text-success-800 dark:bg-success-800 dark:text-success-100">Active</span>
                                             @else
                                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Inactive</span>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{{ $partner->users_count }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">{{ $partner->active_users_count }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-success-600 dark:text-success-400">{{ $partner->active_users_count }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{{ $partner->workouts_this_week }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             @if($partner->users_max_created_at)
@@ -116,7 +116,7 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('partners.show', $partner) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">View</a>
+                                            <a href="{{ route('partners.show', $partner) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">View</a>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -146,7 +146,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <h5 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
                     Recent User Signups
@@ -196,7 +196,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <h5 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                     </svg>
                     Partner Admin Logins
@@ -212,7 +212,7 @@
                                         @if($partnerAdmin->partner && $partnerAdmin->partner->identity && $partnerAdmin->partner->identity->logo_url)
                                             <img src="{{ $partnerAdmin->partner->identity->logo_url }}" alt="{{ $partnerAdmin->partner->name }}" class="w-10 h-10 rounded mr-3 object-cover">
                                         @else
-                                            <div class="w-10 h-10 rounded mr-3 bg-blue-500 flex items-center justify-center text-white font-semibold">
+                                            <div class="w-10 h-10 rounded mr-3 bg-brand-500 flex items-center justify-center text-white font-semibold">
                                                 {{ substr($partnerAdmin->name, 0, 1) }}
                                             </div>
                                         @endif

@@ -23,8 +23,8 @@
     </div>
 
     @if(isset($error))
-        <div class="rounded-lg bg-red-50 border border-red-200 p-4 dark:bg-red-900/20 dark:border-red-800">
-            <p class="text-sm text-red-800 dark:text-red-200">{{ $error }}</p>
+        <div class="rounded-lg bg-error-50 border border-error-200 p-4 dark:bg-error-900/20 dark:border-error-800">
+            <p class="text-sm text-error-800 dark:text-error-200">{{ $error }}</p>
         </div>
     @endif
 

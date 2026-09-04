@@ -34,7 +34,7 @@
                         required
                         autofocus
                         autocomplete="username"
-                        class="dark:bg-dark-900 shadow-theme-xs focus:border-orange-300 focus:ring-orange-500/10 dark:focus:border-orange-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('email') border-error-500 @enderror" />
+                        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('email') border-error-500 @enderror" />
                     @error('email')
                         <p class="mt-1.5 text-sm text-error-500">{{ $message }}</p>
                     @enderror
@@ -53,7 +53,7 @@
                             placeholder="Enter your password"
                             required
                             autocomplete="current-password"
-                            class="dark:bg-dark-900 shadow-theme-xs focus:border-orange-300 focus:ring-orange-500/10 dark:focus:border-orange-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pr-11 pl-4 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('password') border-error-500 @enderror" />
+                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pr-11 pl-4 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('password') border-error-500 @enderror" />
                         <span 
                             @click="showPassword = !showPassword"
                             class="absolute top-1/2 right-4 z-30 -translate-y-1/2 cursor-pointer text-gray-500 dark:text-gray-400">
@@ -84,7 +84,7 @@
                                     name="remember"
                                     class="sr-only" 
                                     @change="checkboxToggle = !checkboxToggle" />
-                                <div :class="checkboxToggle ? 'border-orange-500 bg-orange-500' :
+                                <div :class="checkboxToggle ? 'border-brand-500 bg-brand-500' :
                                     'bg-transparent border-gray-300 dark:border-gray-700'"
                                     class="mr-3 flex h-5 w-5 items-center justify-center rounded-md border-[1.25px]">
                                     <span :class="checkboxToggle ? '' : 'opacity-0'">
@@ -98,7 +98,7 @@
                         </label>
                     </div>
                     @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}" class="text-orange-500 hover:text-orange-600 dark:text-orange-400 text-sm">
+                        <a href="{{ route('password.request') }}" class="text-brand-500 hover:text-brand-600 dark:text-brand-400 text-sm">
                             Forgot password?
                         </a>
                     @endif
@@ -108,7 +108,7 @@
                 <div>
                     <button
                         type="submit"
-                        class="bg-orange-500 shadow-theme-xs hover:bg-orange-600 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium text-white transition">
+                        class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium text-white transition">
                         Sign In
                     </button>
                 </div>
@@ -118,7 +118,7 @@
         <div class="mt-5">
             <p class="text-center text-sm font-normal text-gray-700 sm:text-start dark:text-gray-400">
                 Don't have an account?
-                <a href="{{ route('register') }}" class="text-orange-500 hover:text-orange-600 dark:text-orange-400">Sign Up</a>
+                <a href="{{ route('register') }}" class="text-brand-500 hover:text-brand-600 dark:text-brand-400">Sign Up</a>
             </p>
         </div>
     </div>

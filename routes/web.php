@@ -15,10 +15,6 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Public marketing / app download landing page
-Route::get('/landing', [LandingPageController::class, 'english'])->name('landing');
-Route::get('/landing/mk', [LandingPageController::class, 'macedonian'])->name('landing.mk');
-
 // Smart store redirect — QR codes and shared links point here; sends each device to its store
 Route::get('/get', [LandingPageController::class, 'storeRedirect'])->name('app.get');
 

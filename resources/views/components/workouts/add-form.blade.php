@@ -36,7 +36,7 @@
     <div class="max-h-[70vh] overflow-y-auto px-6 py-4">
         <div class="space-y-5">
             <div>
-                <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">Workout Name <span class="text-red-500">*</span></label>
+                <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">Workout Name <span class="text-error-500">*</span></label>
                 <input type="text"
                     name="name"
                     id="add-workout-name"
@@ -45,7 +45,7 @@
                     class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 outline-none transition-shadow focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
                     placeholder="e.g. Day 1 - Push" />
                 @error('name')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -57,7 +57,7 @@
                     class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 outline-none transition-shadow focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
                     placeholder="Optional description">{{ old('description') }}</textarea>
                 @error('description')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -85,7 +85,7 @@
                     </template>
                 </div>
                 @error('day_of_week')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
             </div>
             --}}

@@ -22,16 +22,16 @@
         <!-- Workout Name -->
         <div>
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                Workout Name <span class="text-red-500">*</span>
+                Workout Name <span class="text-error-500">*</span>
             </label>
             <input type="text"
                 name="name"
                 id="name"
                 value="{{ old('name', $workoutTemplate?->name) }}"
                 required
-                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
             @error('name')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
             @enderror
         </div>
 
@@ -43,9 +43,9 @@
             <textarea name="description"
                 id="description"
                 rows="4"
-                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('description') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror">{{ old('description', $workoutTemplate?->description) }}</textarea>
+                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('description') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror">{{ old('description', $workoutTemplate?->description) }}</textarea>
             @error('description')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
             @enderror
         </div>
 
@@ -63,7 +63,7 @@
                             {{ (string) $dayOfWeekValue === (string) $option['value'] ? 'checked' : '' }}
                             class="peer sr-only"
                             @if ($option['value'] === '') aria-label="{{ $option['title'] }}" @endif />
-                        <span class="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-100 peer-checked:border-brand-500 peer-checked:bg-brand-500 peer-checked:text-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 @error('day_of_week') border-red-300 dark:border-red-700 @enderror peer-checked:hidden"
+                        <span class="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-100 peer-checked:border-brand-500 peer-checked:bg-brand-500 peer-checked:text-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700 dark:peer-checked:border-brand-500 dark:peer-checked:bg-brand-500 @error('day_of_week') border-error-300 dark:border-error-700 @enderror peer-checked:hidden"
                             title="{{ $option['title'] }}">{{ $option['letter'] }}</span>
                         <span class="absolute inset-0 hidden h-10 min-w-10 items-center justify-center rounded-lg border border-brand-500 bg-brand-500 text-white peer-checked:inline-flex dark:border-brand-500 dark:bg-brand-500"
                             title="{{ $option['title'] }}">
@@ -75,7 +75,7 @@
                 @endforeach
             </div>
             @error('day_of_week')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
             @enderror
         </div>
         --}}

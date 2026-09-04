@@ -17,13 +17,13 @@
     </div>
 
     @if (session('success'))
-        <div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
+        <div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <p class="text-sm text-success-800 dark:text-success-400">{{ session('success') }}</p>
         </div>
     @endif
     @if (session('error'))
-        <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-            <p class="text-sm text-red-800 dark:text-red-400">{{ session('error') }}</p>
+        <div class="rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+            <p class="text-sm text-error-800 dark:text-error-400">{{ session('error') }}</p>
         </div>
     @endif
 
@@ -119,7 +119,7 @@
                 <!-- Media Section -->
                 <x-common.component-card title="Media">
                     @if($exercise->muscle_group_image)
-                        <div class="mb-6 rounded-lg border border-gray-200 bg-blue-50 p-4 dark:border-gray-800 dark:bg-blue-900/20">
+                        <div class="mb-6 rounded-lg border border-gray-200 bg-brand-50 p-4 dark:border-gray-800 dark:bg-brand-900/20">
                             <div class="mb-3 flex items-center gap-2">
                                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Muscle Group Image (Auto-generated)
@@ -155,7 +155,7 @@
                                 <div class="mb-3 flex items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
                                     <img src="{{ Storage::url($formImage) }}" alt="Exercise image" class="max-h-96 w-full object-contain">
                                 </div>
-                                <p class="mb-2 text-xs text-green-600 dark:text-green-400">✓ Custom image is currently set</p>
+                                <p class="mb-2 text-xs text-success-600 dark:text-success-400">✓ Custom image is currently set</p>
                             @elseif($exercise->image)
                                 <div class="mb-3 flex items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
                                     <img src="{{ Storage::url($exercise->image) }}" alt="Exercise image" class="max-h-96 w-full object-contain">
@@ -196,7 +196,7 @@
                                         Your browser does not support the video tag.
                                     </video>
                                 </div>
-                                <p class="mb-2 text-xs text-green-600 dark:text-green-400">✓ Custom video is currently set</p>
+                                <p class="mb-2 text-xs text-success-600 dark:text-success-400">✓ Custom video is currently set</p>
                                 <button type="button" @click="if (confirm('Remove custom video? The exercise will use the default video (if any).')) removeVideo()" class="text-sm font-medium text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300">
                                     Remove custom video
                                 </button>
@@ -266,11 +266,11 @@
                                 <!-- Custom Description -->
                                 <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                     @if($pivot && $pivot->description)
-                                        <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     @else
-                                        <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
                                     @endif
@@ -280,11 +280,11 @@
                                 <!-- Custom Image -->
                                 <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                     @if($pivot && $pivot->image)
-                                        <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     @else
-                                        <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
                                     @endif
@@ -294,11 +294,11 @@
                                 <!-- Custom Video -->
                                 <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                     @if($pivot && $pivot->video)
-                                        <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     @else
-                                        <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
                                     @endif

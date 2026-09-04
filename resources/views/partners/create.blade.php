@@ -6,11 +6,11 @@
     <x-common.page-breadcrumb pageTitle="Create New Partner" :items="[['label' => 'Partners', 'url' => route('partners.index')]]" />
 
     @if ($errors->any())
-        <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-            <div class="mb-2 text-sm font-semibold text-red-800 dark:text-red-400">
+        <div class="mb-6 rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+            <div class="mb-2 text-sm font-semibold text-error-800 dark:text-error-400">
                 There were some errors with your submission:
             </div>
-            <ul class="list-inside list-disc space-y-1 text-sm text-red-700 dark:text-red-300">
+            <ul class="list-inside list-disc space-y-1 text-sm text-error-700 dark:text-error-300">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -30,23 +30,23 @@
                     <!-- Partner Name -->
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Partner Name <span class="text-red-500">*</span>
+                            Partner Name <span class="text-error-500">*</span>
                         </label>
                         <input type="text"
                             name="name"
                             id="name"
                             value="{{ old('name') }}"
                             required
-                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
                         @error('name')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <!-- Slug -->
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Slug <span class="text-red-500">*</span>
+                            Slug <span class="text-error-500">*</span>
                         </label>
                         <input type="text"
                             name="slug"
@@ -56,7 +56,7 @@
                             required
                             class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 dark:placeholder:text-white/30 cursor-not-allowed" />
                         @error('slug')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Auto-generated from partner name</p>
                     </div>
@@ -71,9 +71,9 @@
                             id="domain"
                             value="{{ old('domain') }}"
                             placeholder="partner.yourdomain.com"
-                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('domain') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('domain') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
                         @error('domain')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Optional subdomain for this partner</p>
                     </div>
@@ -115,7 +115,7 @@
                     <!-- Primary Color -->
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Primary Color <span class="text-red-500">*</span>
+                            Primary Color <span class="text-error-500">*</span>
                         </label>
                         <input type="color"
                             name="primary_color"
@@ -124,14 +124,14 @@
                             required
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('primary_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <!-- Secondary Color -->
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Secondary Color <span class="text-red-500">*</span>
+                            Secondary Color <span class="text-error-500">*</span>
                         </label>
                         <input type="color"
                             name="secondary_color"
@@ -140,7 +140,7 @@
                             required
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('secondary_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -155,7 +155,7 @@
                             value="{{ old('background_color', '#ffffff') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('background_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -170,7 +170,7 @@
                             value="{{ old('card_background_color', '#ffffff') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('card_background_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -185,7 +185,7 @@
                             value="{{ old('text_primary_color', '#000000') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_primary_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -200,7 +200,7 @@
                             value="{{ old('text_secondary_color', '#6b7280') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_secondary_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -215,7 +215,7 @@
                             value="{{ old('text_on_primary_color', '#ffffff') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_on_primary_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -230,7 +230,7 @@
                             value="{{ old('success_color', '#10dc60') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('success_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -245,7 +245,7 @@
                             value="{{ old('warning_color', '#ffce00') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('warning_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -260,7 +260,7 @@
                             value="{{ old('danger_color', '#f04141') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('danger_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -275,7 +275,7 @@
                             value="{{ old('accent_color', '#8ac34a') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('accent_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -290,7 +290,7 @@
                             value="{{ old('border_color', '#dee2e6') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('border_color')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
@@ -311,7 +311,7 @@
                             value="{{ old('primary_color_dark', '#fa812d') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('primary_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -326,7 +326,7 @@
                             value="{{ old('secondary_color_dark', '#292a2c') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('secondary_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -341,7 +341,7 @@
                             value="{{ old('background_color_dark', '#121212') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('background_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -356,7 +356,7 @@
                             value="{{ old('card_background_color_dark', '#1e1e1e') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('card_background_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -371,7 +371,7 @@
                             value="{{ old('text_primary_color_dark', '#ffffff') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_primary_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -386,7 +386,7 @@
                             value="{{ old('text_secondary_color_dark', '#b0b0b0') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_secondary_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -401,7 +401,7 @@
                             value="{{ old('text_on_primary_color_dark', '#ffffff') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('text_on_primary_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -416,7 +416,7 @@
                             value="{{ old('success_color_dark', '#4ade80') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('success_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -431,7 +431,7 @@
                             value="{{ old('warning_color_dark', '#fff94f') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('warning_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -446,7 +446,7 @@
                             value="{{ old('danger_color_dark', '#ff6b6b') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('danger_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -461,7 +461,7 @@
                             value="{{ old('accent_color_dark', '#fff94f') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('accent_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -476,7 +476,7 @@
                             value="{{ old('border_color_dark', '#3a3a3a') }}"
                             class="h-12 w-full cursor-pointer rounded-lg border border-gray-300 dark:border-gray-700" />
                         @error('border_color_dark')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
@@ -497,7 +497,7 @@
                             accept="image/*"
                             class="focus:border-ring-brand-300 shadow-theme-xs focus:file:ring-brand-300 h-11 w-full overflow-hidden rounded-lg border border-gray-300 bg-transparent text-sm text-gray-500 transition-colors file:mr-5 file:border-collapse file:cursor-pointer file:rounded-l-lg file:border-0 file:border-r file:border-solid file:border-gray-200 file:bg-gray-50 file:py-3 file:pr-3 file:pl-3.5 file:text-sm file:text-gray-700 placeholder:text-gray-400 hover:file:bg-gray-100 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:text-white/90 dark:file:border-gray-800 dark:file:bg-white/[0.03] dark:file:text-gray-400 dark:placeholder:text-gray-400" />
                         @error('logo')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload partner logo (PNG, JPG, SVG)</p>
                     </div>
@@ -513,7 +513,7 @@
                             accept="image/*"
                             class="focus:border-ring-brand-300 shadow-theme-xs focus:file:ring-brand-300 h-11 w-full overflow-hidden rounded-lg border border-gray-300 bg-transparent text-sm text-gray-500 transition-colors file:mr-5 file:border-collapse file:cursor-pointer file:rounded-l-lg file:border-0 file:border-r file:border-solid file:border-gray-200 file:bg-gray-50 file:py-3 file:pr-3 file:pl-3.5 file:text-sm file:text-gray-700 placeholder:text-gray-400 hover:file:bg-gray-100 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:text-white/90 dark:file:border-gray-800 dark:file:bg-white/[0.03] dark:file:text-gray-400 dark:placeholder:text-gray-400" />
                         @error('background_pattern')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload background pattern image (PNG, JPG, SVG)</p>
                     </div>
@@ -528,9 +528,9 @@
                             id="font_family"
                             value="{{ old('font_family', 'Inter') }}"
                             placeholder="Inter, Poppins, Roboto"
-                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('font_family') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('font_family') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
                         @error('font_family')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>

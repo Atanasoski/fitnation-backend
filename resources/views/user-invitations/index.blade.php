@@ -16,13 +16,13 @@
 
     <!-- Success/Error Messages -->
     @if(session('success'))
-        <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative dark:bg-green-900 dark:border-green-700 dark:text-green-200" role="alert">
+        <div class="mb-6 bg-success-100 border border-success-400 text-success-700 px-4 py-3 rounded relative dark:bg-success-900 dark:border-success-700 dark:text-success-200" role="alert">
             <span class="block sm:inline">{{ session('success') }}</span>
         </div>
     @endif
 
     @if(session('error'))
-        <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900 dark:border-red-700 dark:text-red-200" role="alert">
+        <div class="mb-6 bg-error-100 border border-error-400 text-error-700 px-4 py-3 rounded relative dark:bg-error-900 dark:border-error-700 dark:text-error-200" role="alert">
             <span class="block sm:inline">{{ session('error') }}</span>
         </div>
     @endif
@@ -30,7 +30,7 @@
     <!-- Invite New User Card -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6 p-6">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 mr-2 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
             Invite New User
@@ -43,11 +43,11 @@
                     type="email" 
                     name="email" 
                     placeholder="user@example.com" 
-                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     value="{{ old('email') }}"
                     required>
                 @error('email')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
             </div>
             <button 
@@ -70,13 +70,13 @@
             <nav class="flex gap-4">
                 <button 
                     @click="activeTab = 'pending'"
-                    :class="activeTab === 'pending' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'"
+                    :class="activeTab === 'pending' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'"
                     class="py-2 px-1 border-b-2 font-medium text-sm transition-colors">
                     Pending Invitations ({{ $pendingInvitations->count() }})
                 </button>
                 <button 
                     @click="activeTab = 'expired'"
-                    :class="activeTab === 'expired' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'"
+                    :class="activeTab === 'expired' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'"
                     class="py-2 px-1 border-b-2 font-medium text-sm transition-colors">
                     Expired ({{ $expiredInvitations->count() }})
                 </button>
@@ -93,7 +93,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex-1">
                                         <div class="flex items-center">
-                                            <div class="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold mr-3">
+                                            <div class="w-10 h-10 rounded-full bg-warning-500 flex items-center justify-center text-white font-bold mr-3">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
@@ -125,7 +125,7 @@
                                             @method('DELETE')
                                             <button 
                                                 type="submit" 
-                                                class="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                                class="px-3 py-1 text-sm bg-error-500 text-white rounded hover:bg-error-600 transition-colors"
                                                 onclick="return confirm('Are you sure you want to cancel this invitation?')">
                                                 Cancel
                                             </button>
@@ -156,7 +156,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex-1">
                                         <div class="flex items-center">
-                                            <div class="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white font-bold mr-3">
+                                            <div class="w-10 h-10 rounded-full bg-error-500 flex items-center justify-center text-white font-bold mr-3">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                                 </svg>
@@ -174,7 +174,7 @@
                                             @csrf
                                             <button 
                                                 type="submit" 
-                                                class="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                                class="px-3 py-1 text-sm bg-success-500 text-white rounded hover:bg-success-600 transition-colors">
                                                 Resend New Invitation
                                             </button>
                                         </form>
@@ -185,7 +185,7 @@
                     </div>
                 @else
                     <div class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="mx-auto h-12 w-12 text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No expired invitations in the last 30 days</p>

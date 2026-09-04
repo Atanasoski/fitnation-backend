@@ -37,8 +37,8 @@
     <x-common.page-breadcrumb :pageTitle="$plan->name" :items="[['label' => 'Programs', 'url' => route('partner.programs.index')]]" />
 
     @if (session('success'))
-        <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
+        <div class="mb-6 rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <p class="text-sm text-success-800 dark:text-success-400">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -53,7 +53,7 @@
                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ $plan->description }}</p>
                 @endif
                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                         Library Program
                     </span>
                     @if($plan->duration_weeks)
@@ -120,7 +120,7 @@
                                         <form action="{{ route('workouts.destroy', $template) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this workout template? This will also delete all associated exercises.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="rounded p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300" title="Delete">
+                                            <button type="submit" class="rounded p-1.5 text-error-500 hover:bg-error-50 hover:text-error-700 dark:text-error-400 dark:hover:bg-error-900/20 dark:hover:text-error-300" title="Delete">
                                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                             </button>
                                         </form>
@@ -137,18 +137,18 @@
     </div>
 
     <!-- Delete Program Section -->
-    <div class="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-900/40 dark:bg-red-900/10">
+    <div class="rounded-lg border border-error-200 bg-error-50 p-6 dark:border-error-900/40 dark:bg-error-900/10">
         <div class="flex items-start justify-between">
             <div>
-                <h3 class="text-base font-medium text-red-900 dark:text-red-300">Delete Program</h3>
-                <p class="mt-1 text-sm text-red-700 dark:text-red-400">
+                <h3 class="text-base font-medium text-error-900 dark:text-error-300">Delete Program</h3>
+                <p class="mt-1 text-sm text-error-700 dark:text-error-400">
                     Once you delete this program, it will be removed from the library and users won't be able to clone it anymore.
                 </p>
             </div>
             <form action="{{ route('partner.programs.destroy', $plan) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this program? This action cannot be undone.');">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800">
+                <button type="submit" class="rounded-lg bg-error-600 px-4 py-2 text-sm font-medium text-white hover:bg-error-700 dark:bg-error-700 dark:hover:bg-error-800">
                     Delete Program
                 </button>
             </form>

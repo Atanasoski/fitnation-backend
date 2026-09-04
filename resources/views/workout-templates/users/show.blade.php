@@ -7,8 +7,8 @@
     <x-common.page-breadcrumb :pageTitle="$workoutTemplate->name" :items="[['label' => 'Users', 'url' => route('users.index')], ['label' => $user->name, 'url' => route('users.show', $user)], ['label' => $workoutTemplate->plan->name, 'url' => route('plans.show', $workoutTemplate->plan)]]" />
 
     @if (session('success'))
-        <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
+        <div class="mb-6 rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <p class="text-sm text-success-800 dark:text-success-400">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -89,11 +89,11 @@
                                     {{ $exercise->rest_seconds ? $exercise->rest_seconds . 's' : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <a href="{{ route('workout-exercises.edit', [$workoutTemplate, $exercise]) }}" class="text-blue-600 dark:text-blue-400 hover:underline mr-3">Edit</a>
+                                    <a href="{{ route('workout-exercises.edit', [$workoutTemplate, $exercise]) }}" class="text-brand-600 dark:text-brand-400 hover:underline mr-3">Edit</a>
                                     <form action="{{ route('workout-exercises.destroy', [$workoutTemplate, $exercise]) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to remove this exercise?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-600 dark:text-red-400 hover:underline">Remove</button>
+                                        <button type="submit" class="text-error-600 dark:text-error-400 hover:underline">Remove</button>
                                     </form>
                                 </td>
                             </tr>

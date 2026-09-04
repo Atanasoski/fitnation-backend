@@ -26,9 +26,9 @@
     ];
 
     $statusColorClasses = [
-        'online' => 'bg-green-500',
-        'offline' => 'bg-red-400',
-        'busy' => 'bg-yellow-500',
+        'online' => 'bg-success-500',
+        'offline' => 'bg-error-400',
+        'busy' => 'bg-warning-500',
     ];
 
     $sizeClass = $sizeClasses[$size] ?? $sizeClasses['medium'];

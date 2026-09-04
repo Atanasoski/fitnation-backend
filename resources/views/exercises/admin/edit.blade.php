@@ -31,7 +31,7 @@
                         <!-- Exercise Name -->
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Exercise Name <span class="text-red-500">*</span>
+                                Exercise Name <span class="text-error-500">*</span>
                             </label>
                             <input type="text"
                                    name="name"
@@ -54,7 +54,7 @@
                         <!-- Category -->
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Category <span class="text-red-500">*</span>
+                                Category <span class="text-error-500">*</span>
                             </label>
                             <select name="category_id"
                                     required
@@ -86,7 +86,7 @@
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Movement Pattern <span class="text-red-500">*</span>
+                                Movement Pattern <span class="text-error-500">*</span>
                             </label>
                             <select name="movement_pattern_id"
                                     required
@@ -99,13 +99,13 @@
                                 @endforeach
                             </select>
                             @error('movement_pattern_id')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Target Region <span class="text-red-500">*</span>
+                                Target Region <span class="text-error-500">*</span>
                             </label>
                             <select name="target_region_id"
                                     required
@@ -118,13 +118,13 @@
                                 @endforeach
                             </select>
                             @error('target_region_id')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
                             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Equipment Type <span class="text-red-500">*</span>
+                                Equipment Type <span class="text-error-500">*</span>
                             </label>
                             <select name="equipment_type_id"
                                     required
@@ -137,7 +137,7 @@
                                 @endforeach
                             </select>
                             @error('equipment_type_id')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -155,7 +155,7 @@
                                 @endforeach
                             </select>
                             @error('angle_id')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
@@ -174,10 +174,10 @@
                             </select>
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
                             @error('training_style_ids')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                             @error('training_style_ids.*')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
@@ -196,10 +196,10 @@
                             </select>
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
                             @error('primary_muscle_group_ids')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                             @error('primary_muscle_group_ids.*')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
@@ -218,10 +218,10 @@
                             </select>
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
                             @error('secondary_muscle_group_ids')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                             @error('secondary_muscle_group_ids.*')
-                                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
@@ -230,7 +230,7 @@
                 <!-- Media Section -->
                 <x-common.component-card title="Media">
                     @if($exercise->muscle_group_image)
-                        <div class="mb-6 rounded-lg border border-gray-200 bg-blue-50 p-4 dark:border-gray-800 dark:bg-blue-900/20">
+                        <div class="mb-6 rounded-lg border border-gray-200 bg-brand-50 p-4 dark:border-gray-800 dark:bg-brand-900/20">
                             <div class="mb-3 flex items-center gap-2">
                                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Muscle Group Image (Auto-generated)
@@ -262,7 +262,7 @@
                                 <div class="mb-3 flex items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
                                     <img src="{{ Storage::url($exercise->image) }}" alt="Exercise image" class="max-h-96 w-full object-contain">
                                 </div>
-                                <p class="mb-2 text-xs text-green-600 dark:text-green-400">✓ Image is currently set</p>
+                                <p class="mb-2 text-xs text-success-600 dark:text-success-400">✓ Image is currently set</p>
                             @endif
                             <input type="file"
                                    name="image"
@@ -295,7 +295,7 @@
                                         Your browser does not support the video tag.
                                     </video>
                                 </div>
-                                <p class="mb-2 text-xs text-green-600 dark:text-green-400">✓ Video is currently set</p>
+                                <p class="mb-2 text-xs text-success-600 dark:text-success-400">✓ Video is currently set</p>
                             @endif
                             <input type="file"
                                    name="video"

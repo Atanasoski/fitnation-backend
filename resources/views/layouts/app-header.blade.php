@@ -49,9 +49,9 @@
             </button>
 
             <!-- Logo (mobile only) -->
-            <a href="/" class="xl:hidden">
-                <img class="dark:hidden" src="/images/logo/logo.svg" alt="Logo" />
-                <img class="hidden dark:block" src="/images/logo/logo-dark.svg" alt="Logo" />
+            <a href="/" class="flex items-center gap-2 xl:hidden">
+                <img src="{{ asset('images/logo/logo.png') }}" alt="{{ config('app.name', 'Fit Nation') }}" width="32" height="32" class="size-8 rounded-full" />
+                <span class="font-display text-lg font-semibold tracking-tight text-gray-900 dark:text-white">Fit Nation</span>
             </a>
 
             <!-- Application Menu Toggle (mobile only) -->

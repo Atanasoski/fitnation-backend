@@ -22,7 +22,7 @@
     <!-- Stats Cards Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <!-- Total Users -->
-        <div class="bg-blue-500 rounded-lg shadow-sm p-6 text-white">
+        <div class="bg-brand-500 rounded-lg shadow-sm p-6 text-white">
             <div class="flex items-center">
                 <div class="shrink-0">
                     <svg class="w-12 h-12 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +37,7 @@
         </div>
 
         <!-- Active This Week -->
-        <div class="bg-green-500 rounded-lg shadow-sm p-6 text-white">
+        <div class="bg-success-500 rounded-lg shadow-sm p-6 text-white">
             <div class="flex items-center">
                 <div class="shrink-0">
                     <svg class="w-12 h-12 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <h5 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 text-warning-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
                     </svg>
                     Top Active Users This Week
@@ -75,7 +75,7 @@
                                     <div class="flex items-center">
                                         <div class="mr-4 text-center" style="width: 30px;">
                                             @if($index < 3)
-                                                <svg class="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                                                <svg class="w-6 h-6 text-warning-500" fill="currentColor" viewBox="0 0 24 24">
                                                     <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
                                                 </svg>
                                             @else
@@ -85,7 +85,7 @@
                                         @if($member->profile_photo)
                                             <img src="{{ $member->profile_photo }}" alt="{{ $member->name }}" class="w-10 h-10 rounded-full mr-3 object-cover">
                                         @else
-                                            <div class="w-10 h-10 rounded-full mr-3 bg-green-500 flex items-center justify-center text-white font-bold">
+                                            <div class="w-10 h-10 rounded-full mr-3 bg-success-500 flex items-center justify-center text-white font-bold">
                                                 {{ substr($member->name, 0, 1) }}
                                             </div>
                                         @endif
@@ -95,7 +95,7 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">{{ $member->workout_sessions_count }} workouts</span>
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-100 text-success-800 dark:bg-success-800 dark:text-success-100">{{ $member->workout_sessions_count }} workouts</span>
                                     </div>
                                 </div>
                             </div>
@@ -116,7 +116,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <h5 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                     </svg>
                     Recent User Signups
@@ -132,7 +132,7 @@
                                         @if($member->profile_photo)
                                             <img src="{{ $member->profile_photo }}" alt="{{ $member->name }}" class="w-10 h-10 rounded-full mr-3 object-cover">
                                         @else
-                                            <div class="w-10 h-10 rounded-full mr-3 bg-blue-500 flex items-center justify-center text-white font-bold">
+                                            <div class="w-10 h-10 rounded-full mr-3 bg-brand-500 flex items-center justify-center text-white font-bold">
                                                 {{ substr($member->name, 0, 1) }}
                                             </div>
                                         @endif

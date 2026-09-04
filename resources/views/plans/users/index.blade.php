@@ -34,9 +34,9 @@
     />
 
     @if ($errors->any())
-        <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-            <div class="mb-2 text-sm font-semibold text-red-800 dark:text-red-400">There were some errors with your submission:</div>
-            <ul class="list-inside list-disc space-y-1 text-sm text-red-700 dark:text-red-300">
+        <div class="rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+            <div class="mb-2 text-sm font-semibold text-error-800 dark:text-error-400">There were some errors with your submission:</div>
+            <ul class="list-inside list-disc space-y-1 text-sm text-error-700 dark:text-error-300">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -99,7 +99,7 @@
                                             @endif
                                         </div>
                                         <div class="min-w-0 flex-1">
-                                            <a href="{{ route('plans.show', $plan) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <a href="{{ route('plans.show', $plan) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                                 {{ $plan->name }}
                                             </a>
                                             <span class="mt-1 line-clamp-1 block max-w-[250px] text-xs text-gray-500 dark:text-gray-400">
@@ -110,11 +110,11 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     @if($plan->is_active)
-                                        <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-green-900/40 dark:bg-green-900/30 dark:text-green-300">
+                                        <span class="inline-flex items-center rounded-full border border-success-200 bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-700 dark:border-success-900/40 dark:bg-success-900/30 dark:text-success-300">
                                             Active
                                         </span>
                                     @else
-                                        <span class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/40 dark:bg-red-900/30 dark:text-red-300">
+                                        <span class="inline-flex items-center rounded-full border border-error-200 bg-error-50 px-2.5 py-0.5 text-xs font-medium text-error-700 dark:border-error-900/40 dark:bg-error-900/30 dark:text-error-300">
                                             Inactive
                                         </span>
                                     @endif
@@ -145,7 +145,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800" title="Delete">
-                                                <svg class="h-4 w-4 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                <svg class="h-4 w-4 text-gray-400 hover:text-error-500 dark:text-gray-500 dark:hover:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
                                             </button>

@@ -45,13 +45,13 @@
                                         @if($user->profile_photo)
                                             <img src="{{ $user->profile_photo }}" alt="{{ $user->name }}" class="w-10 h-10 rounded-full mr-3 object-cover">
                                         @else
-                                            <div class="w-10 h-10 rounded-full mr-3 bg-blue-500 flex items-center justify-center text-white font-bold">
+                                            <div class="w-10 h-10 rounded-full mr-3 bg-brand-500 flex items-center justify-center text-white font-bold">
                                                 {{ substr($user->name, 0, 1) }}
                                             </div>
                                         @endif
                                         <div>
                                             <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                <a href="{{ route('users.show', $user) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                                <a href="{{ route('users.show', $user) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                                 {{ $user->name }}</a>
                                                 </div>
                                         </div>
@@ -74,7 +74,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 dark:text-white">
                                         @if($user->activeProgram)
-                                            <a href="{{ route('plans.show', $user->activeProgram) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <a href="{{ route('plans.show', $user->activeProgram) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                                 {{ $user->activeProgram->name }}
                                             </a>
                                         @else
@@ -83,7 +83,7 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <a href="{{ route('plans.index', $user) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                    <a href="{{ route('plans.index', $user) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                         Manage Plans
                                     </a>
                                 </td>

@@ -75,7 +75,7 @@
                         </td>
                         <td class="px-5 py-4 sm:px-6">
                             @if($partner->domain)
-                                <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500">
+                                <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500">
                                     {{ $partner->domain }}
                                 </span>
                             @else
@@ -94,7 +94,7 @@
                         </td>
                         <td class="px-5 py-4 sm:px-6">
                             @if($partner->is_active)
-                                <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-500">
+                                <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500">
                                     Active
                                 </span>
                             @else
@@ -104,13 +104,13 @@
                             @endif
                         </td>
                         <td class="px-5 py-4 sm:px-6">
-                            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-500">
+                            <span class="text-theme-xs inline-block rounded-full px-2 py-0.5 font-medium bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-500">
                                 {{ $partner->users_count }}
                             </span>
                         </td>
                         <td class="px-5 py-4 sm:px-6">
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('partners.show', $partner) }}" class="text-theme-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                                <a href="{{ route('partners.show', $partner) }}" class="text-theme-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
                                     VIEW
                                 </a>
                                 <span class="text-gray-300 dark:text-gray-700">|</span>
@@ -121,7 +121,7 @@
                                 <form action="{{ route('partners.destroy', $partner) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this partner?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-theme-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                                    <button type="submit" class="text-theme-xs font-medium text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300">
                                         DELETE
                                     </button>
                                 </form>
@@ -132,7 +132,7 @@
                     <tr>
                         <td colspan="7" class="px-5 py-8 text-center sm:px-6">
                             <p class="text-gray-500 text-theme-sm dark:text-gray-400">
-                                No partners found. <a href="{{ route('partners.create') }}" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline">Create your first partner</a>.
+                                No partners found. <a href="{{ route('partners.create') }}" class="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 underline">Create your first partner</a>.
                             </p>
                         </td>
                     </tr>

@@ -6,11 +6,11 @@
     <x-common.page-breadcrumb :pageTitle="'Create Plan for ' . $user->name" :items="[['label' => 'Users', 'url' => route('users.index')], ['label' => $user->name, 'url' => route('users.show', $user)]]" />
 
     @if ($errors->any())
-        <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-            <div class="mb-2 text-sm font-semibold text-red-800 dark:text-red-400">
+        <div class="mb-6 rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+            <div class="mb-2 text-sm font-semibold text-error-800 dark:text-error-400">
                 There were some errors with your submission:
             </div>
-            <ul class="list-inside list-disc space-y-1 text-sm text-red-700 dark:text-red-300">
+            <ul class="list-inside list-disc space-y-1 text-sm text-error-700 dark:text-error-300">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach

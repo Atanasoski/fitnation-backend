@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Exercise;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Cache;
 
 /**
- * Public marketing / app download landing page.
+ * Smart store redirect for QR codes and shared links.
+ *
+ * The marketing site itself lives in front-end/apps/landing_page and is
+ * deployed separately; this controller only routes devices to the right place.
  */
 class LandingPageController extends Controller
 {
@@ -18,19 +17,10 @@ class LandingPageController extends Controller
 
     private const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.fitnation.app';
 
-    public function english(): View
-    {
-        return $this->render('en');
-    }
-
-    public function macedonian(): View
-    {
-        return $this->render('mk');
-    }
+    private const LANDING_URL = 'https://joinfitnation.com';
 
     /**
-     * Smart store redirect — QR codes and shared links point here;
-     * sends each device to its app store.
+     * Sends each device to its app store; anything else goes to the marketing site.
      */
     public function storeRedirect(Request $request): RedirectResponse
     {
@@ -44,21 +34,7 @@ class LandingPageController extends Controller
             return $this->uncachedRedirect(self::APP_STORE_URL);
         }
 
-        return $this->uncachedRedirect(route('landing'));
-    }
-
-    private function render(string $locale): View
-    {
-        App::setLocale($locale);
-
-        // Marketing stat only — a DB/cache outage or an empty table must not break the public page.
-        $exerciseCount = rescue(
-            fn () => Cache::remember('landing.exercise-count', 21600, fn () => Exercise::query()->count('*')),
-            rescue: 171,
-            report: false,
-        ) ?: 171;
-
-        return view('landing', ['exerciseCount' => $exerciseCount]);
+        return $this->uncachedRedirect(self::LANDING_URL);
     }
 
     /**

@@ -51,7 +51,7 @@ export const initUserProgressChart = () => {
                 data: chartData,
             },
         ],
-        colors: ['#465FFF'],
+        colors: ['#14b3c1'],
         chart: {
             fontFamily: 'Outfit, sans-serif',
             height: 310,
@@ -87,7 +87,7 @@ export const initUserProgressChart = () => {
         markers: {
             size: 4,
             strokeWidth: 2,
-            strokeColors: ['#465FFF'],
+            strokeColors: ['#14b3c1'],
             hover: {
                 size: 6,
             },

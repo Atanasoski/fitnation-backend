@@ -33,7 +33,7 @@
                         </div>
 
                         @if($workoutSession->status_label === 'Completed')
-                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-success-100 px-3 py-1.5 text-xs font-semibold text-success-800 dark:bg-success-900/40 dark:text-success-300">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                 </svg>
@@ -78,7 +78,7 @@
                                 <span class="text-gray-500">{{ $exercisesWithSets }}/{{ $totalExercises }}</span>
                             </div>
                             <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                                <div class="h-full bg-green-500 dark:bg-green-600" style="width: {{ min($progressPercent, 100) }}%"></div>
+                                <div class="h-full bg-success-500 dark:bg-success-600" style="width: {{ min($progressPercent, 100) }}%"></div>
                             </div>
                         </div>
                     @endif
@@ -133,7 +133,7 @@
                             </h3>
 
                             @if($row->hasSets)
-                                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40">
+                                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-success-100 dark:bg-success-900/40">
                                     ✓
                                 </span>
                             @endif

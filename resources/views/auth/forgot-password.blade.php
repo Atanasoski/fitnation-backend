@@ -32,7 +32,7 @@
                         required
                         autofocus
                         placeholder="info@example.com"
-                        class="dark:bg-dark-900 shadow-theme-xs focus:border-orange-300 focus:ring-orange-500/10 dark:focus:border-orange-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('email') border-error-500 @enderror"
+                        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('email') border-error-500 @enderror"
                     />
                     @error('email')
                         <p class="mt-1.5 text-sm text-error-500">{{ $message }}</p>
@@ -42,7 +42,7 @@
                 <div>
                     <button
                         type="submit"
-                        class="bg-orange-500 shadow-theme-xs hover:bg-orange-600 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium text-white transition"
+                        class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium text-white transition"
                     >
                         {{ __('Email Password Reset Link') }}
                     </button>
@@ -52,7 +52,7 @@
 
         <div class="mt-5">
             <p class="text-center text-sm font-normal text-gray-700 sm:text-start dark:text-gray-400">
-                <a href="{{ route('login') }}" class="text-orange-500 hover:text-orange-600 dark:text-orange-400">{{ __('Back to sign in') }}</a>
+                <a href="{{ route('login') }}" class="text-brand-500 hover:text-brand-600 dark:text-brand-400">{{ __('Back to sign in') }}</a>
             </p>
         </div>
     </div>

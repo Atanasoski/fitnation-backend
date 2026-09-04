@@ -14,8 +14,8 @@
     />
 
     @if (session('success'))
-        <div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-            <p class="text-sm text-green-800 dark:text-green-400">{{ session('success') }}</p>
+        <div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <p class="text-sm text-success-800 dark:text-success-400">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -62,7 +62,7 @@
                                             @endif
                                         </div>
                                         <div class="min-w-0 flex-1">
-                                            <a href="{{ route('partner.programs.show', $plan) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <a href="{{ route('partner.programs.show', $plan) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                                 {{ $plan->name }}
                                             </a>
                                             <span class="mt-1 line-clamp-1 block max-w-[250px] text-xs text-gray-500 dark:text-gray-400">
@@ -83,7 +83,7 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     @if($plan->is_active)
-                                        <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">Active</span>
+                                        <span class="inline-flex items-center rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-700 dark:bg-success-900/30 dark:text-success-400">Active</span>
                                     @else
                                         <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">Hidden</span>
                                     @endif

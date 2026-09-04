@@ -18,7 +18,7 @@ export const initChartThree = () => {
                 position: "top",
                 horizontalAlign: "left",
             },
-            colors: ["#465FFF", "#9CB9FF"],
+            colors: ["#14b3c1", "#6cd7e3"],
             chart: {
                 fontFamily: "Outfit, sans-serif",
                 height: 310,

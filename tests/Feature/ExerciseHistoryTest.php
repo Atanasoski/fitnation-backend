@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class ExerciseHistoryTest extends TestCase
@@ -13,7 +11,7 @@ class ExerciseHistoryTest extends TestCase
      */
     public function test_example(): void
     {
-        $response = $this->get('/landing');
+        $response = $this->get('/login');
 
         $response->assertStatus(200);
     }

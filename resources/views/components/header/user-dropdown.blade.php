@@ -15,7 +15,7 @@
         type="button">
         
         {{-- <span class="mr-3 overflow-hidden rounded-full h-11 w-11">
-            <div class="w-full h-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+            <div class="w-full h-full bg-linear-to-br from-brand-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm">
                 {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
             </div>
         </span> --}}

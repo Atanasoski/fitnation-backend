@@ -4,7 +4,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Days Per Week <span class="text-red-500">*</span>
+                        Days Per Week <span class="text-error-500">*</span>
                     </label>
                     <select
                         name="days_per_week"
@@ -19,13 +19,13 @@
                         @endfor
                     </select>
                     @error('days_per_week')
-                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Focus <span class="text-red-500">*</span>
+                        Focus <span class="text-error-500">*</span>
                     </label>
                     <select
                         name="focus"
@@ -40,13 +40,13 @@
                         @endforeach
                     </select>
                     @error('focus')
-                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Day Index <span class="text-red-500">*</span>
+                        Day Index <span class="text-error-500">*</span>
                     </label>
                     <input
                         type="number"
@@ -60,7 +60,7 @@
                     >
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">0-based index for the day order within the split</p>
                     @error('day_index')
-                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                     @enderror
                 </div>
             </div>
@@ -72,7 +72,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Target Regions <span class="text-red-500">*</span>
+                        Target Regions <span class="text-error-500">*</span>
                     </label>
                     <select
                         name="target_regions[]"
@@ -92,10 +92,10 @@
                     </select>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
                     @error('target_regions')
-                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                     @enderror
                     @error('target_regions.*')
-                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                        <p class="mt-2 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                     @enderror
                 </div>
             </div>

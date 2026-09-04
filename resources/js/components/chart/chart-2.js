@@ -5,7 +5,7 @@ export const initChartTwo = () => {
     if (chartElement) {
         const chartTwoOptions = {
             series: [75.55],
-            colors: ["#465FFF"],
+            colors: ["#14b3c1"],
             chart: {
                 fontFamily: "Outfit, sans-serif",
                 type: "radialBar",
@@ -44,7 +44,7 @@ export const initChartTwo = () => {
             },
             fill: {
                 type: "solid",
-                colors: ["#465FFF"],
+                colors: ["#14b3c1"],
             },
             stroke: {
                 lineCap: "round",

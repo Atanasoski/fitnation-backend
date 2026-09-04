@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap') layer(base);
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap') layer(base);
 @import 'prismjs/themes/prism.min.css';
 @import 'tailwindcss';
 
@@ -13,7 +13,11 @@
 
 @theme {
   --font-*: initial;
-  --font-outfit: Outfit, sans-serif;
+  /* Brand fonts — must match the marketing site (front-end/apps/landing_page/src/styles.css). */
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-display: Poppins, ui-sans-serif, system-ui, sans-serif;
+  /* Legacy alias from the TailAdmin template; kept so old `font-outfit` classes still resolve. */
+  --font-outfit: Inter, ui-sans-serif, system-ui, sans-serif;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -47,18 +51,19 @@
   --color-white: #ffffff;
   --color-black: #101828;
 
-  --color-brand-25: #f2f7ff;
-  --color-brand-50: #ecf3ff;
-  --color-brand-100: #dde9ff;
-  --color-brand-200: #c2d6ff;
-  --color-brand-300: #9cb9ff;
-  --color-brand-400: #7592ff;
-  --color-brand-500: #465fff;
-  --color-brand-600: #3641f5;
-  --color-brand-700: #2a31d8;
-  --color-brand-800: #252dae;
-  --color-brand-900: #262e89;
-  --color-brand-950: #161950;
+  /* Brand teal — derived from the marketing site primary oklch(0.7 0.117 205) = #14b3c1. */
+  --color-brand-25: #f3fcfd;
+  --color-brand-50: #e7f9fc;
+  --color-brand-100: #cdf4f8;
+  --color-brand-200: #a3e9f1;
+  --color-brand-300: #6cd7e3;
+  --color-brand-400: #3dc6d4;
+  --color-brand-500: #14b3c1;
+  --color-brand-600: #0099a6;
+  --color-brand-700: #007b86;
+  --color-brand-800: #00626a;
+  --color-brand-900: #004c53;
+  --color-brand-950: #003035;
 
   --color-blue-light-25: #f5fbff;
   --color-blue-light-50: #f0f9ff;
@@ -93,7 +98,7 @@
   --color-orange-200: #fddcab;
   --color-orange-300: #feb273;
   --color-orange-400: #fd853a;
-  --color-orange-500: #fb6514;
+  --color-orange-500: #f86f33; /* marketing-site accent oklch(0.7 0.183 42) */
   --color-orange-600: #ec4a0a;
   --color-orange-700: #c4320a;
   --color-orange-800: #9c2a10;
@@ -189,7 +194,10 @@
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50;
+    @apply relative font-normal font-sans z-1 bg-gray-50;
+  }
+  h1, h2, h3 {
+    @apply font-display;
   }
 }
 

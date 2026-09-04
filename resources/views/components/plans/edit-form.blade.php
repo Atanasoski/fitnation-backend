@@ -33,7 +33,7 @@
     <div class="max-h-[70vh] overflow-y-auto px-6 py-4">
         <div class="space-y-5">
             <div>
-                <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">Plan Name <span class="text-red-500">*</span></label>
+                <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">Plan Name <span class="text-error-500">*</span></label>
                 <input type="text"
                     name="name"
                     x-model="editingPlan.name"

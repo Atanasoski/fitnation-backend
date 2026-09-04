@@ -57,8 +57,8 @@
     </div>
 
     @if(session('success'))
-        <div class="rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-800">
-            <p class="text-sm text-green-800 dark:text-green-200">{{ session('success') }}</p>
+        <div class="rounded-lg bg-success-50 border border-success-200 p-4 dark:bg-success-900/20 dark:border-success-800">
+            <p class="text-sm text-success-800 dark:text-success-200">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -122,7 +122,7 @@
                                                 <form action="{{ route('workout-splits.destroy', $split) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this split day?');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                                                    <button type="submit" class="text-sm text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300">
                                                         Delete
                                                     </button>
                                                 </form>

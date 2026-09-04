@@ -22,16 +22,16 @@
         <!-- Plan Name -->
         <div>
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                {{ $context === 'library' ? 'Program' : 'Plan' }} Name <span class="text-red-500">*</span>
+                {{ $context === 'library' ? 'Program' : 'Plan' }} Name <span class="text-error-500">*</span>
             </label>
             <input type="text"
                 name="name"
                 id="name"
                 value="{{ old('name', $plan?->name) }}"
                 required
-                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('name') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
             @error('name')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
             @enderror
         </div>
 
@@ -43,9 +43,9 @@
             <textarea name="description"
                 id="description"
                 rows="4"
-                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('description') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror">{{ old('description', $plan?->description) }}</textarea>
+                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('description') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror">{{ old('description', $plan?->description) }}</textarea>
             @error('description')
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
             @enderror
         </div>
 
@@ -77,9 +77,9 @@
                     value="{{ old('duration_weeks', $plan?->duration_weeks) }}"
                     min="1"
                     max="52"
-                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('duration_weeks') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('duration_weeks') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
                 @error('duration_weeks')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Number of weeks for this program (1-52)</p>
             </div>
@@ -127,9 +127,9 @@
                     value="{{ old('duration_weeks', $plan?->duration_weeks) }}"
                     min="1"
                     max="52"
-                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('duration_weeks') border-red-300 focus:border-red-300 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-800 @enderror" />
+                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 @error('duration_weeks') border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700 dark:focus:border-error-800 @enderror" />
                 @error('duration_weeks')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
                 @enderror
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Recommended duration for this program (1-52 weeks)</p>
             </div>

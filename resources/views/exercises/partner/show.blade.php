@@ -97,7 +97,7 @@
             <!-- Media Section -->
             <x-common.component-card title="Media">
                 @if($exercise->muscle_group_image)
-                    <div class="mb-6 rounded-lg border border-gray-200 bg-blue-50 p-4 dark:border-gray-800 dark:bg-blue-900/20">
+                    <div class="mb-6 rounded-lg border border-gray-200 bg-brand-50 p-4 dark:border-gray-800 dark:bg-brand-900/20">
                         <div class="mb-3 flex items-center gap-2">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Muscle Group Image (Auto-generated)
@@ -230,11 +230,11 @@
                             <!-- Custom Description -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                 @if($partnerView->hasDescriptionOverride)
-                                    <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 @else
-                                    <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 @endif
@@ -244,11 +244,11 @@
                             <!-- Custom Image -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                 @if($partnerView->hasImageOverride)
-                                    <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 @else
-                                    <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 @endif
@@ -258,11 +258,11 @@
                             <!-- Custom Video -->
                             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                 @if($partnerView->hasVideoOverride)
-                                    <svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-success-600 dark:text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 @else
-                                    <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 @endif

@@ -24,7 +24,7 @@
         <label for="{{ $inputId }}" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             {{ $label }}
             @if($required)
-                <span class="text-red-500">*</span>
+                <span class="text-error-500">*</span>
             @endif
         </label>
     @endif
@@ -58,6 +58,6 @@
     @endif
 
     @error($name)
-        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+        <p class="mt-1 text-sm text-error-600 dark:text-error-400">{{ $message }}</p>
     @enderror
 </div>

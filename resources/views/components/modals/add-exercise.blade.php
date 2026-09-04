@@ -123,7 +123,7 @@
                     <div class="space-y-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-400">
-                                Exercise <span class="text-red-500">*</span>
+                                Exercise <span class="text-error-500">*</span>
                             </label>
                             <input type="hidden" name="exercise_id" :value="selectedExerciseId">
                             <template x-if="selectedExercise">

@@ -70,4 +70,25 @@ return [
         ],
     ],
 
+    // Weekly Summary copy. `workouts` is a count phrase used in the subject and
+    // the first block; `delta` values arrive already signed ("+2", "-1", "±0").
+    // The trend line is chosen by the Mailable: `zero` is a week with nothing
+    // logged after a week with something.
+    'weekly_summary' => [
+        'subject' => 'Your week: :workouts',
+        'workouts' => '{0} no workouts|{1} 1 workout|[2,*] :count workouts',
+        'workouts_delta' => ':delta vs last week',
+        'volume' => ':volume :unit lifted',
+        'volume_delta' => ':delta%',
+        'time' => ':minutes min training',
+        'trend' => [
+            'up' => 'More than the week before. Keep the streak.',
+            'same' => 'Same as last week. Consistency is the whole game.',
+            'down' => "A lighter week. Next one's yours.",
+            'zero' => 'Nothing logged this week. Your plan is where you left it.',
+        ],
+        'button' => 'Open the app',
+        'unsubscribe' => 'Unsubscribe from weekly summaries',
+    ],
+
 ];

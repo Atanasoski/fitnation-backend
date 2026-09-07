@@ -23,6 +23,8 @@ class UnfinishedAccountNudge extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    private ?UnfinishedAccountMail $mail = null;
+
     public function __construct(
         public readonly int $step,
         public readonly string $stuckAt,
@@ -52,8 +54,16 @@ class UnfinishedAccountNudge extends Notification implements ShouldQueue
         ];
     }
 
+    /**
+     * Built once per send: every channel reads its words from the Mailable,
+     * and the verification link it carries is signed on each build.
+     */
     public function toMail(object $notifiable): UnfinishedAccountMail
     {
+        if ($this->mail?->user->is($notifiable)) {
+            return $this->mail;
+        }
+
         /** @var User $notifiable */
         $notifiable->loadMissing('partner.identity');
 
@@ -61,7 +71,7 @@ class UnfinishedAccountNudge extends Notification implements ShouldQueue
             ? VerifyEmail::urlFor($notifiable)
             : self::appUrl();
 
-        return new UnfinishedAccountMail($notifiable, $this->step, $this->stuckAt, $primaryUrl, self::appUrl());
+        return $this->mail = new UnfinishedAccountMail($notifiable, $this->step, $this->stuckAt, $primaryUrl, self::appUrl());
     }
 
     public function toExpo(object $notifiable): ExpoMessage

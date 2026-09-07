@@ -11,4 +11,4 @@ Hello, {!! $user->name !!}!
 If you did not create this account, you can safely ignore this email.
 
 {!! $user->partner?->name ?? config('app.name') !!}
-Powered by Fit Nation
+Powered by {!! config('app.name') !!}

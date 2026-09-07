@@ -1,5 +1,12 @@
 <?php
 
+// Step 7 of the Unfinished Account ladder says the same thing whatever the
+// user is stuck at; only the button differs.
+$lastOne = [
+    'subject' => 'Last one from us',
+    'lead' => "We won't email again about this. If you'd like to start, everything is ready.",
+];
+
 return [
 
     // Inactivity Nudge copy, one entry per rung of the ladder (days without a
@@ -45,10 +52,7 @@ return [
             ],
         ],
         7 => [
-            'unverified' => $lastOne = [
-                'subject' => 'Last one from us',
-                'lead' => "We won't email again about this. If you'd like to start, everything is ready.",
-            ],
+            'unverified' => $lastOne,
             'not_onboarded' => $lastOne,
         ],
         'button' => [

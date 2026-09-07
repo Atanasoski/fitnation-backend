@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\User;
+use App\Services\Notifications\UnfinishedAccountCandidate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -46,7 +47,9 @@ class UnfinishedAccountMail extends Mailable
                 'subject' => $this->subjectLine(),
                 'lead' => $this->lead(),
                 'button' => $this->copy('button.'.$this->stuckAt),
-                'secondary' => $this->stuckAt === 'unverified' ? $this->copy('secondary.unverified') : null,
+                'secondary' => $this->stuckAt === UnfinishedAccountCandidate::UNVERIFIED
+                    ? $this->copy('secondary.unverified')
+                    : null,
             ],
         );
     }

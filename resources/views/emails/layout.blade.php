@@ -6,7 +6,7 @@
 @php
     $partner = $user->partner;
     $partnerName = $partner?->name ?? config('app.name');
-    $primaryColor = $partner?->identity?->primary_color ?? '#fa812d';
+    $primaryColor = $partner?->identity?->primary_color ?? '#f86f33'; // orange-500, the brand accent
     $logoUrl = null;
     if ($partner?->identity?->logo_url) {
         $logoUrl = $partner->identity->logo_url;
@@ -116,7 +116,7 @@
                 <strong>{{ $partnerName }}</strong>
             </p>
             <p style="margin: 0;">
-                Powered by Fit Nation
+                Powered by {{ config('app.name') }}
             </p>
         </div>
     </div>

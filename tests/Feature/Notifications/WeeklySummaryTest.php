@@ -113,12 +113,13 @@ class WeeklySummaryTest extends TestCase
 
         $user->notify(new WeeklySummary(self::progress()));
 
-        // 12960 kg is 28571.9 lbs; Training Weight snaps to 5 lbs, and never shows decimals.
-        $this->assertStringContainsString('28,570 lbs lifted', $this->soleMail()->getHtmlBody());
-        $this->assertStringNotContainsString('28571', $this->soleMail()->getHtmlBody());
+        // 12960 kg is 28571.9 lbs: a total is rounded to the whole pound, not
+        // snapped to a plate step, and never shows decimals.
+        $this->assertStringContainsString('28,572 lbs lifted', $this->soleMail()->getHtmlBody());
+        $this->assertStringNotContainsString('28571.', $this->soleMail()->getHtmlBody());
 
         $row = $user->notifications()->sole();
-        $this->assertSame(28570, $row->data['volume']);
+        $this->assertSame(28572, $row->data['volume']);
         $this->assertSame('lbs', $row->data['unit']);
     }
 

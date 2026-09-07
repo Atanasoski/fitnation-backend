@@ -201,8 +201,23 @@ to any of their [Devices](#device); the Devices themselves are kept, so turning
 it back on takes effect at once. On by default. On the wire it is
 `push_enabled`.
 
-_Avoid_: notification preferences (those are per category and do not exist
-yet), opt-out, mute.
+Distinct from a [Notification Setting](#notification-setting): the switch is one
+global gate on one channel, not a preference about one kind of message.
+
+_Avoid_: opt-out, mute.
+
+### Notification Setting
+
+A user's on/off for one **category** of message — the [Weekly
+Summary](#weekly-summary) email is the first (`weekly_summary_email`). Each
+setting has a default, on, and only what the user has changed is recorded, so
+a user who has changed nothing has every setting at its default. On the wire
+they are the `notification_settings` object, beside `push_enabled`.
+
+The [Push Switch](#push-switch) is not one of these and is not consulted by
+mail: it gates push as a channel, whatever the category.
+
+_Avoid_: preferences (alone), subscription, opt-in.
 
 ### Inactivity Nudge
 

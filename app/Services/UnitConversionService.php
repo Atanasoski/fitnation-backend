@@ -44,6 +44,19 @@ class UnitConversionService
     }
 
     /**
+     * A total of Training Weights — a week's volume — for display: converted
+     * to the unit system and rounded to the whole unit, never stepped. The
+     * plate step belongs to a single load someone puts on a bar; a sum of
+     * weight × reps is not one, and 28,572 lbs should not read as 28,570.
+     */
+    public function toDisplayTotal(float $weightKg, ?UnitSystem $unitSystem): int
+    {
+        return (int) round(
+            $unitSystem === UnitSystem::Imperial ? $weightKg * self::KG_TO_LBS : $weightKg
+        );
+    }
+
+    /**
      * Convert an incoming weight value to kg for storage, given the unit
      * system it was submitted in.
      */

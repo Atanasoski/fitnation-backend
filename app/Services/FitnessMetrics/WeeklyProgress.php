@@ -18,8 +18,8 @@ use Illuminate\Support\Collection;
  *
  * "Now" can be supplied: the Weekly Summary reads a user's week as of their own
  * local Monday, so week bounds follow the timezone of the instant handed in,
- * and the Canonical Session timestamps are compared in that zone. Callers that
- * pass nothing get the app clock, as before.
+ * and each Completed Session is placed in a week and a day on that clock.
+ * Callers that pass nothing get the app clock, as before.
  *
  * Everything here is in Canonical Units (ADR-0001).
  */

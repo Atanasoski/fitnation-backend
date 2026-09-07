@@ -75,7 +75,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * One per-category notification preference. The column holds only what the
+     * One Notification Setting (CONTEXT.md). The column holds only what the
      * user has changed, so a missing key — or a null column — is the default.
      * The Push Switch is not one of these: it is its own column and governs
      * push alone.
@@ -86,7 +86,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Record one per-category notification preference, keeping the others.
+     * Record one Notification Setting, keeping the others.
      */
     public function setNotificationSetting(string $key, bool $value): void
     {

@@ -22,6 +22,11 @@ class WeeklySummary extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * The Notification Setting (CONTEXT.md) that gates this email; on by default.
+     */
+    public const SETTING = 'weekly_summary_email';
+
     private ?WeeklySummaryMail $mail = null;
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Notifications\WeeklySummary;
 use Illuminate\Contracts\View\View;
 
 /**
@@ -13,11 +14,9 @@ use Illuminate\Contracts\View\View;
  */
 class WeeklySummaryUnsubscribeController extends Controller
 {
-    public const SETTING = 'weekly_summary_email';
-
     public function __invoke(User $user): View
     {
-        $user->setNotificationSetting(self::SETTING, false);
+        $user->setNotificationSetting(WeeklySummary::SETTING, false);
         $user->save();
 
         return view('emails.unsubscribed', [

@@ -4,22 +4,23 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\UserResource;
+use App\Notifications\WeeklySummary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class NotificationSettingsController extends Controller
 {
     /**
-     * Flip the user's one global push switch and, when sent, the per-category
-     * email preferences that live beside it. The switch stays required — it is
-     * the contract the app already speaks; notification_settings is additive.
+     * Flip the user's Push Switch and, when sent, the Notification Settings
+     * (CONTEXT.md) that live beside it. The switch stays required — it is the
+     * contract the app already speaks; notification_settings is additive.
      */
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'push_enabled' => ['required', 'boolean'],
-            'notification_settings' => ['sometimes', 'array:weekly_summary_email'],
-            'notification_settings.weekly_summary_email' => ['sometimes', 'boolean'],
+            'notification_settings' => ['sometimes', 'array:'.WeeklySummary::SETTING],
+            'notification_settings.'.WeeklySummary::SETTING => ['sometimes', 'boolean'],
         ]);
 
         $user = $request->user();

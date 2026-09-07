@@ -8,7 +8,7 @@
 
 @section('content')
     <p class="message" style="text-align: center;">
-        You won't get the weekly summary email any more. Your training is still yours to see in the app.
+        You won't get the weekly summary email any more &mdash; your training is still in the app.
     </p>
 
     <div style="text-align: center;">

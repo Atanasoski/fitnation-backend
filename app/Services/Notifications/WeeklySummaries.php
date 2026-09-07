@@ -71,8 +71,8 @@ final class WeeklySummaries
             })
             ->where(fn (Builder $query) => $query
                 ->whereNull('notification_settings')
-                ->orWhereNull('notification_settings->weekly_summary_email')
-                ->orWhere('notification_settings->weekly_summary_email', true))
+                ->orWhereNull('notification_settings->'.WeeklySummary::SETTING)
+                ->orWhere('notification_settings->'.WeeklySummary::SETTING, true))
             ->get();
 
         if ($users->isEmpty()) {

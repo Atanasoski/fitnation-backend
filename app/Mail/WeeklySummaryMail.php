@@ -2,7 +2,6 @@
 
 namespace App\Mail;
 
-use App\Enums\MeasurementKind;
 use App\Models\User;
 use App\Services\UnitConversionService;
 use Illuminate\Bus\Queueable;
@@ -105,9 +104,7 @@ class WeeklySummaryMail extends Mailable
         return [
             'workouts' => $workouts,
             'previous_workouts' => $previous,
-            'volume' => $volume === null ? null : (int) round(
-                app(UnitConversionService::class)->toDisplay($volume, MeasurementKind::TrainingWeight, $unitSystem)
-            ),
+            'volume' => $volume === null ? null : app(UnitConversionService::class)->toDisplayTotal($volume, $unitSystem),
             'unit' => $unitSystem->weightUnit(),
             'volume_change_percent' => $this->progress['volume_difference_percent'] ?? null,
             'time_minutes' => $this->progress['current_week_time_minutes'] ?? 0,

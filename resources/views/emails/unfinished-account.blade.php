@@ -11,6 +11,7 @@
 
     <div class="message">
         <p>{{ $lead }}</p>
+        <p>{{ $follow }}</p>
     </div>
 
     <div style="text-align: center;">

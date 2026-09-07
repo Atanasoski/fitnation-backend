@@ -4,7 +4,8 @@
 // user is stuck at; only the button differs.
 $lastOne = [
     'subject' => 'Last one from us',
-    'lead' => "We won't email again about this. If you'd like to start, everything is ready.",
+    'lead' => "This is the last time we'll email you about this. Whenever you're ready, everything is set up and waiting.",
+    'follow' => "One tap and you're training. We'd love to see you there.",
 ];
 
 return [
@@ -26,29 +27,34 @@ return [
         ],
     ],
 
-    // Unfinished Account nudge copy, per rung of the ladder (days since
+    // Unfinished Account nudge copy, per step of the ladder (days since
     // registration) and per what the user is stuck at. Keys must match
     // config('notifications.unfinished_account.ladder'). :partner is the
-    // partner's name, or the app name for a user without one.
+    // partner's name, or the app name for a user without one. `lead` is the
+    // one line every channel carries (mail, push); `follow` is mail only.
     'unfinished_account' => [
         1 => [
             'unverified' => [
                 'subject' => 'Confirm your email for :partner',
-                'lead' => "One tap and you're in. The link below verifies your address.",
+                'lead' => "You're one tap away from your first workout. Confirm your email and you're in.",
+                'follow' => 'Your first plan will be ready the moment you are.',
             ],
             'not_onboarded' => [
                 'subject' => 'Finish setting up :partner',
-                'lead' => 'Two minutes of questions and your first plan is ready.',
+                'lead' => "You're almost there! Two quick minutes about your goals and your first plan is ready.",
+                'follow' => 'No experience needed — every plan starts where you are and builds from there.',
             ],
         ],
         3 => [
             'unverified' => [
                 'subject' => 'Still want to train with :partner?',
-                'lead' => 'Your account is waiting on one thing — confirming your email.',
+                'lead' => 'Your account is set up and waiting. Confirming your email is the only step left.',
+                'follow' => 'Do it now and you could be training today.',
             ],
             'not_onboarded' => [
                 'subject' => 'Your first plan is two minutes away',
-                'lead' => "Tell us your goal and how often you train; we'll build the rest.",
+                'lead' => "Tell us your goal and how often you can train, and we'll build a plan around your week.",
+                'follow' => 'Most people finish in under two minutes — and then the hardest part is already done.',
             ],
         ],
         7 => [

@@ -2,7 +2,6 @@
 
 namespace App\Services\Notifications;
 
-use App\Enums\WorkoutSessionStatus;
 use App\Models\User;
 use App\Notifications\WeeklySummary;
 use Carbon\CarbonImmutable;
@@ -108,7 +107,7 @@ final class WeeklySummaries
         $to = $local->subWeek()->endOfWeek()->setTimezone($stored);
 
         return fn (Builder $query) => $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
-            ->where('status', WorkoutSessionStatus::Completed)
+            ->completed()
             ->whereBetween('performed_at', [$from, $to]));
     }
 

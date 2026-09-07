@@ -63,7 +63,7 @@ final class Inactivity
 
         $lastCompleted = WorkoutSession::query()
             ->whereIn('user_id', $ids)
-            ->where('status', WorkoutSessionStatus::Completed)
+            ->completed()
             ->selectRaw('user_id, MAX(completed_at) as last_completed_at')
             ->groupBy('user_id')
             ->pluck('last_completed_at', 'user_id');

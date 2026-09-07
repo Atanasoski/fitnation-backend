@@ -13,14 +13,14 @@ use Illuminate\Support\Facades\DB;
  * The Completed Sessions a fitness metric is allowed to see, and the set logs
  * inside them.
  *
- * The only place in the metrics code that decides what "completed" means. It
- * used to be decided twice and differently — a user's own score read
- * `completed_at IS NOT NULL`, the percentile cohort they were ranked against
- * read `status = completed` — so a session that was one and not the other
- * counted for one and not the other. The answer is `status = completed`,
+ * The metrics' view of WorkoutSession::completed(), where the definition is
+ * written. It used to be decided twice and differently — a user's own score
+ * read `completed_at IS NOT NULL`, the percentile cohort they were ranked
+ * against read `status = completed` — so a session that was one and not the
+ * other counted for one and not the other. The answer is `status = completed`,
  * because that is what completing a session writes
- * (Api\WorkoutSessionController::complete) and what every other consumer in the
- * codebase already reads.
+ * (Api\WorkoutSessionController::complete). setLogs() below joins on the same
+ * column by hand because it is a base-table query and cannot compose the scope.
  *
  * Everything here is in Canonical Units (ADR-0001).
  */
@@ -40,7 +40,7 @@ final class CompletedSessions
     {
         return WorkoutSession::query()
             ->where('user_id', $userId)
-            ->where('status', WorkoutSessionStatus::Completed);
+            ->completed();
     }
 
     /**

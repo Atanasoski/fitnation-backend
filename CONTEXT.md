@@ -61,7 +61,8 @@ _Avoid_: PR — it reads as pull request.
 A workout session whose status is `completed`. The single definition — a session
 carries both a status and a `completed_at` timestamp, and only the status
 decides. Nothing derived from a user's training counts a session that is not
-completed, however far through it they got.
+completed, however far through it they got. In code it is the one query scope
+`WorkoutSession::completed()`, composed wherever a reader needs it.
 
 _Avoid_: finished session, logged session.
 

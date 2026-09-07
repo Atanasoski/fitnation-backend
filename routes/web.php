@@ -7,6 +7,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserWorkoutSessionController;
+use App\Http\Controllers\WeeklySummaryUnsubscribeController;
 use App\Http\Controllers\WorkoutPreviewController;
 use App\Http\Controllers\WorkoutSplitController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,12 @@ Route::get('/', function () {
 
 // Smart store redirect — QR codes and shared links point here; sends each device to its store
 Route::get('/get', [LandingPageController::class, 'storeRedirect'])->name('app.get');
+
+// One-click unsubscribe from the Weekly Summary email: signed, no login. GET is
+// the link in the footer; POST is what mail clients send for List-Unsubscribe-Post.
+Route::match(['get', 'post'], '/email/weekly-summary/unsubscribe/{user}', WeeklySummaryUnsubscribeController::class)
+    ->middleware('signed')
+    ->name('email.weekly-summary.unsubscribe');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 

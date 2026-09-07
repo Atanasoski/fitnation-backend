@@ -35,6 +35,9 @@ class UserResource extends JsonResource
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,
             'push_enabled' => $this->push_enabled,
+            'notification_settings' => [
+                'weekly_summary_email' => $this->notificationSetting('weekly_summary_email', true),
+            ],
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

@@ -24,3 +24,10 @@ Schedule::command('notifications:inactivity')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Unfinished Account nudges: 10:00 local — the home timezone for the many who
+// have no Device yet — on the same quarter-hour clock, deduped the same way.
+Schedule::command('notifications:unfinished-accounts')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

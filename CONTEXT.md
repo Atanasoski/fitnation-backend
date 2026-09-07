@@ -218,3 +218,31 @@ is off.
 
 _Avoid_: reminder — a Reminder is tied to a scheduled workout day, not to
 silence; re-engagement, win-back.
+
+### Unfinished Account
+
+A user who registered but has not yet reached the app proper: their email is
+still unverified, or it is verified and onboarding is not complete. Measured
+from registration. Social sign-ins arrive verified, so for them only the second
+state exists.
+
+An Unfinished Account is nudged by **email** — it has no [Device](#device) to
+push to, because permission is only asked after onboarding — on a ladder of
+1, 3 and 7 days, at 10:00 local, then never again. Finishing onboarding ends
+it; so does deleting the account.
+
+_Avoid_: abandoned signup, drop-off, incomplete user.
+
+### Weekly Summary
+
+An **email**, sent Monday at 08:00 local, telling a user how their last full
+training week went against the one before: workouts, volume, time and the
+direction of travel. The numbers are the [Weekly Progress](#weekly-progress)
+numbers, in the user's [Unit System](#unit-system).
+
+Sent only to users who trained in one of the two weeks it compares; a user who
+trained in neither hears from the [Inactivity Nudge](#inactivity-nudge)
+instead. It is the one email that is not about the user's account, so it is
+the one a user may unsubscribe from.
+
+_Avoid_: weekly report, digest, recap.

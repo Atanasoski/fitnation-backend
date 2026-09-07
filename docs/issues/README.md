@@ -21,7 +21,8 @@ run agents inventing seven different module shapes.
 | [008](008-is-completed-uses-stored-target-sets.md) | `is_completed` judged against a different target than the one displayed | low–medium | `SessionDetail`, `UserWorkoutSessionController` |
 | [016](016-api-resources-read-global-auth.md) | Four API resources read global `auth()` instead of the request | low | `WorkoutTemplateResource`, `SetLogResource`, `ExerciseResource` |
 | [017](017-personal-record-rules.md) | Personal records: one set, and nothing on a first session | medium | `PersonalRecords`, `complete()` |
-| [018](018-push-notifications-phase-one.md) | Push notifications, phase one: Devices, Expo channel, Inactivity Nudge | feature | new `devices` table, `ExpoChannel`, scheduler; pairs with front-end spec 0012; needs [DEPLOY_LIGHTSAIL.md](../DEPLOY_LIGHTSAIL.md) |
+| [019](019-unfinished-account-nudges.md) | Unfinished Account nudges — email a user who never verified or onboarded, 1/3/7 days | feature | new mail + notification, shared local-hour helpers out of `Inactivity` |
+| [020](020-weekly-summary-email.md) | Weekly Summary email, Monday 08:00 local, with one-click unsubscribe | feature | `WeeklyProgress::for($asOf)`, `users.notification_settings`, unsubscribe route |
 
 ## Done
 
@@ -34,6 +35,7 @@ run agents inventing seven different module shapes.
 - [013](013-fitness-metrics-service-is-wide-not-deep.md) — PR #41 — 896 lines → 45; two review findings recorded in the issue
 - [014](014-partner-exercise-presentation.md) — PR #42 — `PartnerExerciseView`
 - [015](015-measured-field-residue.md) — PR #43 — one home for the imperial step
+- [018](018-push-notifications-phase-one.md) — PRs #45–#48 — Devices, `ExpoChannel`, Inactivity Nudge; [ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md); mobile half in front-end PR #55
 
 ## Suggested order
 
@@ -62,12 +64,12 @@ nothing. They are now [017](017-personal-record-rules.md), ready to implement. I
 shares `complete()` and `PersonalRecordDetectionTest` with 003 and 005, so it queues
 with the session domain rather than running alongside it.
 
-**018** is a feature, not a review finding, and is independent of the session domain.
-Its three PRs are written and stacked — `feat/push-notifications-spec` (docs) ←
-`feat/push-devices` ← `feat/push-expo-channel` ← `feat/push-inactivity-nudge` — merge
-them in that order. It needs a scheduler and queue worker in production before PR 3
-does anything, and the human steps in front-end spec 0012 (Firebase, EAS credentials,
-Expo access token) before any phone receives a push. Its decisions are recorded in
+**019 then 020** — the email nudges. 019 first: it extracts the local-hour helpers from
+`Inactivity` that 020 also needs, and it ships the mail scaffold 020 reuses. Both are
+features, independent of the session domain, and run on the scheduler that 018 put in
+place (Laravel Cloud since 2026-09). The workout-day reminder is deliberately **not**
+queued: it will be driven by profile training days, not the plan, and needs schema and
+mobile UI first — spec it when 019/020 are done. Its decisions are recorded in
 [ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md) and the *Notifications*
 section of `CONTEXT.md`.
 

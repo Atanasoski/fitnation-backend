@@ -19,6 +19,8 @@ class EquipmentTypeResource extends JsonResource
             'code' => $this->code,
             'name' => $this->name,
             'display_order' => $this->display_order,
+            // Server-owned: whether an exercise on this equipment takes a logged weight.
+            'supports_added_weight' => (bool) $this->supports_added_weight,
         ];
     }
 }

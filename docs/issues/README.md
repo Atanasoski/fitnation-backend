@@ -23,6 +23,7 @@ run agents inventing seven different module shapes.
 | [017](017-personal-record-rules.md) | Personal records: one set, and nothing on a first session | medium | `PersonalRecords`, `complete()` |
 | [019](019-unfinished-account-nudges.md) | Unfinished Account nudges — email a user who never verified or onboarded, 1/3/7 days | feature | new mail + notification, shared local-hour helpers out of `Inactivity` |
 | [020](020-weekly-summary-email.md) | Weekly Summary email, Monday 08:00 local, with one-click unsubscribe | feature | `WeeklyProgress::for($asOf)`, `users.notification_settings`, unsubscribe route |
+| [021](021-equipment-supports-added-weight.md) | Equipment types say whether an exercise takes added weight | low | migration, `EquipmentTypeResource`, seeder |
 
 ## Done
 

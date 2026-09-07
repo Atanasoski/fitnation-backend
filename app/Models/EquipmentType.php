@@ -16,6 +16,11 @@ class EquipmentType extends Model
         'code',
         'name',
         'display_order',
+        'supports_added_weight',
+    ];
+
+    protected $casts = [
+        'supports_added_weight' => 'boolean',
     ];
 
     /**

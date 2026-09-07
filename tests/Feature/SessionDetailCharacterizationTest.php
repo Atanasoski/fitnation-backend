@@ -387,7 +387,7 @@ class SessionDetailCharacterizationTest extends TestCase
             'secondary_muscle_groups' => [$triceps],
             'angle' => ['id' => $this->id['angle'], 'code' => 'FLAT', 'name' => 'Flat', 'display_order' => 10],
             'movement_pattern' => ['id' => $this->id['movementPattern'], 'code' => 'PRESS', 'name' => 'Press', 'display_order' => 10],
-            'equipment_type' => ['id' => $this->id['equipmentType'], 'code' => 'BARBELL', 'name' => 'Barbell', 'display_order' => 10],
+            'equipment_type' => ['id' => $this->id['equipmentType'], 'code' => 'BARBELL', 'name' => 'Barbell', 'display_order' => 10, 'supports_added_weight' => true],
             'name' => $name,
             'description' => $description,
             'muscle_group_image' => null,

@@ -31,3 +31,11 @@ Schedule::command('notifications:unfinished-accounts')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Weekly Summaries: Monday 08:00 local, on the same quarter-hour clock and
+// deduped the same way. Six days a week the first read finds no timezone at
+// Monday 08:00 and the command returns at once.
+Schedule::command('notifications:weekly-summaries')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

@@ -168,6 +168,19 @@ kinds exist and they behave differently:
   completed session. A stored value on a session exercise is an input to that
   calculation, never the answer.
 
+## Time
+
+### Stored Clock
+
+The clock every timestamp column is written in: the app timezone. A user's
+own clock — their [Device](#device)'s, or the home timezone — is where their
+day and week begin and end; the stored clock is where those bounds are
+written before they meet the table, and where a stored value is read from
+before it is placed in a user's day. In code, `App\Support\StoredClock` is
+the one place that conversion happens, for queries and test fixtures alike.
+
+_Avoid_: server time, UTC (the app timezone is not UTC).
+
 ## Notifications
 
 ### Device

@@ -4,6 +4,7 @@ namespace App\Services\FitnessMetrics;
 
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Support\StoredClock;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -18,8 +19,9 @@ use Illuminate\Support\Collection;
  *
  * "Now" can be supplied: the Weekly Summary reads a user's week as of their own
  * local Monday, so week bounds follow the timezone of the instant handed in,
- * and each Completed Session is placed in a week and a day on that clock.
- * Callers that pass nothing get the app clock, as before.
+ * and each Completed Session is placed in a week and a day on that clock;
+ * StoredClock is where those bounds and the stored timestamps meet. Callers
+ * that pass nothing get the app clock, as before.
  *
  * Everything here is in Canonical Units (ADR-0001).
  */
@@ -118,9 +120,9 @@ final class WeeklyProgress
         // Grouped in PHP rather than SQL: week-of-year functions differ between
         // MySQL and SQLite, and this runs against both.
         $counts = CompletedSessions::sessions($user->id)
-            ->whereBetween('performed_at', self::stored($startDate, $endDate))
+            ->whereBetween('performed_at', StoredClock::between($startDate, $endDate))
             ->get(['performed_at'])
-            ->countBy(fn (WorkoutSession $session) => self::inZoneOf($session->performed_at, $asOf)->startOfWeek()->format('Y-m-d'));
+            ->countBy(fn (WorkoutSession $session) => StoredClock::read($session->performed_at, $asOf)->startOfWeek()->format('Y-m-d'));
 
         $result = [];
         $weekStart = $startDate->copy();
@@ -163,7 +165,7 @@ final class WeeklyProgress
 
         foreach ($sessions as $session) {
             // dayOfWeekIso is 1 (Monday) to 7 (Sunday); the breakdown is 0-6.
-            $dayOfWeek = self::inZoneOf($session->performed_at, $weekStart)->dayOfWeekIso - 1;
+            $dayOfWeek = StoredClock::read($session->performed_at, $weekStart)->dayOfWeekIso - 1;
 
             $days[$dayOfWeek]['volume'] += self::sessionVolume($session);
             $days[$dayOfWeek]['workouts']++;
@@ -223,7 +225,7 @@ final class WeeklyProgress
     private function sessionsBetween(User $user, Carbon $from, Carbon $to): Collection
     {
         return CompletedSessions::sessions($user->id)
-            ->whereBetween('performed_at', self::stored($from, $to))
+            ->whereBetween('performed_at', StoredClock::between($from, $to))
             ->with('setLogs')
             ->get();
     }
@@ -235,29 +237,5 @@ final class WeeklyProgress
     private static function clock(?CarbonInterface $asOf): Carbon
     {
         return $asOf === null ? Carbon::now() : Carbon::instance($asOf);
-    }
-
-    /**
-     * Bounds for a timestamp column, in the zone the column is written in.
-     * Eloquent formats a bound date as its own clock without converting, so a
-     * Monday 00:00 in New York has to become the app-timezone instant it is
-     * before it can be compared with what is stored.
-     *
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private static function stored(Carbon $from, Carbon $to): array
-    {
-        $timezone = config('app.timezone');
-
-        return [$from->copy()->setTimezone($timezone), $to->copy()->setTimezone($timezone)];
-    }
-
-    /**
-     * A stored timestamp read on the same clock as the instant it is being
-     * bucketed against — which day of which week it falls in depends on that.
-     */
-    private static function inZoneOf(Carbon $stored, CarbonInterface $reference): Carbon
-    {
-        return $stored->copy()->setTimezone($reference->getTimezone());
     }
 }

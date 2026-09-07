@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Notifications\WeeklySummary;
 use App\Services\Notifications\WeeklySummaries;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +17,10 @@ use Tests\TestCase;
 
 /**
  * The Weekly Summary rule (CONTEXT.md): who is due the email, evaluated at one
- * instant. Instants are written in UTC with the zone stated; local clocks are
- * written with their zone and converted before they are stored, because Eloquent
- * writes a Carbon as its own clock. Skopje is UTC+2 in September, so Monday
- * 08:00 there is 06:00 UTC; New York is UTC-4, so 08:00 there is 12:00 UTC.
+ * instant. Instants are written in UTC with the zone stated; fixtures written
+ * in a user's clock go through StoredClock, as the app's own writes do. Skopje
+ * is UTC+2 in September, so Monday 08:00 there is 06:00 UTC; New York is
+ * UTC-4, so 08:00 there is 12:00 UTC.
  */
 class WeeklySummariesTest extends TestCase
 {
@@ -33,10 +34,10 @@ class WeeklySummariesTest extends TestCase
         return CarbonImmutable::parse($instant);
     }
 
-    /** A Completed Session at a local clock time, stored as the app clock reads it. */
+    /** A Completed Session at a local clock time. */
     private function trained(User $user, string $localClock, string $timezone = 'Europe/Skopje'): void
     {
-        $performedAt = CarbonImmutable::parse($localClock, $timezone)->setTimezone(config('app.timezone'));
+        $performedAt = StoredClock::bind(CarbonImmutable::parse($localClock, $timezone));
 
         WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -49,7 +50,7 @@ class WeeklySummariesTest extends TestCase
     /** Record that a summary was sent at a given instant, as the command would have. */
     private function summarised(User $user, string $instant): void
     {
-        $at = self::at($instant)->setTimezone(config('app.timezone'));
+        $at = StoredClock::bind(self::at($instant));
 
         $user->notifications()->create([
             'id' => (string) Str::uuid(),

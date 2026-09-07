@@ -6,6 +6,7 @@ use App\Enums\WorkoutSessionStatus;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Notifications\InactivityNudge;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -134,7 +135,7 @@ final class Inactivity
             ->where('notifiable_type', User::class)
             ->whereIn('notifiable_id', $ids)
             ->where('type', InactivityNudge::class)
-            ->where('created_at', '>', $earliest)
+            ->where('created_at', '>', StoredClock::bind($earliest))
             ->get(['notifiable_id', 'data', 'created_at'])
             ->groupBy('notifiable_id');
     }

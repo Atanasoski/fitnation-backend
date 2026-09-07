@@ -4,6 +4,7 @@ namespace App\Services\Notifications;
 
 use App\Models\User;
 use App\Notifications\UnfinishedAccountNudge;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -106,7 +107,7 @@ final class UnfinishedAccounts
             ->where('notifiable_type', User::class)
             ->whereIn('notifiable_id', $ids)
             ->where('type', UnfinishedAccountNudge::class)
-            ->where('created_at', '>=', $earliest)
+            ->where('created_at', '>=', StoredClock::bind($earliest))
             ->get(['notifiable_id', 'data', 'created_at'])
             ->groupBy('notifiable_id');
     }

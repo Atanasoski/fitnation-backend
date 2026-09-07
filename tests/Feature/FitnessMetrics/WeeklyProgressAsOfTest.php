@@ -8,6 +8,7 @@ use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Services\FitnessMetrics\WeeklyProgress;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -21,10 +22,10 @@ class WeeklyProgressAsOfTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** A Completed Session at the given instant, stored as the app clock reads it. */
+    /** A Completed Session at the given instant. */
     private function completedSession(User $user, CarbonImmutable $performedAt, float $weight = 100, int $reps = 10): void
     {
-        $performedAt = $performedAt->setTimezone(config('app.timezone'));
+        $performedAt = StoredClock::bind($performedAt);
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,

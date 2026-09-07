@@ -4,6 +4,7 @@ namespace App\Services\Notifications;
 
 use App\Models\User;
 use App\Notifications\WeeklySummary;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonTimeZone;
@@ -96,19 +97,15 @@ final class WeeklySummaries
 
     /**
      * "Has a Completed Session in the week that just ended or the one before",
-     * with both weeks bounded on the given local clock and written in the app
-     * clock — Eloquent formats a bound date as its own clock without converting.
+     * both weeks bounded on the given local clock.
      */
     private static function trainedInWindow(CarbonImmutable $local): \Closure
     {
-        $stored = config('app.timezone');
-
-        $from = $local->subWeeks(2)->startOfWeek()->setTimezone($stored);
-        $to = $local->subWeek()->endOfWeek()->setTimezone($stored);
+        $window = StoredClock::between($local->subWeeks(2)->startOfWeek(), $local->subWeek()->endOfWeek());
 
         return fn (Builder $query) => $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
             ->completed()
-            ->whereBetween('performed_at', [$from, $to]));
+            ->whereBetween('performed_at', $window));
     }
 
     /**
@@ -124,7 +121,7 @@ final class WeeklySummaries
             ->where('notifiable_type', User::class)
             ->whereIn('notifiable_id', $ids)
             ->where('type', WeeklySummary::class)
-            ->where('created_at', '>=', $earliest->setTimezone(config('app.timezone')))
+            ->where('created_at', '>=', StoredClock::bind($earliest))
             ->get(['notifiable_id', 'created_at'])
             ->groupBy('notifiable_id');
     }

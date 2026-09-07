@@ -6,6 +6,7 @@ use App\Enums\WorkoutSessionStatus;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Notifications\WeeklySummary;
+use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +26,7 @@ class SendWeeklySummariesTest extends TestCase
 
     private function trained(User $user, string $skopjeClock): void
     {
-        $performedAt = CarbonImmutable::parse($skopjeClock, 'Europe/Skopje')->setTimezone(config('app.timezone'));
+        $performedAt = StoredClock::bind(CarbonImmutable::parse($skopjeClock, 'Europe/Skopje'));
 
         WorkoutSession::factory()->create([
             'user_id' => $user->id,

@@ -235,7 +235,7 @@
                             </label>
                         @if($partner->identity?->logo)
                             <div class="mb-2 flex items-center gap-3">
-                                    <img src="{{ asset($partner->identity->logo) }}" alt="Current logo" class="h-12 w-12 object-contain border border-gray-200 rounded-lg dark:border-gray-700">
+                                    <img src="{{ $partner->identity->logo_url }}" alt="Current logo" class="h-12 w-12 object-contain border border-gray-200 rounded-lg dark:border-gray-700">
                                 <span class="text-sm text-gray-600 dark:text-gray-400">Current logo</span>
                             </div>
                         @endif
@@ -257,7 +257,7 @@
                             </label>
                             @if($partner->identity?->background_pattern)
                                 <div class="mb-2 flex items-center gap-3">
-                                    <img src="{{ asset($partner->identity->background_pattern) }}" alt="Current pattern" class="h-12 w-12 object-contain border border-gray-200 rounded-lg dark:border-gray-700">
+                                    <img src="{{ $partner->identity->background_pattern_url }}" alt="Current pattern" class="h-12 w-12 object-contain border border-gray-200 rounded-lg dark:border-gray-700">
                                     <span class="text-sm text-gray-600 dark:text-gray-400">Current pattern</span>
                                 </div>
                             @endif

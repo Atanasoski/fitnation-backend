@@ -46,6 +46,7 @@ class UnfinishedAccountMail extends Mailable
             with: [
                 'subject' => $this->subjectLine(),
                 'lead' => $this->lead(),
+                'follow' => $this->copy("{$this->step}.{$this->stuckAt}.follow"),
                 'button' => $this->copy('button.'.$this->stuckAt),
                 'secondary' => $this->stuckAt === UnfinishedAccountCandidate::UNVERIFIED
                     ? $this->copy('secondary.unverified')

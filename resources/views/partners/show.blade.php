@@ -21,7 +21,7 @@
             <div class="flex-shrink-0">
                 @if($partner->identity?->logo)
                     <div class="w-24 h-24 rounded-2xl border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden bg-white dark:bg-gray-800 p-2">
-                        <img src="{{ asset($partner->identity->logo) }}" alt="{{ $partner->name }}" class="w-full h-full object-contain">
+                        <img src="{{ $partner->identity->logo_url }}" alt="{{ $partner->name }}" class="w-full h-full object-contain">
                     </div>
                 @else
                     <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-brand-400 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
@@ -224,12 +224,12 @@
                         @if($partner->identity->logo)
                             <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                                 <div class="flex-shrink-0">
-                                    <img src="{{ asset($partner->identity->logo) }}" alt="{{ $partner->name }} Logo" class="w-20 h-20 object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-900 shadow-sm">
+                                    <img src="{{ $partner->identity->logo_url }}" alt="{{ $partner->name }} Logo" class="w-20 h-20 object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-900 shadow-sm">
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">File Path</p>
                                     <code class="text-xs text-gray-600 dark:text-gray-400 block mb-3 break-all">{{ $partner->identity->logo }}</code>
-                                    <a href="{{ asset($partner->identity->logo) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
+                                    <a href="{{ $partner->identity->logo_url }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                         </svg>
@@ -253,12 +253,12 @@
                             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-4">Background Pattern</h4>
                             <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                                 <div class="flex-shrink-0">
-                                    <img src="{{ asset($partner->identity->background_pattern) }}" alt="Background Pattern" class="w-20 h-20 object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-900 shadow-sm">
+                                    <img src="{{ $partner->identity->background_pattern_url }}" alt="Background Pattern" class="w-20 h-20 object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-900 shadow-sm">
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">File Path</p>
                                     <code class="text-xs text-gray-600 dark:text-gray-400 block mb-3 break-all">{{ $partner->identity->background_pattern }}</code>
-                                    <a href="{{ asset($partner->identity->background_pattern) }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
+                                    <a href="{{ $partner->identity->background_pattern_url }}" target="_blank" class="inline-flex items-center gap-1 text-sm text-brand-600 dark:text-brand-400 hover:underline">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                         </svg>

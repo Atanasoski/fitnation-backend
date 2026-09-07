@@ -1,6 +1,7 @@
 Hello, {!! $user->name !!}!
 
 {!! $lead !!}
+{!! $follow !!}
 
 {!! $button !!}: {!! $primaryUrl !!}
 @if($secondary)

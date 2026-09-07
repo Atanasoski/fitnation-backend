@@ -74,7 +74,8 @@ class UnfinishedAccountNudgeTest extends TestCase
         $this->assertSame('Confirm your email for Iron Temple', $mail->getSubject());
 
         $html = $mail->getHtmlBody();
-        $this->assertStringContainsString('One tap and you&#039;re in.', $html);
+        $this->assertStringContainsString('You&#039;re one tap away from your first workout.', $html);
+        $this->assertStringContainsString('Your first plan will be ready the moment you are.', $html);
         $this->assertStringContainsString('Verify email', $html);
         $this->assertStringContainsString('Then open the app to finish setting up', $html);
         $this->assertStringContainsString('https://fitnation.test/get', $html);
@@ -102,7 +103,7 @@ class UnfinishedAccountNudgeTest extends TestCase
         $this->assertSame('Finish setting up '.config('app.name'), $mail->getSubject());
 
         $html = $mail->getHtmlBody();
-        $this->assertStringContainsString('Two minutes of questions and your first plan is ready.', $html);
+        $this->assertStringContainsString('Two quick minutes about your goals and your first plan is ready.', $html);
         $this->assertStringContainsString('Open the app', $html);
         $this->assertStringContainsString('https://fitnation.test/get', $html);
         $this->assertStringNotContainsString('verify-email', $html);
@@ -120,7 +121,7 @@ class UnfinishedAccountNudgeTest extends TestCase
         [$first, $second] = $this->sentMail();
         $this->assertSame('Last one from us', $first->getSubject());
         $this->assertSame('Last one from us', $second->getSubject());
-        $this->assertStringContainsString('We won&#039;t email again about this.', $first->getHtmlBody());
+        $this->assertStringContainsString('This is the last time we&#039;ll email you about this.', $first->getHtmlBody());
         $this->assertStringContainsString('verify-email', $first->getHtmlBody());
         $this->assertStringNotContainsString('verify-email', $second->getHtmlBody());
     }
@@ -135,7 +136,7 @@ class UnfinishedAccountNudgeTest extends TestCase
         $this->assertCount(1, $this->sentMail());
         Http::assertSentCount(1);
         Http::assertSent(fn (Request $request) => $request->data()[0]['title'] === 'Your first plan is two minutes away'
-            && $request->data()[0]['body'] === "Tell us your goal and how often you train; we'll build the rest."
+            && $request->data()[0]['body'] === "Tell us your goal and how often you can train, and we'll build a plan around your week."
             && $request->data()[0]['data']['url'] === 'https://fitnation.test/get');
     }
 

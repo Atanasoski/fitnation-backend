@@ -7,12 +7,7 @@
     $partner = $user->partner;
     $partnerName = $partner?->name ?? config('app.name');
     $primaryColor = $partner?->identity?->primary_color ?? '#f86f33'; // orange-500, the brand accent
-    $logoUrl = null;
-    if ($partner?->identity?->logo_url) {
-        $logoUrl = $partner->identity->logo_url;
-    } elseif ($partner?->identity?->logo) {
-        $logoUrl = asset($partner->identity->logo);
-    }
+    $logoUrl = $partner?->identity?->logo_url;
 @endphp
 <!DOCTYPE html>
 <html lang="en">

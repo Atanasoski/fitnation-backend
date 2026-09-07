@@ -7,10 +7,7 @@
     $partner = $user->partner;
     $partnerName = $partner?->name ?? config('app.name');
     $primaryColor = $partner?->identity?->primary_color ?? '#f86f33'; // orange-500, the brand accent
-    // `logo` is a path under public/ (as the API's PartnerVisualIdentityResource
-    // reads it) or, if it starts with a scheme, a URL used as is.
-    $logo = $partner?->identity?->logo;
-    $logoUrl = $logo ? (str_starts_with($logo, 'http') ? $logo : asset($logo)) : null;
+    $logoUrl = $partner?->identity?->logo_url;
 @endphp
 <!DOCTYPE html>
 <html lang="en">

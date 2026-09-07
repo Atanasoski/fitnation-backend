@@ -32,8 +32,8 @@ use Illuminate\Support\Collection;
  * the same user due at each run until the sent record says otherwise.
  *
  * Four queries at most, whatever the number of users: Device timezones, latest
- * Device per user, the users with a session in their window, and their sent
- * records. The Weekly Progress numbers are read per candidate, lazily.
+ * Device per user, the users with a session in their window, and their Sent
+ * Record. The Weekly Progress numbers are read per candidate, lazily.
  */
 final class WeeklySummaries
 {
@@ -85,10 +85,10 @@ final class WeeklySummaries
 
         $mondayStart = $asOf->map(fn (CarbonImmutable $local) => $local->startOfDay());
 
-        $sent = self::sentSince($users->modelKeys(), $mondayStart->min());
+        $sent = SentRecord::since(WeeklySummary::class, $users->modelKeys(), $mondayStart->min());
 
         return $users
-            ->reject(fn (User $user) => ($sent[$user->id] ?? collect())->contains(
+            ->reject(fn (User $user) => $sent->for($user->id)->contains(
                 fn (DatabaseNotification $row) => $row->created_at->greaterThanOrEqualTo($mondayStart[$user->id])
             ))
             ->map(fn (User $user) => new WeeklySummaryCandidate($user, $asOf[$user->id]))
@@ -106,23 +106,5 @@ final class WeeklySummaries
         return fn (Builder $query) => $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
             ->completed()
             ->whereBetween('performed_at', $window));
-    }
-
-    /**
-     * Every Weekly Summary recorded for these users since the given instant —
-     * the earliest local Monday midnight in the batch — grouped by user.
-     *
-     * @param  list<int>  $ids
-     * @return Collection<int, Collection<int, DatabaseNotification>>
-     */
-    private static function sentSince(array $ids, CarbonImmutable $earliest): Collection
-    {
-        return DatabaseNotification::query()
-            ->where('notifiable_type', User::class)
-            ->whereIn('notifiable_id', $ids)
-            ->where('type', WeeklySummary::class)
-            ->where('created_at', '>=', StoredClock::bind($earliest))
-            ->get(['notifiable_id', 'created_at'])
-            ->groupBy('notifiable_id');
     }
 }

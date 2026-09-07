@@ -6,7 +6,6 @@ use App\Enums\WorkoutSessionStatus;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Notifications\InactivityNudge;
-use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -36,9 +35,8 @@ use Illuminate\Support\Collection;
  * with the users whose clock says it is the hour, not with the user base: the
  * timezones in use are read first (LocalHour), and everything after is scoped to
  * the timezones that are at the hour and the users whose latest Device is in one.
- * Whether a step was already sent is read from the notifications table — the
- * sent record is the fact — bounded below by the earliest date any user in the
- * batch is being measured from, since nothing older can matter to any of them.
+ * Whether a step was already sent is the Sent Record's answer, bounded below
+ * by the earliest date any user in the batch is being measured from.
  */
 final class Inactivity
 {
@@ -62,6 +60,10 @@ final class Inactivity
             ->whereNotNull('onboarding_completed_at')
             ->get();
 
+        if ($users->isEmpty()) {
+            return collect();
+        }
+
         $lastCompleted = WorkoutSession::query()
             ->whereIn('user_id', $ids)
             ->completed()
@@ -80,7 +82,7 @@ final class Inactivity
             $user->id => self::measuredFrom($user, $lastCompleted[$user->id] ?? null),
         ]);
 
-        $sent = self::sentSince($ids, $since->min());
+        $sent = SentRecord::since(InactivityNudge::class, $ids, $since->min());
 
         $ladder = Ladder::fromConfig('notifications.inactivity.ladder');
 
@@ -95,7 +97,7 @@ final class Inactivity
                     return null;
                 }
 
-                $alreadySent = ($sent[$user->id] ?? collect())->contains(
+                $alreadySent = $sent->for($user->id)->contains(
                     fn (DatabaseNotification $row) => ($row->data['step'] ?? null) === $step
                         && $row->created_at->greaterThan($since[$user->id])
                 );
@@ -116,27 +118,5 @@ final class Inactivity
         return $lastCompletedAt !== null
             ? CarbonImmutable::parse($lastCompletedAt, config('app.timezone'))
             : CarbonImmutable::instance($user->onboarding_completed_at);
-    }
-
-    /**
-     * Every Inactivity Nudge sent to these users since the given instant,
-     * grouped by user.
-     *
-     * @param  list<int>  $ids
-     * @return Collection<int, Collection<int, DatabaseNotification>>
-     */
-    private static function sentSince(array $ids, ?CarbonImmutable $earliest): Collection
-    {
-        if ($earliest === null) {
-            return collect();
-        }
-
-        return DatabaseNotification::query()
-            ->where('notifiable_type', User::class)
-            ->whereIn('notifiable_id', $ids)
-            ->where('type', InactivityNudge::class)
-            ->where('created_at', '>', StoredClock::bind($earliest))
-            ->get(['notifiable_id', 'data', 'created_at'])
-            ->groupBy('notifiable_id');
     }
 }

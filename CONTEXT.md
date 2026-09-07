@@ -233,6 +233,17 @@ mail: it gates push as a channel, whatever the category.
 
 _Avoid_: preferences (alone), subscription, opt-in.
 
+### Sent Record
+
+The row a notification leaves in the `notifications` table when it goes out:
+its kind, who it went to, when, and what it said. It is the fact every
+scheduled rule dedupes against — a rule that runs every quarter hour finds the
+same user due at each run during the hour and sends once because the record
+says it already has. Which row counts is each rule's own question; the read
+they share is `App\Services\Notifications\SentRecord`.
+
+_Avoid_: log, history, audit.
+
 ### Inactivity Nudge
 
 A push notification sent to a user who has not trained for a while, to bring

@@ -4,7 +4,6 @@ namespace App\Services\Notifications;
 
 use App\Models\User;
 use App\Notifications\UnfinishedAccountNudge;
-use App\Support\StoredClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -32,7 +31,7 @@ use Illuminate\Support\Collection;
  * verifies between two steps gets the "finish setting up" content next.
  *
  * Query count is constant in the number of users: Device timezones, latest
- * Device per user, the users, and their sent records — four at most.
+ * Device per user, the users, and their Sent Record — four at most.
  */
 final class UnfinishedAccounts
 {
@@ -67,7 +66,7 @@ final class UnfinishedAccounts
 
         $since = $users->mapWithKeys(fn (User $user) => [$user->id => CarbonImmutable::instance($user->created_at)]);
 
-        $sent = self::sentSince($users->modelKeys(), $since->min());
+        $sent = SentRecord::since(UnfinishedAccountNudge::class, $users->modelKeys(), $since->min());
 
         $ladder = Ladder::fromConfig('notifications.unfinished_account.ladder');
 
@@ -81,7 +80,7 @@ final class UnfinishedAccounts
                     return null;
                 }
 
-                $alreadySent = ($sent[$user->id] ?? collect())->contains(
+                $alreadySent = $sent->for($user->id)->contains(
                     fn (DatabaseNotification $row) => ($row->data['step'] ?? null) === $step
                 );
 
@@ -91,24 +90,5 @@ final class UnfinishedAccounts
             })
             ->filter()
             ->values();
-    }
-
-    /**
-     * Every Unfinished Account nudge sent to these users since the given
-     * instant — the earliest registration in the batch, since nothing can have
-     * been sent to any of them before they registered — grouped by user.
-     *
-     * @param  list<int>  $ids
-     * @return Collection<int, Collection<int, DatabaseNotification>>
-     */
-    private static function sentSince(array $ids, CarbonImmutable $earliest): Collection
-    {
-        return DatabaseNotification::query()
-            ->where('notifiable_type', User::class)
-            ->whereIn('notifiable_id', $ids)
-            ->where('type', UnfinishedAccountNudge::class)
-            ->where('created_at', '>=', StoredClock::bind($earliest))
-            ->get(['notifiable_id', 'data', 'created_at'])
-            ->groupBy('notifiable_id');
     }
 }

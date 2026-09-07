@@ -9,7 +9,9 @@ use Illuminate\Support\Collection;
 
 /**
  * "At HH:00 in the user's own time" — the clock every scheduled rule
- * (Inactivity Nudge, Unfinished Account nudge) reads before deciding who is due.
+ * (Inactivity Nudge, Unfinished Account nudge, Weekly Summary) reads before
+ * deciding who is due. A rule that runs on one day of the week narrows the hour
+ * to that weekday with on().
  *
  * A user's time is that of their most recently seen Device; a Device that never
  * reported a timezone, or a user with no Device at all, is read in the home
@@ -23,7 +25,10 @@ use Illuminate\Support\Collection;
  */
 final class LocalHour
 {
-    public function __construct(public readonly int $hour) {}
+    /**
+     * @param  ?int  $weekday  Carbon's day-of-week constant (MONDAY … SUNDAY); null is every day
+     */
+    public function __construct(public readonly int $hour, public readonly ?int $weekday = null) {}
 
     public static function fromConfig(string $key): self
     {
@@ -31,11 +36,23 @@ final class LocalHour
     }
 
     /**
-     * Whether it is now this hour in the given timezone.
+     * This hour, on one day of the week only.
+     */
+    public function on(int $weekday): self
+    {
+        return new self($this->hour, $weekday);
+    }
+
+    /**
+     * Whether it is now this hour — and, when one is set, this weekday — in the
+     * given timezone.
      */
     public function isNow(CarbonImmutable $now, CarbonTimeZone $timezone): bool
     {
-        return $now->setTimezone($timezone)->hour === $this->hour;
+        $local = $now->setTimezone($timezone);
+
+        return $local->hour === $this->hour
+            && ($this->weekday === null || $local->dayOfWeek === $this->weekday);
     }
 
     /**

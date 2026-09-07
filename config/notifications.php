@@ -74,6 +74,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Unfinished Account nudge
+    |--------------------------------------------------------------------------
+    |
+    | Days after registration at which an Unfinished Account is emailed, and the
+    | local hour to send at — the user's Device timezone if they have one, else
+    | the fallback above. Consumed by App\Services\Notifications\UnfinishedAccounts.
+    |
+    */
+
+    'unfinished_account' => [
+        'ladder' => [1, 3, 7],
+        'local_hour' => 10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Where a tap lands
     |--------------------------------------------------------------------------
     |

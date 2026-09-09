@@ -7,6 +7,13 @@ Hello, {!! $user->name !!}!
 {!! $time !!}
 
 {!! $trendLine !!}
+@if($charts)
+
+{!! $chartWeeksTitle !!}: {!! $weeksLine !!}
+@if($daysLine)
+{!! $chartDaysTitle !!}: {!! $daysLine !!}
+@endif
+@endif
 
 {!! $button !!}: {!! $appUrl !!}
 

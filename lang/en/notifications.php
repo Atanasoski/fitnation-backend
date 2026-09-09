@@ -87,6 +87,8 @@ return [
             'down' => "A lighter week. Next one's yours.",
             'zero' => 'Nothing logged this week. Your plan is where you left it.',
         ],
+        'chart_weeks' => 'Last :count weeks',
+        'chart_days' => 'Your week, day by day',
         'button' => 'Open the app',
         'unsubscribe' => 'Unsubscribe from weekly summaries',
     ],

@@ -130,7 +130,7 @@ class FetchExpoReceiptsTest extends TestCase
                 || str_contains($event->command ?? '', FetchExpoReceipts::class));
 
         $this->assertCount(1, $events, 'FetchExpoReceipts should be scheduled exactly once');
-        $this->assertSame('*/15 * * * *', $events->first()->expression);
+        $this->assertSame('0,30 * * * *', $events->first()->expression);
     }
 
     public function test_a_ticket_expo_has_no_receipt_for_yet_stays_for_the_next_run(): void

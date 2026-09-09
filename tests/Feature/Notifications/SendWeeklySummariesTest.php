@@ -99,13 +99,13 @@ class SendWeeklySummariesTest extends TestCase
         $this->assertDatabaseCount('notifications', 0);
     }
 
-    public function test_it_is_scheduled_every_fifteen_minutes(): void
+    public function test_it_is_scheduled_twice_an_hour(): void
     {
         $events = collect(app(Schedule::class)->events())
             ->filter(fn ($event) => str_contains($event->command ?? '', 'notifications:weekly-summaries'));
 
         $this->assertCount(1, $events);
-        $this->assertSame('*/15 * * * *', $events->first()->expression);
+        $this->assertSame('0,30 * * * *', $events->first()->expression);
         $this->assertTrue($events->first()->withoutOverlapping);
         $this->assertTrue($events->first()->onOneServer);
     }

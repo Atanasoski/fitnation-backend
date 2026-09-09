@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\WorkoutSessionStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +33,17 @@ class WorkoutSession extends Model
     ];
 
     protected $appends = ['status_label', 'status_badge_classes'];
+
+    /**
+     * Completed Sessions (CONTEXT.md): the one place the definition is written.
+     * A session carries both a status and a completed_at, and only the status
+     * decides — completing writes the status, and everything derived from a
+     * user's training composes this scope rather than restating the column.
+     */
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', WorkoutSessionStatus::Completed);
+    }
 
     /**
      * Display label for the session status (for UI badges).
@@ -104,7 +116,7 @@ class WorkoutSession extends Model
         $previousSessions = WorkoutSession::query()
             ->where('user_id', $this->user_id)
             ->where('id', '!=', $this->id)
-            ->where('status', WorkoutSessionStatus::Completed)
+            ->completed()
             ->whereHas('setLogs', fn ($q) => $q->whereIn('exercise_id', $exerciseIds))
             ->with(['setLogs' => fn ($q) => $q->whereIn('exercise_id', $exerciseIds)->orderBy('set_number')])
             ->orderByDesc('completed_at')

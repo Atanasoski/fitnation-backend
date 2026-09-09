@@ -92,7 +92,7 @@ class ProgressionCalculatorService
     public function getLastPerformance(Exercise $exercise, User $user): ?array
     {
         $lastSetLog = $user->workoutSessions()
-            ->where('status', WorkoutSessionStatus::Completed)
+            ->completed()
             ->whereHas('setLogs', function ($q) use ($exercise) {
                 $q->where('exercise_id', $exercise->id);
             })

@@ -61,7 +61,8 @@ _Avoid_: PR — it reads as pull request.
 A workout session whose status is `completed`. The single definition — a session
 carries both a status and a `completed_at` timestamp, and only the status
 decides. Nothing derived from a user's training counts a session that is not
-completed, however far through it they got.
+completed, however far through it they got. In code it is the one query scope
+`WorkoutSession::completed()`, composed wherever a reader needs it.
 
 _Avoid_: finished session, logged session.
 
@@ -167,6 +168,19 @@ kinds exist and they behave differently:
   completed session. A stored value on a session exercise is an input to that
   calculation, never the answer.
 
+## Time
+
+### Stored Clock
+
+The clock every timestamp column is written in: the app timezone. A user's
+own clock — their [Device](#device)'s, or the home timezone — is where their
+day and week begin and end; the stored clock is where those bounds are
+written before they meet the table, and where a stored value is read from
+before it is placed in a user's day. In code, `App\Support\StoredClock` is
+the one place that conversion happens, for queries and test fixtures alike.
+
+_Avoid_: server time, UTC (the app timezone is not UTC).
+
 ## Notifications
 
 ### Device
@@ -201,8 +215,34 @@ to any of their [Devices](#device); the Devices themselves are kept, so turning
 it back on takes effect at once. On by default. On the wire it is
 `push_enabled`.
 
-_Avoid_: notification preferences (those are per category and do not exist
-yet), opt-out, mute.
+Distinct from a [Notification Setting](#notification-setting): the switch is one
+global gate on one channel, not a preference about one kind of message.
+
+_Avoid_: opt-out, mute.
+
+### Notification Setting
+
+A user's on/off for one **category** of message — the [Weekly
+Summary](#weekly-summary) email is the first (`weekly_summary_email`). Each
+setting has a default, on, and only what the user has changed is recorded, so
+a user who has changed nothing has every setting at its default. On the wire
+they are the `notification_settings` object, beside `push_enabled`.
+
+The [Push Switch](#push-switch) is not one of these and is not consulted by
+mail: it gates push as a channel, whatever the category.
+
+_Avoid_: preferences (alone), subscription, opt-in.
+
+### Sent Record
+
+The row a notification leaves in the `notifications` table when it goes out:
+its kind, who it went to, when, and what it said. It is the fact every
+scheduled rule dedupes against — a rule that runs every quarter hour finds the
+same user due at each run during the hour and sends once because the record
+says it already has. Which row counts is each rule's own question; the read
+they share is `App\Services\Notifications\SentRecord`.
+
+_Avoid_: log, history, audit.
 
 ### Inactivity Nudge
 

@@ -90,6 +90,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Weekly Summary
+    |--------------------------------------------------------------------------
+    |
+    | The local hour on Monday at which last week's summary is emailed — the
+    | user's Device timezone if they have one, else the fallback above. Monday
+    | itself is the domain rule (CONTEXT.md), not a setting. Consumed by
+    | App\Services\Notifications\WeeklySummaries.
+    |
+    */
+
+    'weekly_summary' => [
+        'local_hour' => 8,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Where a tap lands
     |--------------------------------------------------------------------------
     |

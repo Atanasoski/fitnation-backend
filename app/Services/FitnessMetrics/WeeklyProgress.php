@@ -4,7 +4,9 @@ namespace App\Services\FitnessMetrics;
 
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Support\StoredClock;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
@@ -15,6 +17,12 @@ use Illuminate\Support\Collection;
  * — a Tuesday is not a fair comparison against a finished week, and the number
  * would fall every Monday and climb back by Sunday if it were.
  *
+ * "Now" can be supplied: the Weekly Summary reads a user's week as of their own
+ * local Monday, so week bounds follow the timezone of the instant handed in,
+ * and each Completed Session is placed in a week and a day on that clock;
+ * StoredClock is where those bounds and the stored timestamps meet. Callers
+ * that pass nothing get the app clock, as before.
+ *
  * Everything here is in Canonical Units (ADR-0001).
  */
 final class WeeklyProgress
@@ -24,16 +32,18 @@ final class WeeklyProgress
     /**
      * @return array{percentage: int, trend: string, current_week_workouts: int, previous_week_workouts: int, current_week_volume?: int, previous_week_volume?: int, volume_difference?: int, volume_difference_percent?: int, current_week_time_minutes?: int, daily_breakdown?: array<int, array<string, mixed>>, historical_weeks?: array<int, array<string, mixed>>}
      */
-    public function for(User $user): array
+    public function for(User $user, ?CarbonInterface $asOf = null): array
     {
-        $currentWeekStart = Carbon::now()->subWeek()->startOfWeek();
-        $currentWeekEnd = Carbon::now()->subWeek()->endOfWeek();
+        $asOf = self::clock($asOf);
+
+        $currentWeekStart = $asOf->copy()->subWeek()->startOfWeek();
+        $currentWeekEnd = $asOf->copy()->subWeek()->endOfWeek();
 
         $current = $this->sessionsBetween($user, $currentWeekStart, $currentWeekEnd);
         $previous = $this->sessionsBetween(
             $user,
-            Carbon::now()->subWeeks(2)->startOfWeek(),
-            Carbon::now()->subWeeks(2)->endOfWeek(),
+            $asOf->copy()->subWeeks(2)->startOfWeek(),
+            $asOf->copy()->subWeeks(2)->endOfWeek(),
         );
 
         $currentVolume = self::volume($current);
@@ -80,7 +90,7 @@ final class WeeklyProgress
         // own keys unambiguously so neither caller has to guess.
         $historicalWeeks = array_map(
             fn (array $week) => ['week' => $week['label'], 'workouts' => $week['workouts']],
-            $this->historicalWeeks($user, self::HISTORY_WEEKS),
+            $this->historicalWeeks($user, self::HISTORY_WEEKS, $asOf),
         );
 
         if (! empty($historicalWeeks)) {
@@ -100,17 +110,19 @@ final class WeeklyProgress
      *
      * @return array<int, array{week_start: string, label: string, workouts: int}>
      */
-    public function historicalWeeks(User $user, int $weeks): array
+    public function historicalWeeks(User $user, int $weeks, ?CarbonInterface $asOf = null): array
     {
-        $startDate = Carbon::now()->subWeeks($weeks - 1)->startOfWeek();
-        $endDate = Carbon::now()->endOfWeek();
+        $asOf = self::clock($asOf);
+
+        $startDate = $asOf->copy()->subWeeks($weeks - 1)->startOfWeek();
+        $endDate = $asOf->copy()->endOfWeek();
 
         // Grouped in PHP rather than SQL: week-of-year functions differ between
         // MySQL and SQLite, and this runs against both.
         $counts = CompletedSessions::sessions($user->id)
-            ->whereBetween('performed_at', [$startDate, $endDate])
+            ->whereBetween('performed_at', StoredClock::between($startDate, $endDate))
             ->get(['performed_at'])
-            ->countBy(fn (WorkoutSession $session) => $session->performed_at->startOfWeek()->format('Y-m-d'));
+            ->countBy(fn (WorkoutSession $session) => StoredClock::read($session->performed_at, $asOf)->startOfWeek()->format('Y-m-d'));
 
         $result = [];
         $weekStart = $startDate->copy();
@@ -153,7 +165,7 @@ final class WeeklyProgress
 
         foreach ($sessions as $session) {
             // dayOfWeekIso is 1 (Monday) to 7 (Sunday); the breakdown is 0-6.
-            $dayOfWeek = $session->performed_at->dayOfWeekIso - 1;
+            $dayOfWeek = StoredClock::read($session->performed_at, $weekStart)->dayOfWeekIso - 1;
 
             $days[$dayOfWeek]['volume'] += self::sessionVolume($session);
             $days[$dayOfWeek]['workouts']++;
@@ -213,8 +225,17 @@ final class WeeklyProgress
     private function sessionsBetween(User $user, Carbon $from, Carbon $to): Collection
     {
         return CompletedSessions::sessions($user->id)
-            ->whereBetween('performed_at', [$from, $to])
+            ->whereBetween('performed_at', StoredClock::between($from, $to))
             ->with('setLogs')
             ->get();
+    }
+
+    /**
+     * The instant the week is read against, as a mutable Carbon in the zone it
+     * was given in — the app clock when the caller has no opinion.
+     */
+    private static function clock(?CarbonInterface $asOf): Carbon
+    {
+        return $asOf === null ? Carbon::now() : Carbon::instance($asOf);
     }
 }

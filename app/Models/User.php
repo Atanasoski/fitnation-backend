@@ -34,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'social_provider_id',
         'email_verified_at',
         'push_enabled',
+        'notification_settings',
     ];
 
     /**
@@ -69,7 +70,27 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_login_at' => 'datetime',
             'onboarding_completed_at' => 'datetime',
             'push_enabled' => 'boolean',
+            'notification_settings' => 'array',
         ];
+    }
+
+    /**
+     * One Notification Setting (CONTEXT.md). The column holds only what the
+     * user has changed, so a missing key — or a null column — is the default.
+     * The Push Switch is not one of these: it is its own column and governs
+     * push alone.
+     */
+    public function notificationSetting(string $key, bool $default): bool
+    {
+        return (bool) ($this->notification_settings[$key] ?? $default);
+    }
+
+    /**
+     * Record one Notification Setting, keeping the others.
+     */
+    public function setNotificationSetting(string $key, bool $value): void
+    {
+        $this->notification_settings = [...($this->notification_settings ?? []), $key => $value];
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Notifications\WeeklySummary;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -35,6 +36,9 @@ class UserResource extends JsonResource
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,
             'push_enabled' => $this->push_enabled,
+            'notification_settings' => [
+                WeeklySummary::SETTING => $this->notificationSetting(WeeklySummary::SETTING, true),
+            ],
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

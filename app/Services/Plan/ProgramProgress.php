@@ -2,7 +2,6 @@
 
 namespace App\Services\Plan;
 
-use App\Enums\WorkoutSessionStatus;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\WorkoutSession;
@@ -186,7 +185,7 @@ final class ProgramProgress
 
         return WorkoutSession::query()
             ->where('user_id', $user->id)
-            ->where('status', WorkoutSessionStatus::Completed)
+            ->completed()
             ->whereIn('workout_template_id', $templates->pluck('id'))
             ->orderBy('completed_at')
             ->orderBy('id')

@@ -3,7 +3,6 @@
 namespace App\Services\WorkoutSession;
 
 use App\Enums\PersonalRecordType;
-use App\Enums\WorkoutSessionStatus;
 use App\Models\SetLog;
 use App\Models\WorkoutSession;
 use App\Services\FitnessMetrics\StrengthScore;
@@ -154,7 +153,7 @@ final class PersonalRecords
             ->whereIn('exercise_id', $exerciseIds)
             ->whereHas('workoutSession', fn ($query) => $query
                 ->where('user_id', $session->user_id)
-                ->where('status', WorkoutSessionStatus::Completed)
+                ->completed()
                 ->where('id', '!=', $session->id)
             )
             ->selectRaw('exercise_id, MAX(weight) as best_weight, MAX(reps) as best_reps')

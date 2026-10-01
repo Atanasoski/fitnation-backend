@@ -14,7 +14,7 @@ class MuscleGroupTest extends TestCase
 
     public function test_authenticated_user_can_list_muscle_groups(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         MuscleGroup::factory()->count(5)->create();
 
@@ -43,7 +43,7 @@ class MuscleGroupTest extends TestCase
 
     public function test_muscle_groups_can_be_filtered_by_body_region(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         MuscleGroup::factory()->upperBody()->count(3)->create();
         MuscleGroup::factory()->lowerBody()->count(2)->create();
@@ -64,7 +64,7 @@ class MuscleGroupTest extends TestCase
 
     public function test_authenticated_user_can_view_single_muscle_group(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $muscleGroup = MuscleGroup::factory()->create([
             'name' => 'Chest',
@@ -123,7 +123,7 @@ class MuscleGroupTest extends TestCase
 
     public function test_exercise_can_have_primary_and_secondary_muscle_groups(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $exercise = Exercise::factory()->create();
         $primaryMuscle = MuscleGroup::factory()->create(['name' => 'Chest']);

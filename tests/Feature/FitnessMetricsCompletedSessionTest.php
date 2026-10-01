@@ -100,7 +100,7 @@ class FitnessMetricsCompletedSessionTest extends TestCase
 
     private function userWithBodyWeight(): User
     {
-        $user = User::factory()->create(['partner_id' => null]);
+        $user = User::factory()->entitled()->create(['partner_id' => null]);
         $user->profile->update(['weight' => 80.0]);
 
         return $user;

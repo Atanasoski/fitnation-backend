@@ -48,7 +48,7 @@ class ProgramProgressCharacterizationTest extends TestCase
         $this->ts = now()->toJSON();
 
         $partner = Partner::factory()->create();
-        $this->user = User::factory()->create(['partner_id' => $partner->id]);
+        $this->user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $this->plan = Plan::factory()->create([
             'user_id' => $this->user->id,
@@ -173,7 +173,7 @@ class ProgramProgressCharacterizationTest extends TestCase
         $library = Plan::factory()->partnerLibrary($partner)->create(['is_active' => true]);
         WorkoutTemplate::factory()->create(['plan_id' => $library->id]);
 
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $payload = $this->actingAs($user, 'sanctum')
             ->getJson('/api/programs/library')

@@ -148,7 +148,7 @@ class ProgramResourceQueryCountTest extends TestCase
     {
         $partner = Partner::factory()->create();
 
-        return User::factory()->create(['partner_id' => $partner->id]);
+        return User::factory()->entitled()->create(['partner_id' => $partner->id]);
     }
 
     /**

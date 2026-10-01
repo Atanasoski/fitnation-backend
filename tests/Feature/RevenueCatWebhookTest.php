@@ -463,6 +463,25 @@ class RevenueCatWebhookTest extends TestCase
     // End to end: webhook → API response
     // ------------------------------------------------------------------
 
+    public function test_play_purchase_with_base_plan_grants_access_on_the_user_endpoint(): void
+    {
+        $user = User::factory()->create();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'store' => 'PLAY_STORE',
+            'product_id' => 'com.fitnation.app.premium.monthly:monthly',
+            'period_type' => 'TRIAL',
+        ]))->assertOk();
+
+        $this->assertSame('com.fitnation.app.premium.monthly:monthly', Subscription::where('user_id', $user->id)->value('product_id'));
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.entitlements', ['app_access']);
+    }
+
     public function test_purchase_webhook_flows_through_to_the_user_endpoint(): void
     {
         $user = User::factory()->create();

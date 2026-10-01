@@ -102,6 +102,16 @@ class SubscriptionModelTest extends TestCase
         $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess));
     }
 
+    public function test_play_products_with_their_base_plan_grant_app_access(): void
+    {
+        // RevenueCat reports a Google Play subscription as `<product>:<base plan>`.
+        foreach (['com.fitnation.app.premium.monthly:monthly', 'com.fitnation.app.premium.yearly:yearly'] as $productId) {
+            $subscription = Subscription::factory()->make(['product_id' => $productId]);
+
+            $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);
+        }
+    }
+
     public function test_unknown_product_grants_nothing(): void
     {
         $subscription = Subscription::factory()->create([

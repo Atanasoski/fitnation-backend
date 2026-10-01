@@ -93,6 +93,26 @@ class RevenueCatWebhookTest extends TestCase
         $this->assertTrue($subscription->expires_at->isFuture());
     }
 
+    public function test_timestamps_survive_the_app_timezone(): void
+    {
+        // Step 15 finding #3: with APP_TIMEZONE=Europe/Skopje a 3-minute test
+        // trial came back expired two hours ago.
+        $user = User::factory()->create();
+        $purchasedAtMs = now()->getTimestampMs();
+        $expiresAtMs = now()->addMinutes(3)->getTimestampMs();
+
+        $this->runJob($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'purchased_at_ms' => $purchasedAtMs,
+            'expiration_at_ms' => $expiresAtMs,
+        ]));
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(intdiv($purchasedAtMs, 1000), $subscription->purchased_at->getTimestamp());
+        $this->assertSame(intdiv($expiresAtMs, 1000), $subscription->expires_at->getTimestamp());
+        $this->assertTrue($subscription->isActive());
+    }
+
     public function test_wrong_secret_is_rejected_before_processing(): void
     {
         User::factory()->create();

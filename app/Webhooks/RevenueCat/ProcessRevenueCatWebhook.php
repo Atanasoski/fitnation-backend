@@ -408,6 +408,9 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             return null;
         }
 
-        return Carbon::createFromTimestampMs($ms);
+        // Epoch milliseconds are an instant, but Eloquent writes a Carbon in the
+        // instance's own zone and reads it back in the app's zone — a UTC instance
+        // would shift by the app's offset on every round trip.
+        return Carbon::createFromTimestampMs($ms)->setTimezone(config('app.timezone'));
     }
 }

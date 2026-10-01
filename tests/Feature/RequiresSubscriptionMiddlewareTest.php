@@ -121,6 +121,20 @@ class RequiresSubscriptionMiddlewareTest extends TestCase
             ->assertOk();
     }
 
+    public function test_profile_update_stays_reachable_without_access(): void
+    {
+        $user = User::factory()->create();
+
+        // Onboarding saves the profile before the paywall is ever shown.
+        $this->actingAs($user, 'sanctum')
+            ->putJson('/api/profile', [
+                'fitness_goal' => 'muscle_gain',
+                'training_days_per_week' => 3,
+            ])
+            ->assertOk()
+            ->assertJsonPath('user.profile.training_days_per_week', 3);
+    }
+
     public function test_notification_settings_stay_reachable_without_access(): void
     {
         $user = User::factory()->create();

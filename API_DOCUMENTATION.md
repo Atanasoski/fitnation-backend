@@ -457,6 +457,9 @@ These remain accessible to authenticated users without app access, so the app ca
 | POST | `/api/logout` | — |
 | POST | `/api/email/verification-notification` | Email verification happens before paywall |
 | POST | `/api/onboarding/complete` | Onboarding happens before the paywall |
+| GET | `/api/profile` | The user's own account data |
+| PUT / PATCH | `/api/profile` | Onboarding saves the profile before the paywall |
+| DELETE | `/api/profile/photo` | The user's own account data |
 | PUT | `/api/devices` | The session registers for push before the paywall |
 | PATCH | `/api/notification-settings` | The push switch is reachable from the paywall |
 

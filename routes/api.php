@@ -60,6 +60,13 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // Onboarding — no subscription required (happens before paywall)
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
 
+    // Profile — no subscription required: onboarding saves it (PUT /profile)
+    // before the paywall, and it is the user's own account data
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
+    Route::patch('/profile', [ProfileController::class, 'update']);
+    Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
+
     // Devices — no subscription required: the calling session registers itself
     // for push (ADR-0003) and can reach the push switch from the paywall
     Route::put('/devices', [DeviceController::class, 'register']);
@@ -70,12 +77,6 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
 
         // Fitness metrics
         Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
-
-        // Profile endpoints
-        Route::get('/profile', [ProfileController::class, 'show']);
-        Route::put('/profile', [ProfileController::class, 'update']);
-        Route::patch('/profile', [ProfileController::class, 'update']);
-        Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
 
         // Exercises CRUD
         Route::apiResource('exercises', ExerciseController::class);

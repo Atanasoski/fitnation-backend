@@ -775,6 +775,43 @@ class ProgressionCalculatorServiceTest extends TestCase
         $this->assertNull($targets['total_reps_target']);
     }
 
+    public function test_lowers_a_barbell_weight_by_one_plate_pair(): void
+    {
+        $exercise = $this->createExercise('BENCH_PRESS', 'BARBELL');
+
+        $this->assertEquals(60.0, $this->service->lowerByOneStep(62.5, $exercise));
+    }
+
+    public function test_lowers_a_machine_weight_by_one_pin(): void
+    {
+        $exercise = $this->createExercise('LEG_PRESS', 'MACHINE');
+
+        $this->assertEquals(35.0, $this->service->lowerByOneStep(40.0, $exercise));
+    }
+
+    public function test_lowered_weight_lands_on_the_equipment_grid(): void
+    {
+        $exercise = $this->createExercise('BENCH_PRESS', 'BARBELL');
+
+        // 61 − 2.5 = 58.5, which no barbell loads; the nearest plate pair is 57.5.
+        $this->assertEquals(57.5, $this->service->lowerByOneStep(61.0, $exercise));
+    }
+
+    public function test_does_not_lower_to_zero(): void
+    {
+        $exercise = $this->createExercise('BENCH_PRESS', 'BARBELL');
+
+        $this->assertNull($this->service->lowerByOneStep(2.5, $exercise));
+        $this->assertNull($this->service->lowerByOneStep(0.0, $exercise));
+    }
+
+    public function test_bodyweight_has_nothing_to_lower(): void
+    {
+        $exercise = $this->createExercise('PULL_UP', 'BODYWEIGHT');
+
+        $this->assertNull($this->service->lowerByOneStep(10.0, $exercise));
+    }
+
     private function createExercise(string $movementCode, string $equipmentCode = 'BARBELL', ?string $angleCode = null): Exercise
     {
         $movementPattern = MovementPattern::firstOrCreate(

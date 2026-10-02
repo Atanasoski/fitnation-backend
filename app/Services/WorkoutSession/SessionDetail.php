@@ -47,13 +47,15 @@ final class SessionDetail
         $previousSetLogs = $session->getPreviousSetLogsForExercises(
             $rows->pluck('exercise_id')->all()
         );
+        $bestSets = BestSets::forSession($session, $rows->pluck('exercise_id')->all());
 
         $exercises = $rows->map(function ($row) use (
             $user,
             $ownership,
             $progressions,
             $progression,
-            $previousSetLogs
+            $previousSetLogs,
+            $bestSets
         ) {
             $resolved = $progression[$row->exercise_id]
                 ?? $progressions->withoutUser($row->exercise);
@@ -81,6 +83,7 @@ final class SessionDetail
                         (int) ($targets['max_target_reps'] ?? 0),
                         $row->exercise
                     ),
+                bestSet: $bestSets->get($row->exercise_id),
             );
         })->values();
 

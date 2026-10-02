@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Services\WorkoutSession\SessionDetail;
 use App\Services\WorkoutSession\SessionExerciseDetail;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class WorkoutSessionResource extends JsonResource
 {
+    use FormatsMeasurements;
+
     /**
      * Transform the resource into an array.
      *
@@ -18,11 +21,19 @@ class WorkoutSessionResource extends JsonResource
     {
         $detail = SessionDetail::for($this->resource, $request->user());
 
+        $unitSystem = $request->user()?->unitSystem();
+
         $exercisesData = $detail->exercises()
             ->map(fn (SessionExerciseDetail $exercise) => [
                 'session_exercise' => WorkoutSessionExerciseResource::forDetail($exercise),
                 'logged_sets' => SetLogResource::collection($exercise->loggedSets),
                 'previous_sets' => SetLogResource::collection($exercise->previousSets),
+                // The user's best set ever on this exercise before this session (BestSets); same kind as a set log's weight.
+                'best_set' => $exercise->bestSet === null ? null : [
+                    'weight' => $this->formatMeasured($exercise->bestSet['weight'], 'workout_session_set_logs', 'weight', $unitSystem),
+                    'reps' => $exercise->bestSet['reps'],
+                    'performed_at' => $exercise->bestSet['performed_at'],
+                ],
                 'is_completed' => $exercise->isCompleted,
             ])
             ->all();

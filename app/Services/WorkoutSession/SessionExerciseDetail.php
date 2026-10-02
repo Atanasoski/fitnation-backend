@@ -13,7 +13,8 @@ use Illuminate\Support\Collection;
  * $targets is already resolved — the precedence between a stored value and the
  * calculated one has been applied, so a reader never decides which wins. It is
  * in Canonical Units (ADR-0001); formatting for a Unit System happens at the
- * HTTP boundary, not here.
+ * HTTP boundary, not here. So is $bestSet: the user's best set ever on this
+ * exercise before this session (see BestSets), null without history.
  */
 final readonly class SessionExerciseDetail
 {
@@ -24,6 +25,7 @@ final readonly class SessionExerciseDetail
      * @param  array<string, mixed>|null  $lastPerformance
      * @param  Collection<int, \App\Models\SetLog>  $loggedSets
      * @param  Collection<int, \App\Models\SetLog>  $previousSets
+     * @param  array{weight: float, reps: int, performed_at: string}|null  $bestSet
      */
     public function __construct(
         public WorkoutSessionExercise $row,
@@ -33,5 +35,6 @@ final readonly class SessionExerciseDetail
         public Collection $previousSets,
         public bool $isCompleted,
         public string $progressionStatus,
+        public ?array $bestSet = null,
     ) {}
 }

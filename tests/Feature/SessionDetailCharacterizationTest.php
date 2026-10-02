@@ -316,6 +316,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         $this->expectedSetLog($this->id['previous2'], $this->id['history'], null, 2, 60, 12),
                         $this->expectedSetLog($this->id['previous3'], $this->id['history'], null, 3, 60, 12),
                     ],
+                    // The three history sets tie on estimated 1RM and reps; the best is one of them, dated by its session.
+                    'best_set' => ['weight' => 60, 'reps' => 12, 'performed_at' => now()->subWeek()->toJSON()],
                     // Two logged sets against a stored target of 3.
                     'is_completed' => false,
                 ],
@@ -349,6 +351,7 @@ class SessionDetailCharacterizationTest extends TestCase
                     ],
                     'logged_sets' => [],
                     'previous_sets' => [],
+                    'best_set' => null,
                     'is_completed' => false,
                 ],
             ],

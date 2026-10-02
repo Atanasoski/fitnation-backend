@@ -326,7 +326,7 @@ Permanently removes the authenticated user's account. The user's name and email 
 **Request Body:**
 ```typescript
 interface DeleteUserRequest {
-  password: string; // Current account password (required)
+  password?: string; // Optional. When sent it must be the current password; the mobile app confirms by typing DELETE instead and sends none.
 }
 ```
 

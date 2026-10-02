@@ -245,6 +245,23 @@ class ProgressionCalculatorService
     }
 
     /**
+     * One equipment step below a weight, offered when the last session was too
+     * hard (status below_min). The mirror of applyProgressiveOverload()'s raise:
+     * the same increment, landed on what the equipment can load. Null when the
+     * equipment has no steps (bodyweight, bands) or the step would reach zero.
+     */
+    public function lowerByOneStep(float $weight, Exercise $exercise): ?float
+    {
+        $increment = $this->getWeightIncrement($exercise);
+
+        if ($increment <= 0 || $weight - $increment <= 0) {
+            return null;
+        }
+
+        return $this->roundToEquipmentIncrement($weight - $increment, $exercise);
+    }
+
+    /**
      * Determine if the user should progress by weight.
      */
     public function shouldProgressWeight(array $lastReps, array $lastWeights, int $maxTargetReps): bool

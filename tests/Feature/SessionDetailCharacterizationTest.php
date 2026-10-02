@@ -133,7 +133,7 @@ class SessionDetailCharacterizationTest extends TestCase
     private function makeFixture(): array
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $user->profile()->update([
             'fitness_goal' => FitnessGoal::MuscleGain,
@@ -299,6 +299,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         // progression fires, 60 + 2.5 barbell increment.
                         'progression_status' => 'ready',
                         'target_weight' => 62.5,
+                        'weight_step' => 2.5,
+                        'target_weight_lowered' => 60,
                         'total_reps_previous' => null,
                         'total_reps_target' => null,
                         'rest_seconds' => 90,
@@ -337,6 +339,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         // 80kg × 0.65 PRESS base × 0.6 experience = 31.2kg,
                         // rounded down to the 2.5kg barbell increment.
                         'target_weight' => 30,
+                        'weight_step' => 2.5,
+                        'target_weight_lowered' => 27.5,
                         'total_reps_previous' => null,
                         'total_reps_target' => null,
                         'rest_seconds' => 90,

@@ -37,7 +37,7 @@ class PersonalRecordDetectionTest extends TestCase
 
         Carbon::setTestNow('2026-09-01 10:00:00');
 
-        $this->user = User::factory()->create(['partner_id' => Partner::factory()->create()->id]);
+        $this->user = User::factory()->entitled()->create(['partner_id' => Partner::factory()->create()->id]);
     }
 
     protected function tearDown(): void
@@ -226,7 +226,7 @@ class PersonalRecordDetectionTest extends TestCase
     {
         $bench = $this->exercise('Bench Press');
 
-        $stranger = User::factory()->create(['partner_id' => $this->user->partner_id]);
+        $stranger = User::factory()->entitled()->create(['partner_id' => $this->user->partner_id]);
         $this->logSet($this->completedSession($stranger), $bench, 1, 200.0, 30);
         $this->logSet($this->makeSession(WorkoutSessionStatus::Cancelled), $bench, 1, 200.0, 30);
         $this->logSet($this->activeSession(), $bench, 1, 200.0, 30);

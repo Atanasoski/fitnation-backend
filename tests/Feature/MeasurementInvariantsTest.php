@@ -152,7 +152,7 @@ class MeasurementInvariantsTest extends TestCase
      */
     public function test_profile_measurements_are_stable_across_repeated_saves(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $this->actingAs($user, 'sanctum')
@@ -182,7 +182,7 @@ class MeasurementInvariantsTest extends TestCase
      */
     public function test_template_target_weight_is_stable_across_repeated_saves(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $plan = Plan::factory()->create(['user_id' => $user->id]);
@@ -224,7 +224,7 @@ class MeasurementInvariantsTest extends TestCase
      */
     public function test_logged_set_weight_is_stable_across_repeated_saves(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();

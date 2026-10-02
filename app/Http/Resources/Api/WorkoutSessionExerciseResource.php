@@ -121,6 +121,9 @@ class WorkoutSessionExerciseResource extends JsonResource
             'progression_mode' => $targets['progression_mode'],
             'progression_status' => $progressionStatus,
             'target_weight' => $this->formatMeasured($targets['target_weight'], 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
+            // Same measured kind as target_weight: the equipment step and one step below the target.
+            'weight_step' => $this->formatMeasured($targets['weight_step'] ?? null, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
+            'target_weight_lowered' => $this->formatMeasured($targets['target_weight_lowered'] ?? null, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
             'total_reps_previous' => $targets['total_reps_previous'],
             'total_reps_target' => $targets['total_reps_target'],
             'rest_seconds' => $targets['rest_seconds'],

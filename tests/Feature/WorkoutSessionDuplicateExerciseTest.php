@@ -385,7 +385,7 @@ class WorkoutSessionDuplicateExerciseTest extends TestCase
     private function makeUser(): User
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $user->profile()->update([
             'fitness_goal' => FitnessGoal::MuscleGain,

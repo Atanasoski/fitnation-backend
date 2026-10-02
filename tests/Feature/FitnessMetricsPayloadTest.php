@@ -148,7 +148,7 @@ class FitnessMetricsPayloadTest extends TestCase
      */
     private function userWithFixedTrainingHistory(): User
     {
-        $user = User::factory()->create(['partner_id' => null]);
+        $user = User::factory()->entitled()->create(['partner_id' => null]);
         $user->profile->update([
             'weight' => 80.0,
             'age' => 30,

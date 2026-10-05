@@ -286,3 +286,64 @@ instead. It is the one email that is not about the user's account, so it is
 the one a user may unsubscribe from.
 
 _Avoid_: weekly report, digest, recap.
+
+## Partners
+
+### House Partner
+
+The partner that is Fit Nation itself, our own brand. Everyone who joins
+without a gym belongs to it, so every user has a partner — only admin
+accounts have none, and they are not users in this sense. Its members are the
+ones who pay for the app.
+
+_Avoid_: direct user, no-partner user, default partner.
+
+### Sponsoring Partner
+
+A partner on the sponsor plan: it pays for its members, so they have access
+without a subscription of their own. Expected to stay rare — the
+[House Partner](#house-partner) is the paying base.
+
+_Avoid_: B2B partner, paid partner.
+
+## Access
+
+### Access Source
+
+Why a user may use the app, read off the rules alone: **Subscribed**,
+**Trial**, **Cancelled, paid until** (they cancelled but the period they paid
+for has not run out), **Billing issue**, **Paused**, **Sponsored** (their partner is a
+[Sponsoring Partner](#sponsoring-partner)), **Complimentary**
+([Complimentary Access](#complimentary-access)), or **None**. It is the same
+whether or not subscriptions are enforced: while they are not, a user with
+None still gets in, and None is exactly who the paywall would stop.
+
+_Avoid_: entitlement (that is what access grants, not where it comes from),
+plan.
+
+### Complimentary Access
+
+Access an admin grants a user by hand, until a date, without payment — to
+help someone stuck or to let a person in early.
+
+_Avoid_: grace period — a cancelled subscription still running to its end is
+not this, and is not called grace either.
+
+## Admin
+
+### Activity Status
+
+The one label that says where a user stands with training, read off their
+[Completed Sessions](#completed-session):
+
+- **Unfinished** — an [Unfinished Account](#unfinished-account).
+- **New** — onboarded, no Completed Session yet, onboarded under 14 days ago.
+- **Active** — a Completed Session in the last 7 days.
+- **Slipping** — last Completed Session 7–14 days ago.
+- **Inactive** — none in over 14 days, or New for over 14 days.
+- **Deleted** — the account is deleted.
+
+The day boundaries are the [Inactivity Nudge](#inactivity-nudge) ladder's, so a
+Slipping user is one the nudges are working on.
+
+_Avoid_: engagement level, churned, dormant.

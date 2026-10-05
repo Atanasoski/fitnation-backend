@@ -21,8 +21,8 @@ use App\Services\Exercise\ArchiveOutcome;
 use App\Services\Exercise\ExerciseArchive;
 use App\Services\Exercise\ExerciseGallery;
 use App\Services\Exercise\PartnerExerciseView;
+use App\Services\Exercise\PartnerOverrides;
 use App\Services\MuscleGroupImageService;
-use App\Services\PartnerExerciseFileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,7 +34,6 @@ use Illuminate\View\View;
 class ExerciseController extends Controller
 {
     public function __construct(
-        private PartnerExerciseFileService $fileService,
         private MuscleGroupImageService $muscleGroupImageService
     ) {}
 
@@ -204,23 +203,13 @@ class ExerciseController extends Controller
     }
 
     /**
-     * Update partner exercise customization (pivot table).
+     * A partner admin writes their own Partner Override (or links the
+     * exercise by writing one).
      */
-    public function updatePartnerExercises(UpdatePartnerExerciseRequest $request, Exercise $exercise): RedirectResponse
+    public function updatePartnerExercises(UpdatePartnerExerciseRequest $request, Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
     {
         try {
-            $partner = $request->user()->partner;
-
-            $existingPivot = $partner->exercises()->find($exercise->id);
-            $pivotData = $this->buildPartnerPivotData($request, $partner, $exercise, $existingPivot);
-
-            DB::transaction(function () use ($partner, $exercise, $existingPivot, $pivotData) {
-                if ($existingPivot) {
-                    $partner->exercises()->updateExistingPivot($exercise->id, $pivotData);
-                } else {
-                    $partner->exercises()->attach($exercise->id, $pivotData);
-                }
-            });
+            $overrides->write($request->user()->partner, $exercise, $request->validated());
 
             $removedMedia = $request->boolean('remove_video');
 
@@ -237,44 +226,6 @@ class ExerciseController extends Controller
                 ->withInput()
                 ->with('error', 'Failed to save changes. Please try again.');
         }
-    }
-
-    /**
-     * Build pivot data for partner exercise customization (description, image, video).
-     *
-     * @param  \App\Models\Exercise|null  $existingPivot  The related Exercise if the partner already has it attached, or null
-     * @return array<string, mixed>
-     */
-    private function buildPartnerPivotData(
-        UpdatePartnerExerciseRequest $request,
-        Partner $partner,
-        Exercise $exercise,
-        ?Exercise $existingPivot,
-    ): array {
-        $pivot = $existingPivot?->pivot;
-
-        $pivotData = [
-            'description' => $pivot?->description,
-            'image' => $pivot?->image,
-            'video' => $pivot?->video,
-        ];
-
-        if ($request->has('description')) {
-            $pivotData['description'] = $request->description ?: null;
-        }
-
-        if ($request->hasFile('image')) {
-            $pivotData['image'] = $this->fileService->storeImage($request->file('image'), $partner, $exercise);
-        }
-
-        if ($request->hasFile('video')) {
-            $pivotData['video'] = $this->fileService->storeVideo($request->file('video'), $partner, $exercise);
-        } elseif ($request->boolean('remove_video') && $pivot?->video) {
-            $this->fileService->deleteVideo($partner, $exercise);
-            $pivotData['video'] = null;
-        }
-
-        return $pivotData;
     }
 
     /**
@@ -421,53 +372,32 @@ class ExerciseController extends Controller
     /**
      * Link an exercise to the user's partner.
      */
-    public function linkExercise(Exercise $exercise): RedirectResponse
+    public function linkExercise(Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
     {
-        $user = auth()->user();
-        $partner = $user->partner;
+        $partner = auth()->user()->partner;
 
         if (! $partner) {
             abort(403, 'You must be associated with a partner to link exercises.');
         }
 
-        // Link exercise to partner with null pivot values (will use exercise defaults)
-        $partner->exercises()->syncWithoutDetaching([
-            $exercise->id => [
-                'description' => null,
-                'image' => null,
-                'video' => null,
-            ],
-        ]);
+        $overrides->link($partner, $exercise);
 
         return redirect()->back()
             ->with('success', 'Exercise linked successfully!');
     }
 
     /**
-     * Unlink an exercise from the user's partner.
+     * Unlink an exercise from the user's partner, deleting its override files.
      */
-    public function unlinkExercise(Exercise $exercise): RedirectResponse
+    public function unlinkExercise(Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
     {
-        $user = auth()->user();
-        $partner = $user->partner;
+        $partner = auth()->user()->partner;
 
         if (! $partner) {
             abort(403, 'You must be associated with a partner to unlink exercises.');
         }
 
-        // Delete custom files if they exist
-        $pivotData = $partner->exercises()->find($exercise->id);
-        if ($pivotData && $pivotData->pivot) {
-            if ($pivotData->pivot->image) {
-                $this->fileService->deleteImage($partner, $exercise);
-            }
-            if ($pivotData->pivot->video) {
-                $this->fileService->deleteVideo($partner, $exercise);
-            }
-        }
-
-        // Unlink exercise from partner
-        $partner->exercises()->detach($exercise->id);
+        $overrides->unlink($partner, $exercise);
 
         return redirect()->route('partner.exercises.index')
             ->with('success', 'Exercise unlinked successfully!');

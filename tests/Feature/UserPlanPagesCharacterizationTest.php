@@ -11,8 +11,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Locks the partner-admin user-plan pages as they answer today — index,
- * store, update and destroy — before the plan outline (023/06) replaces them.
+ * Locked the partner-admin user-plan pages — index, store, update and
+ * destroy — before the plan outline (023/06) replaced them. The expectations
+ * were then changed deliberately, one per behaviour 023/06 asks to change:
+ * Routines are listed, store keeps the type asked for and starts inactive,
+ * and every write lands back on the outline.
  */
 class UserPlanPagesCharacterizationTest extends TestCase
 {
@@ -34,7 +37,7 @@ class UserPlanPagesCharacterizationTest extends TestCase
         $this->member = User::factory()->create(['partner_id' => $partner->id]);
     }
 
-    public function test_the_index_lists_the_members_programs_only(): void
+    public function test_the_index_lists_the_members_programs_and_routines(): void
     {
         Plan::factory()->program()->create(['user_id' => $this->member->id, 'name' => 'Strength Block']);
         Plan::factory()->create(['user_id' => $this->member->id, 'type' => PlanType::Routine, 'name' => 'Morning Mobility']);
@@ -43,10 +46,10 @@ class UserPlanPagesCharacterizationTest extends TestCase
             ->get(route('plans.index', $this->member))
             ->assertOk()
             ->assertSee('Strength Block')
-            ->assertDontSee('Morning Mobility');
+            ->assertSee('Morning Mobility');
     }
 
-    public function test_store_creates_a_program_whatever_type_is_asked_and_opens_its_page(): void
+    public function test_store_creates_the_type_asked_for_inactive_and_opens_it_in_the_outline(): void
     {
         $response = $this->actingAs($this->admin)->post(route('plans.store', $this->member), [
             'name' => 'Asked For A Routine',
@@ -56,14 +59,14 @@ class UserPlanPagesCharacterizationTest extends TestCase
         ]);
 
         $plan = Plan::where('name', 'Asked For A Routine')->sole();
-        $response->assertRedirect(route('plans.show', $plan))->assertSessionHas('success', 'Plan created successfully!');
-        $this->assertSame(PlanType::Program, $plan->type);
+        $response->assertRedirect(route('plans.index', ['user' => $this->member, 'plan' => $plan]))->assertSessionHas('success', 'Routine created.');
+        $this->assertSame(PlanType::Routine, $plan->type);
         $this->assertSame($this->member->id, $plan->user_id);
-        $this->assertSame(3, $plan->duration_weeks);
-        $this->assertTrue($plan->is_active);
+        $this->assertNull($plan->duration_weeks);
+        $this->assertFalse($plan->is_active);
     }
 
-    public function test_update_saves_and_returns_to_the_index(): void
+    public function test_update_saves_and_returns_to_the_plan_in_the_outline(): void
     {
         $plan = Plan::factory()->program()->create(['user_id' => $this->member->id, 'is_active' => false]);
 
@@ -74,8 +77,8 @@ class UserPlanPagesCharacterizationTest extends TestCase
                 'type' => PlanType::Program->value,
                 'duration_weeks' => 8,
             ])
-            ->assertRedirect(route('plans.index', $this->member))
-            ->assertSessionHas('success', 'Plan updated successfully!');
+            ->assertRedirect(route('plans.index', ['user' => $this->member, 'plan' => $plan]))
+            ->assertSessionHas('success', 'Plan saved.');
 
         $plan->refresh();
         $this->assertSame('Renamed', $plan->name);
@@ -84,14 +87,14 @@ class UserPlanPagesCharacterizationTest extends TestCase
         $this->assertFalse($plan->is_active);
     }
 
-    public function test_destroy_deletes_and_returns_to_the_index(): void
+    public function test_destroy_deletes_and_returns_to_the_outline(): void
     {
         $plan = Plan::factory()->program()->create(['user_id' => $this->member->id]);
 
         $this->actingAs($this->admin)
             ->delete(route('plans.destroy', $plan))
             ->assertRedirect(route('plans.index', $this->member))
-            ->assertSessionHas('success', 'Plan deleted successfully!');
+            ->assertSessionHas('success', "{$plan->name} deleted. Logged sessions are kept.");
 
         $this->assertModelMissing($plan);
     }

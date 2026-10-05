@@ -71,7 +71,7 @@ class PlanWebTest extends TestCase
             'is_active' => false,
         ]);
 
-        $response->assertRedirect(route('plans.show', Plan::where('name', 'User Program')->first()));
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => Plan::where('name', 'User Program')->first()]));
 
         $plan = Plan::where('name', 'User Program')->first();
         $this->assertNotNull($plan);
@@ -252,7 +252,7 @@ class PlanWebTest extends TestCase
             'cover_image' => $newFile,
         ]);
 
-        $response->assertRedirect(route('plans.index', $member));
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan]));
         $plan->refresh();
         $this->assertNotNull($plan->cover_image);
         $this->assertStringStartsWith('plans/cover-images/', $plan->cover_image);

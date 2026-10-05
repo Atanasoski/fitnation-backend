@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PlanType;
 use App\Http\Requests\StorePlanRequest;
 use App\Http\Requests\UpdatePlanRequest;
 use App\Models\EquipmentType;
@@ -11,7 +10,6 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\User;
-use App\Services\Plan\PlanActivation;
 use App\Services\PlanFileService;
 use App\Services\PlanService;
 use Illuminate\Http\RedirectResponse;
@@ -26,24 +24,6 @@ class PlanController extends Controller
     ) {}
 
     /**
-     * Display a listing of the user's plans (user flow: plan for a specific user).
-     */
-    public function userPlanIndex(User $user): View
-    {
-        $partner = Partner::with('identity')->findOrFail($user->partner_id);
-
-        $plans = Plan::query()
-            ->where('user_id', $user->id)
-            ->where('type', PlanType::Program)
-            ->withCount('workoutTemplates')
-            ->orderByDesc('is_active')
-            ->orderByDesc('updated_at')
-            ->paginate(15);
-
-        return view('plans.users.index', compact('user', 'partner', 'plans'));
-    }
-
-    /**
      * Show the form for creating a new plan for a user (user flow).
      */
     public function userPlanCreate(User $user): View
@@ -51,25 +31,6 @@ class PlanController extends Controller
         $partner = Partner::with('identity')->findOrFail($user->partner_id);
 
         return view('plans.users.create', compact('user', 'partner'));
-    }
-
-    /**
-     * Store a newly created plan in storage (user flow).
-     */
-    public function userPlanStore(StorePlanRequest $request, User $user): RedirectResponse
-    {
-        $attributes = $this->planService->createAttributes($request->validated(), 'user', $user);
-        $requestedActive = $attributes['is_active'] ?? false;
-        $attributes['is_active'] = false;
-        if ($request->hasFile('cover_image')) {
-            $attributes['cover_image'] = $this->planFileService->storeCoverImage($request->file('cover_image'), null);
-        }
-        $plan = Plan::create($attributes);
-
-        PlanActivation::apply($plan, $requestedActive);
-
-        return redirect()->route('plans.show', $plan)
-            ->with('success', 'Plan created successfully!');
     }
 
     /**
@@ -157,38 +118,6 @@ class PlanController extends Controller
         $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
         return view('plans.users.edit', compact('plan', 'partner'));
-    }
-
-    /**
-     * Update the specified plan in storage (user flow).
-     */
-    public function userPlanUpdate(UpdatePlanRequest $request, Plan $plan): RedirectResponse
-    {
-        // is_active is excluded on purpose — PlanActivation owns it, and
-        // writing it here would land outside its transaction.
-        $data = collect($request->validated())->except('cover_image', 'is_active')->all();
-        if ($request->hasFile('cover_image')) {
-            $this->planFileService->deleteCoverImage($plan->cover_image);
-            $data['cover_image'] = $this->planFileService->storeCoverImage($request->file('cover_image'), null);
-        }
-        $plan->update($data);
-
-        PlanActivation::apply($plan, $request->is_active);
-
-        return redirect()->route('plans.index', $plan->user)
-            ->with('success', 'Plan updated successfully!');
-    }
-
-    /**
-     * Remove the specified plan from storage (user flow).
-     */
-    public function userPlanDestroy(Plan $plan): RedirectResponse
-    {
-        $user = $plan->user;
-        $plan->delete();
-
-        return redirect()->route('plans.index', $user)
-            ->with('success', 'Plan deleted successfully!');
     }
 
     // ===============================================

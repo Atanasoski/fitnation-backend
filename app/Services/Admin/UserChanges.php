@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * What a super admin changes about a user by hand: Complimentary Access
- * (grant, extend, end now) and the user's partner. Every change writes the
- * user and an admin change record together, so the "Grants & partner
- * changes" history can never miss one.
+ * (grant, extend, end now), the user's partner, and deactivating or
+ * restoring the account. Access and partner changes write the user and an
+ * admin change record together, so the "Grants & partner changes" history
+ * can never miss one.
  *
  * Validation (a future date, a reason, an active target partner) belongs to
  * the HTTP request; this module only applies a change it is given.
@@ -58,6 +59,28 @@ final class UserChanges
                 'to_partner_id' => $to->getKey(),
             ]);
         });
+    }
+
+    /**
+     * Deactivate: soft-delete the account so it can be restored, and sign it
+     * out everywhere — revoking its tokens also ends its Devices (ADR-0003),
+     * so nothing is pushed to a deactivated user. Nothing is anonymised,
+     * unlike a user deleting their own account.
+     */
+    public static function deactivate(User $user): void
+    {
+        DB::transaction(function () use ($user) {
+            $user->tokens()->delete();
+            $user->delete();
+        });
+    }
+
+    /**
+     * Undo a deactivation. The user signs in again to get a new session.
+     */
+    public static function restore(User $user): void
+    {
+        $user->restore();
     }
 
     /**

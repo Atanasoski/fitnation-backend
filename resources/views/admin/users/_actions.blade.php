@@ -42,5 +42,30 @@
             <input type="text" name="reason" required maxlength="1000" placeholder="Reason" class="{{ $input }}" aria-label="Reason for the move">
             <button type="submit" class="{{ $secondary }} w-full">Change partner</button>
         </form>
+
+        @unless ($user->hasVerifiedEmail())
+            <form method="POST" action="{{ route('admin.users.verification.send', $user) }}" class="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800"
+                onsubmit="return confirm('Send the verification email again?')">
+                @csrf
+                <button type="submit" class="{{ $secondary }} w-full">Resend verification</button>
+            </form>
+        @endunless
     @endunless
+
+    <div class="{{ $user->trashed() ? 'mt-3' : 'mt-4 border-t border-gray-100 pt-4 dark:border-gray-800' }}">
+        @if ($user->trashed())
+            <form method="POST" action="{{ route('admin.users.restore', $user) }}"
+                onsubmit="return confirm('Restore this user? They can sign in again.')">
+                @csrf
+                <button type="submit" class="{{ $primary }} w-full">Restore user</button>
+            </form>
+        @else
+            <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
+                onsubmit="return confirm('Deactivate this user? They are signed out everywhere and cannot sign in until restored.')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="w-full rounded-lg border border-error-300 px-3 py-1.5 text-sm font-medium text-error-600 hover:bg-error-50 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-500/10">Deactivate user</button>
+            </form>
+        @endif
+    </div>
 </section>

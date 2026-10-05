@@ -40,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/{user}/complimentary-access', [UserActionController::class, 'grantComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.store');
         Route::delete('/users/{user}/complimentary-access', [UserActionController::class, 'endComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.destroy');
         Route::patch('/users/{user}/partner', [UserActionController::class, 'changePartner'])->whereNumber('user')->name('admin.users.partner.update');
+        Route::post('/users/{user}/verification', [UserActionController::class, 'resendVerification'])->whereNumber('user')->name('admin.users.verification.send');
+        Route::delete('/users/{user}', [UserActionController::class, 'deactivate'])->whereNumber('user')->name('admin.users.destroy');
+        Route::post('/users/{user}/restore', [UserActionController::class, 'restore'])->whereNumber('user')->withTrashed()->name('admin.users.restore');
         Route::get('/search', SearchController::class)->name('admin.search');
         Route::view('/insights', 'admin.insights')->name('admin.insights');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');

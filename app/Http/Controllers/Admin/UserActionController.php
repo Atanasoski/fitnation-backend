@@ -75,6 +75,47 @@ class UserActionController extends Controller
         return $this->backToUser($user, "Moved to {$to->name}.");
     }
 
+    /**
+     * Send the verification email again, the same notification signup sends.
+     * Only an unverified user (always an Unfinished Account) can get one.
+     */
+    public function resendVerification(User $user): RedirectResponse
+    {
+        $this->ensureAppUser($user);
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->route('admin.users.show', $user)
+                ->withErrors(['verification' => 'This email address is already verified.']);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return $this->backToUser($user, "Verification email sent to {$user->email}.");
+    }
+
+    public function deactivate(User $user): RedirectResponse
+    {
+        $this->ensureAppUser($user);
+
+        UserChanges::deactivate($user);
+
+        return $this->backToUser($user, "{$user->name} was deactivated. Restore them at any time.");
+    }
+
+    public function restore(User $user): RedirectResponse
+    {
+        $this->ensureAppUser($user);
+
+        if (! $user->trashed()) {
+            return redirect()->route('admin.users.show', $user)
+                ->withErrors(['restore' => 'This user is not deactivated.']);
+        }
+
+        UserChanges::restore($user);
+
+        return $this->backToUser($user, "{$user->name} was restored.");
+    }
+
     private function ensureAppUser(User $user): void
     {
         abort_unless(User::query()->appUsers()->withTrashed()->whereKey($user->getKey())->exists(), 404);

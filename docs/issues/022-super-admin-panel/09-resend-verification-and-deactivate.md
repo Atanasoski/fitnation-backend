@@ -8,6 +8,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] Resend only offered and accepted for unverified users; reuses the existing verification notification (`Notification::fake` test)
-- [ ] Deactivate soft-deletes; the user then shows as Deleted; restore reverses it
-- [ ] Non-admins 403 (feature tests)
+- [x] Resend only offered and accepted for unverified users; reuses the existing verification notification (`Notification::fake` test)
+- [x] Deactivate soft-deletes; the user then shows as Deleted; restore reverses it
+- [x] Non-admins 403 (feature tests)

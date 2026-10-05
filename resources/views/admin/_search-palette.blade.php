@@ -16,7 +16,9 @@
         shortcut: /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K',
         show() {
             this.open = true;
-            this.$nextTick(() => this.$refs.input.focus());
+            // x-show's transition un-hides the panel after the next tick, so
+            // focus once it is actually visible.
+            this.$nextTick(() => setTimeout(() => this.$refs.input.focus(), 30));
         },
         hide() {
             this.open = false;
@@ -78,13 +80,13 @@
     </button>
 
     <div x-show="open" x-cloak x-transition.opacity
-        class="fixed inset-0 z-[100000] flex items-start justify-center bg-gray-900/40 p-4 pt-[12vh]"
+        class="fixed inset-0 z-[100000] flex items-start justify-center bg-gray-900/60 p-4 pt-[12vh] backdrop-blur-sm dark:bg-black/60"
         @click.self="hide()" role="dialog" aria-modal="true" aria-label="Search">
-        <div class="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-theme-xl dark:bg-gray-900">
+        <div class="w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-700 dark:bg-gray-800">
             <input x-ref="input" x-model="q" @input="search()" type="text" autocomplete="off" spellcheck="false"
                 @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter.prevent="choose(results[index])"
                 placeholder="Search users by name or email, partners, pages…" aria-label="Search users, partners, pages"
-                class="w-full border-0 border-b border-gray-200 px-4 py-3.5 text-base text-gray-800 outline-none placeholder:text-gray-400 focus:ring-0 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90" />
+                class="w-full border-0 border-b border-gray-200 px-4 py-3.5 text-base text-gray-800 outline-none placeholder:text-gray-400 focus:ring-0 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
             <ul x-ref="list" class="max-h-[50vh] overflow-y-auto py-1" role="listbox">
                 <template x-for="(result, i) in results" :key="result.key">
                     <li role="option" :aria-selected="i === index">

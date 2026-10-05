@@ -91,6 +91,44 @@ final class ExerciseGallery
         ], fn ($value) => $value !== null && $value !== []);
     }
 
+    /**
+     * Whether a filter value is on: a facet value (`region`, `equipment`,
+     * `difficulty`) or a toggle (`missing` => 'media', `archived` => '1').
+     */
+    public function has(string $key, int|string $value): bool
+    {
+        $current = $this->query()[$key] ?? [];
+
+        return is_array($current) ? in_array((string) $value, $current, true) : $current === (string) $value;
+    }
+
+    /**
+     * The query parameters with one filter value switched: what a facet or
+     * toggle link leads to. The page is dropped, since the slice changes.
+     *
+     * @return array<string, string|list<string>>
+     */
+    public function toggled(string $key, int|string $value): array
+    {
+        $query = $this->query();
+        $value = (string) $value;
+
+        if (in_array($key, ['missing', 'archived'], true)) {
+            if ($this->has($key, $value)) {
+                unset($query[$key]);
+            } else {
+                $query[$key] = $value;
+            }
+
+            return $query;
+        }
+
+        $values = $query[$key] ?? [];
+        $query[$key] = $this->has($key, $value) ? array_values(array_diff($values, [$value])) : [...$values, $value];
+
+        return array_filter($query, fn ($v) => $v !== []);
+    }
+
     public function isFiltered(): bool
     {
         return $this->query() !== [];

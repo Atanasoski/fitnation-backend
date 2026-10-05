@@ -10,23 +10,6 @@
 @php
     $base = $gallery->query() + array_filter(['page' => $page]);
     $back = http_build_query($base);
-    $toggle = function (string $facet, int|string $value) use ($gallery) {
-        $query = $gallery->query();
-        $values = $query[$facet] ?? [];
-        $values = in_array((string) $value, $values, true)
-            ? array_values(array_diff($values, [(string) $value]))
-            : [...$values, (string) $value];
-        $query[$facet] = $values;
-
-        return route('exercises.index', array_filter($query, fn ($v) => $v !== []));
-    };
-    $flag = function (string $key, string $on) use ($gallery) {
-        $query = $gallery->query();
-        isset($query[$key]) ? $query = array_diff_key($query, [$key => true]) : $query[$key] = $on;
-
-        return route('exercises.index', $query);
-    };
-    $selected = fn (string $facet, int|string $value) => in_array((string) $value, $gallery->query()[$facet] ?? [], true);
     $heading = 'mb-2 text-theme-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
     $facetTitles = ['region' => 'Target region', 'equipment' => 'Equipment', 'difficulty' => 'Difficulty'];
 @endphp
@@ -75,12 +58,12 @@
                 </form>
 
                 <div class="space-y-1">
-                    <a href="{{ $flag('missing', 'media') }}" @class([
+                    <a href="{{ route('exercises.index', $gallery->toggled('missing', 'media')) }}" @class([
                         'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
                         'bg-orange-500 text-white' => $gallery->missingMedia,
                         'bg-orange-500/10 text-orange-600 hover:bg-orange-500/15 dark:text-orange-400' => ! $gallery->missingMedia,
                     ])>Missing media <span class="ml-auto">{{ $facets['missing'] }}</span></a>
-                    <a href="{{ $flag('archived', '1') }}" @class([
+                    <a href="{{ route('exercises.index', $gallery->toggled('archived', '1')) }}" @class([
                         'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
                         'bg-gray-800 text-white dark:bg-gray-700' => $gallery->archived,
                         'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300' => ! $gallery->archived,
@@ -91,12 +74,12 @@
                     <div>
                         <div class="{{ $heading }}">{{ $title }}</div>
                         @foreach ($facets[$facet] as $option)
-                            @if ($option['count'] > 0 || $selected($facet, $option['value']))
-                                <a href="{{ $toggle($facet, $option['value']) }}" class="flex items-center gap-2 py-0.5 text-sm text-gray-700 hover:text-brand-600 dark:text-gray-300 dark:hover:text-brand-400">
+                            @if ($option['count'] > 0 || $gallery->has($facet, $option['value']))
+                                <a href="{{ route('exercises.index', $gallery->toggled($facet, $option['value'])) }}" class="flex items-center gap-2 py-0.5 text-sm text-gray-700 hover:text-brand-600 dark:text-gray-300 dark:hover:text-brand-400">
                                     <span @class([
                                         'inline-block h-3.5 w-3.5 rounded border',
-                                        'border-brand-500 bg-brand-500' => $selected($facet, $option['value']),
-                                        'border-gray-300 dark:border-gray-600' => ! $selected($facet, $option['value']),
+                                        'border-brand-500 bg-brand-500' => $gallery->has($facet, $option['value']),
+                                        'border-gray-300 dark:border-gray-600' => ! $gallery->has($facet, $option['value']),
                                     ])></span>
                                     {{ $option['label'] }}
                                     <span class="ml-auto text-theme-xs text-gray-400">{{ $option['count'] }}</span>

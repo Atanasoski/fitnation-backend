@@ -121,6 +121,24 @@ class ExerciseGalleryTest extends TestCase
         $this->assertSame([], ExerciseGallery::fromQuery(['difficulty' => ['elite'], 'region' => ['abc']])->query());
     }
 
+    public function test_toggling_a_filter_value_adds_or_removes_only_that_value(): void
+    {
+        $gallery = ExerciseGallery::fromQuery(['q' => 'press', 'region' => [$this->upper->id], 'missing' => 'media']);
+
+        $this->assertTrue($gallery->has('region', $this->upper->id));
+        $this->assertFalse($gallery->has('region', $this->lower->id));
+        $this->assertEquals(
+            ['q' => 'press', 'region' => [(string) $this->upper->id, (string) $this->lower->id], 'missing' => 'media'],
+            $gallery->toggled('region', $this->lower->id),
+        );
+        $this->assertEquals(['q' => 'press', 'missing' => 'media'], $gallery->toggled('region', $this->upper->id));
+        $this->assertEquals(['q' => 'press', 'region' => [(string) $this->upper->id]], $gallery->toggled('missing', 'media'));
+        $this->assertEquals(
+            ['q' => 'press', 'region' => [(string) $this->upper->id], 'missing' => 'media', 'archived' => '1'],
+            $gallery->toggled('archived', '1'),
+        );
+    }
+
     /**
      * @param  list<string>  $expected
      */

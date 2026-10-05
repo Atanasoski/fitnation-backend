@@ -39,11 +39,11 @@
         muscleImage: @js($exercise->muscle_group_image ? Storage::url($exercise->muscle_group_image) : null),
         regenerating: false,
         regenerateError: null,
-        async regenerate() {
+        async regenerate(url) {
             this.regenerating = true;
             this.regenerateError = null;
             try {
-                const response = await fetch(@js($isNew ? '' : route('exercises.updateMuscleGroupImage', $exercise)), {
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' },
                 });
@@ -109,7 +109,7 @@
                         @if ($isNew)
                             <p class="text-theme-xs text-gray-400">Save first, then regenerate.</p>
                         @else
-                            <button type="button" @click="regenerate()" :disabled="regenerating" data-url="{{ route('exercises.updateMuscleGroupImage', $exercise) }}"
+                            <button type="button" @click="regenerate($el.dataset.url)" :disabled="regenerating" data-url="{{ route('exercises.updateMuscleGroupImage', $exercise) }}"
                                 class="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-40 dark:text-brand-400"
                                 x-text="regenerating ? 'Regenerating…' : 'Regenerate'">Regenerate</button>
                             <p class="mt-1 text-theme-xs text-gray-400">Uses the saved muscle groups.</p>

@@ -294,6 +294,25 @@ the one a user may unsubscribe from.
 
 _Avoid_: weekly report, digest, recap.
 
+## Exercises
+
+### Archived Exercise
+
+An exercise retired from the catalogue: no longer offered when searching,
+picking or generating, but still shown everywhere it was already used — in
+plans, sessions and history. An exercise that anyone ever used is archived,
+never deleted; only one nobody used can be deleted outright.
+
+_Avoid_: deleted exercise, disabled exercise, hidden exercise.
+
+### Partner Override
+
+A partner's own description, image or video for a catalogue exercise, shown to
+that partner's members instead of the catalogue's. Anything the override leaves
+blank falls back to the catalogue.
+
+_Avoid_: partner exercise (that is the link, not the content), custom exercise.
+
 ## Partners
 
 ### House Partner

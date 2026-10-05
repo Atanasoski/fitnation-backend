@@ -25,6 +25,7 @@ run agents inventing seven different module shapes.
 | [020](020-weekly-summary-email.md) | Weekly Summary email, Monday 08:00 local, with one-click unsubscribe | feature | `WeeklyProgress::for($asOf)`, `users.notification_settings`, unsubscribe route |
 | [021](021-equipment-supports-added-weight.md) | Equipment types say whether an exercise takes added weight | low | migration, `EquipmentTypeResource`, seeder |
 | [022](022-super-admin-panel.md) | Super-admin panel v1 — search, Users, user page, Overview, Partners, minimal System (ready-for-agent) | feature | admin web routes, Activity Status + Access Source modules, admin change record, House Partner |
+| [023](023-super-admin-panel-v2.md) | Super-admin panel v2 — partner edit (4 colours), exercise gallery + Archived Exercise + Partner Overrides, a user's plan outline replacing partner-admin plan pages (ready-for-agent) | feature | `PartnerController` form, `workout_exercises.archived_at`, override-write module, `PlanPolicy`, `/users/{user}/plans` |
 
 ## Done
 

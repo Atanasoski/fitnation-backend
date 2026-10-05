@@ -6,10 +6,10 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Characterization commit first: the partner-admin override update (description, image, video, remove_video).
-- [ ] Shared override-write module. The partner-admin controller now calls it, and the characterization stays green.
-- [ ] Admin routes: update or clear an override, link, unlink. Admin only.
-- [ ] Tests: super admin edits an override and `PartnerExerciseView` reflects it. Clear restores the catalogue values. Link and unlink. Non-admins get 403.
-- [ ] `PartnerExercisePagesTest` stays green.
+- [x] Characterization commit first: the partner-admin override update (description, image, video, remove_video).
+- [x] Shared override-write module. The partner-admin controller now calls it, and the characterization stays green.
+- [x] Admin routes: update or clear an override, link, unlink. Admin only.
+- [x] Tests: super admin edits an override and `PartnerExerciseView` reflects it. Clear restores the catalogue values. Link and unlink. Non-admins get 403.
+- [x] `PartnerExercisePagesTest` stays green.

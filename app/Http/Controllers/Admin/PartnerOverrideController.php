@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdatePartnerExerciseRequest;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Services\Exercise\ExerciseGallery;
@@ -23,12 +24,8 @@ class PartnerOverrideController extends Controller
 
     public function update(Request $request, Exercise $exercise, Partner $partner): RedirectResponse
     {
-        $changes = $request->validateWithBag('override', [
-            'description' => ['nullable', 'string', 'max:5000'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'],
-            'video' => ['nullable', 'mimes:mp4,webm,ogg', 'max:51200'],
+        $changes = $request->validateWithBag('override', UpdatePartnerExerciseRequest::overrideRules() + [
             'remove_image' => ['nullable', 'boolean'],
-            'remove_video' => ['nullable', 'boolean'],
         ]);
 
         $this->overrides->write($partner, $exercise, $changes);

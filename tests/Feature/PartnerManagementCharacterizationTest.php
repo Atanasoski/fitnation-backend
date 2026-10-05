@@ -90,6 +90,41 @@ class PartnerManagementCharacterizationTest extends TestCase
         $this->assertSame('#aabbcc', $partner->identity->primary_color);
     }
 
+    public function test_an_update_leaves_identity_columns_it_was_not_sent_unchanged(): void
+    {
+        $partner = Partner::factory()->create(['slug' => 'iron-temple', 'is_active' => true]);
+        $hidden = [
+            'background_color' => '#fafafa',
+            'card_background_color' => '#f1f1f1',
+            'text_primary_color' => '#101010',
+            'text_on_primary_color' => '#fefefe',
+            'font_family' => 'Poppins',
+            'background_pattern' => 'storage/partners/dots.png',
+            'background_color_dark' => '#0a0a0a',
+            'text_primary_color_dark' => '#eeeeee',
+            'text_secondary_color_dark' => '#bbbbbb',
+        ];
+        $partner->identity()->create(['primary_color' => '#112233', 'secondary_color' => '#445566'] + $hidden);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->put('/partners/iron-temple', [
+                'name' => 'Iron Temple',
+                'slug' => 'iron-temple',
+                'primary_color' => '#aabbcc',
+                'secondary_color' => '#ddeeff',
+                'primary_color_dark' => '#123456',
+                'secondary_color_dark' => '#654321',
+            ])
+            ->assertRedirect(route('partners.index'));
+
+        $identity = $partner->refresh()->identity;
+        $this->assertSame('#aabbcc', $identity->primary_color);
+        $this->assertSame('#654321', $identity->secondary_color_dark);
+        $this->assertSame($hidden, $identity->only(array_keys($hidden)));
+        // is_active was not sent, so it is left as it was.
+        $this->assertTrue($partner->is_active);
+    }
+
     public function test_a_partner_admin_sees_their_own_partner_but_not_another(): void
     {
         $own = Partner::factory()->create(['name' => 'Iron Temple', 'slug' => 'iron-temple']);

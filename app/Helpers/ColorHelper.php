@@ -57,29 +57,33 @@ class ColorHelper
     }
 
     /**
-     * Get dark mode color palette array for display.
+     * Process partner identity dark-mode colors, keyed like processPartnerColors(),
+     * with defaults from config.
      */
-    public static function getDarkColorPalette(?PartnerIdentity $identity): array
+    public static function processPartnerDarkColors(?PartnerIdentity $identity): array
     {
         $defaults = config('branding.dark');
 
         if (! $identity) {
-            return array_map(fn ($key, $value) => ['name' => ucwords(str_replace('_', ' ', $key)), 'value' => $value], array_keys($defaults), $defaults);
+            return $defaults;
         }
 
-        return [
-            ['name' => 'Primary', 'value' => $identity->primary_color_dark ?? $defaults['primary']],
-            ['name' => 'Secondary', 'value' => $identity->secondary_color_dark ?? $defaults['secondary']],
-            ['name' => 'Background', 'value' => $identity->background_color_dark ?? $defaults['background']],
-            ['name' => 'Card Background', 'value' => $identity->card_background_color_dark ?? $defaults['card_background']],
-            ['name' => 'Text Primary', 'value' => $identity->text_primary_color_dark ?? $defaults['text_primary']],
-            ['name' => 'Text Secondary', 'value' => $identity->text_secondary_color_dark ?? $defaults['text_secondary']],
-            ['name' => 'Text On Primary', 'value' => $identity->text_on_primary_color_dark ?? $defaults['text_on_primary']],
-            ['name' => 'Success', 'value' => $identity->success_color_dark ?? $defaults['success']],
-            ['name' => 'Warning', 'value' => $identity->warning_color_dark ?? $defaults['warning']],
-            ['name' => 'Danger', 'value' => $identity->danger_color_dark ?? $defaults['danger']],
-            ['name' => 'Accent', 'value' => $identity->accent_color_dark ?? $defaults['accent']],
-            ['name' => 'Border', 'value' => $identity->border_color_dark ?? $defaults['border']],
-        ];
+        return collect($defaults)
+            ->map(fn (string $default, string $key) => $identity->{$key.'_color_dark'} ?? $default)
+            ->all();
+    }
+
+    /**
+     * Get dark mode color palette array for display.
+     */
+    public static function getDarkColorPalette(?PartnerIdentity $identity): array
+    {
+        $colors = self::processPartnerDarkColors($identity);
+
+        return array_map(
+            fn (string $key, string $value) => ['name' => ucwords(str_replace('_', ' ', $key)), 'value' => $value],
+            array_keys($colors),
+            $colors,
+        );
     }
 }

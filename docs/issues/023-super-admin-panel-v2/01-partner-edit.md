@@ -6,12 +6,12 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Characterization commit first: `PartnerManagementCharacterizationTest` covers the current update. Add a case with stored hidden columns.
-- [ ] Form posts only name, slug, domain, `is_active` (with hidden 0), logo and the four colours. The four are required on the web form, prefilled from the stored value or the config default.
-- [ ] Hidden columns (other colours, `font_family`, `background_pattern`) are unchanged after save. Tested.
-- [ ] FormRequest rules for the hidden fields stay, because the API uses them.
-- [ ] Preview uses stored or default backgrounds and text colours (`ColorHelper`), plus a white-on-primary contrast ratio.
-- [ ] House Partner deactivation is refused via the rule `Admin\PartnerController::updateActive` uses (shared, not copied).
-- [ ] A partner admin edits only their own partner, with the same form. Non-admins otherwise get 403.
+- [x] Characterization commit first: `PartnerManagementCharacterizationTest` covers the current update. Add a case with stored hidden columns.
+- [x] Form posts only name, slug, domain, `is_active` (with hidden 0), logo and the four colours. The four are required on the web form, prefilled from the stored value or the config default.
+- [x] Hidden columns (other colours, `font_family`, `background_pattern`) are unchanged after save. Tested.
+- [x] FormRequest rules for the hidden fields stay, because the API uses them.
+- [x] Preview uses stored or default backgrounds and text colours (`ColorHelper`), plus a white-on-primary contrast ratio.
+- [x] House Partner deactivation is refused via the rule `Admin\PartnerController::updateActive` uses (shared, not copied).
+- [x] A partner admin edits only their own partner, with the same form. Non-admins otherwise get 403.

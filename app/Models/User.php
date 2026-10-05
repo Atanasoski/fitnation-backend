@@ -298,4 +298,24 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasEntitlement(Entitlement::AppAccess);
     }
+
+    /**
+     * The free days a new user gets when onboarding completes: app access with
+     * no card and no store, via grace_period_ends_at, so the paywall takes
+     * over when the date passes. One-shot per account — a date already set
+     * (an earlier trial, the launch grace) is never moved. Returns whether a
+     * trial was started.
+     */
+    public function startSignupTrial(): bool
+    {
+        $days = (int) config('subscriptions.signup_trial_days', 0);
+
+        if ($days <= 0 || $this->grace_period_ends_at !== null) {
+            return false;
+        }
+
+        $this->forceFill(['grace_period_ends_at' => now()->addDays($days)])->save();
+
+        return true;
+    }
 }

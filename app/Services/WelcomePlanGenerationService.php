@@ -100,6 +100,10 @@ class WelcomePlanGenerationService
             'onboarding_completed_at' => now(),
         ]);
 
+        // The sign-up trial starts here, not at registration: this is where
+        // every registration path converges and the app becomes usable.
+        $user->startSignupTrial();
+
         return $plan;
     }
 

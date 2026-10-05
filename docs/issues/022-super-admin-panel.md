@@ -69,7 +69,7 @@ User page
 19. As a super admin, I want to see the user's profile (goal, experience, gender, age, height, weight, training days, workout duration, Unit System), so that I know who they are.
 20. As a super admin, I want their recent sessions with status, date and duration, so that I can see how they actually train.
 21. As a super admin, I want sessions stuck `active` flagged, so that I spot app problems.
-22. As a super admin, I want their Personal Records, so that I can see progress.
+22. As a super admin, I want their Best sets (best set ever per exercise), so that I can see progress.
 23. As a super admin, I want their Devices (platform, app version, timezone, last seen, push on/off), so that I can debug push and old-build problems.
 24. As a super admin, I want their recent Sent Records, so that I know which nudges and emails they received.
 25. As a super admin, I want their invitation (who invited, when, accepted), so that I know how they arrived.
@@ -139,7 +139,7 @@ Access control
 - Returns one structure: KPIs (current and previous week), funnel counts for users who signed up in the last 28 days, Paywall (enforced flag + None count), Needs attention counts (failed jobs, failed webhooks, Unfinished Accounts, stuck sessions, sponsorships expiring ≤ 30 days).
 - Live queries, cached ~10 minutes. No snapshot tables or scheduled jobs (Laravel Cloud scales to zero).
 - Stuck session = status `active`, started more than 24 hours ago.
-- Weeks are Monday–Sunday, as in Weekly Progress.
+- KPIs compare the last 7 days with the 7 days before (rolling, so nothing collapses on Monday morning). "Active" is Activity Status Active and links to that list; Signups link via `?signed_up_days=7`; Sponsorships expiring link to `/admin/partners?expiring=1`.
 
 **Users list**
 - Filters are query parameters (partner, activity, access, goal, experience, platform, signin, stuck, q, sort, deleted). Overview links and partner "All members →" build these URLs.

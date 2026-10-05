@@ -255,7 +255,7 @@ class UserPageTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'Stuck'), 'only the session active for over 24 hours is flagged');
     }
 
-    public function test_personal_records_are_the_best_completed_set_per_exercise_in_the_users_unit_system(): void
+    public function test_best_sets_are_the_best_completed_set_per_exercise_in_the_users_unit_system(): void
     {
         $member = $this->member(Partner::factory()->create());
         $member->profile->update(['unit_system' => UnitSystem::Imperial]);
@@ -273,7 +273,7 @@ class UserPageTest extends TestCase
         $this->actingAs($this->userWithRole('admin'))
             ->get("/admin/users/{$member->id}")
             ->assertOk()
-            ->assertSeeInOrder(['Personal Records', 'Bench Press', '200 lbs × 10', '3 Oct 2026'])
+            ->assertSeeInOrder(['Best sets', 'Bench Press', '200 lbs × 10', '3 Oct 2026'])
             ->assertDontSee('330 lbs');
     }
 

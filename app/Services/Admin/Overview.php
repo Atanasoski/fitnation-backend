@@ -4,7 +4,6 @@ namespace App\Services\Admin;
 
 use App\Enums\AccessSource;
 use App\Enums\ActivityStatus;
-use App\Enums\PartnerPlan;
 use App\Models\Partner;
 use App\Models\User;
 use App\Models\WorkoutSession;
@@ -17,11 +16,10 @@ use Illuminate\Support\Facades\Cache;
 /**
  * The super-admin Overview: "is everything OK?" in one structure.
  *
- * - kpis — users, signups, active users and Completed Sessions, this week so
- *   far against the same point last week. Weeks run Monday–Sunday, as in
- *   Weekly Progress; comparing a whole last week with a part-finished one
- *   would make every number fall on Monday, so the comparison stops at the
- *   same weekday and time.
+ * - kpis — users, signups, active users and Completed Sessions over the last
+ *   KPI_DAYS days against the KPI_DAYS before, so no number collapses on a
+ *   Monday morning. "Active" now is Activity Status Active — the same users
+ *   the Active list shows; the span before is users who trained in it.
  * - funnel — users who signed up in the last FUNNEL_DAYS days: signed up →
  *   verified → onboarded → first Completed Session → trained in week two
  *   (a Completed Session 7 to 13 days after signup).
@@ -41,6 +39,8 @@ final class Overview
     public const CACHE_KEY = 'admin.overview';
 
     public const CACHE_SECONDS = 600;
+
+    public const KPI_DAYS = 7;
 
     public const FUNNEL_DAYS = 28;
 
@@ -62,15 +62,17 @@ final class Overview
     private static function compute(): array
     {
         $now = CarbonImmutable::now();
-        $thisWeek = [$now->startOfWeek(CarbonImmutable::MONDAY), $now];
-        $lastWeek = [$thisWeek[0]->subWeek(), $now->subWeek()];
+        $current = [$now->subDays(self::KPI_DAYS), $now];
+        $previous = [$now->subDays(self::KPI_DAYS * 2), $current[0]];
+        $activeNow = ActivityStatuses::constrain(User::query()->appUsers(), ActivityStatus::Active)->count();
+        $activeBefore = User::query()->appUsers()->trainedBetween(...$previous)->count();
 
         return [
             'kpis' => [
-                'users' => self::compare(fn (array $span) => User::query()->appUsers()->where('users.created_at', '<=', $span[1])->count(), $thisWeek, $lastWeek),
-                'signups' => self::compare(fn (array $span) => User::query()->appUsers()->whereBetween('users.created_at', $span)->count(), $thisWeek, $lastWeek),
-                'active' => self::compare(fn (array $span) => User::query()->appUsers()->trainedBetween(...$span)->count(), $thisWeek, $lastWeek),
-                'completed_sessions' => self::compare(fn (array $span) => WorkoutSession::query()->where(self::completedBetween($span))->whereHas('user', fn (Builder $users) => $users->appUsers())->count(), $thisWeek, $lastWeek),
+                'users' => self::compare(fn (array $span) => User::query()->appUsers()->where('users.created_at', '<=', $span[1])->count(), $current, $previous),
+                'signups' => self::compare(fn (array $span) => User::query()->appUsers()->whereBetween('users.created_at', $span)->count(), $current, $previous),
+                'active' => ['current' => $activeNow, 'previous' => $activeBefore, 'delta' => $activeNow - $activeBefore],
+                'completed_sessions' => self::compare(fn (array $span) => WorkoutSession::query()->where(self::completedBetween($span))->whereHas('user', fn (Builder $users) => $users->appUsers())->count(), $current, $previous),
             ],
             'funnel' => self::funnel($now->subDays(self::FUNNEL_DAYS)),
             'paywall' => [
@@ -82,11 +84,7 @@ final class Overview
                 'failed_webhooks' => FailedWebhookCalls::query()->count(),
                 'unfinished_accounts' => ActivityStatuses::constrain(User::query()->appUsers(), ActivityStatus::Unfinished)->count(),
                 'stuck_sessions' => User::query()->appUsers()->whereHas('workoutSessions', fn (Builder $sessions) => $sessions->stuck())->count(),
-                'expiring_sponsorships' => Partner::query()
-                    ->where('plan', PartnerPlan::Sponsor)
-                    ->where('plan_expires_at', '>', $now)
-                    ->where('plan_expires_at', '<=', $now->addDays(self::EXPIRING_SPONSORSHIP_DAYS))
-                    ->count(),
+                'expiring_sponsorships' => Partner::query()->sponsorshipExpiringWithin(self::EXPIRING_SPONSORSHIP_DAYS)->count(),
             ],
         ];
     }

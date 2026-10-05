@@ -2,7 +2,7 @@
 
 **Parent:** [022 — Super-admin panel v1](../022-super-admin-panel.md). Terms: [Sent Record](../../../CONTEXT.md#sent-record), [Device](../../../CONTEXT.md#device).
 
-**What to build:** Clicking a user opens one page that leads with the four-fact strip — Activity Status, Access Source with its detail line, Partner with its kind (House / Sponsoring), Active plan with split and week — and below it: profile (goal, experience, gender, age, height, weight, training days, duration, Unit System), recent sessions (stuck ones flagged), Personal Records, Devices (platform, app version, timezone, last seen, push on/off), recent Sent Records, invitation. A back link returns to the list with its filters intact.
+**What to build:** Clicking a user opens one page that leads with the four-fact strip — Activity Status, Access Source with its detail line, Partner with its kind (House / Sponsoring), Active plan with split and week — and below it: profile (goal, experience, gender, age, height, weight, training days, duration, Unit System), recent sessions (stuck ones flagged), Best sets, Devices (platform, app version, timezone, last seen, push on/off), recent Sent Records, invitation. A back link returns to the list with its filters intact.
 
 **Blocked by:** 02, 04.
 

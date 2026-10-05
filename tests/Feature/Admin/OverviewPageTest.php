@@ -64,9 +64,11 @@ class OverviewPageTest extends TestCase
             route('admin.users.index', ['access' => 'none']),
             route('admin.users.index', ['activity' => 'unfinished']),
             route('admin.users.index', ['stuck' => 1]),
+            route('admin.users.index', ['signed_up_days' => 7]),
+            route('admin.users.index', ['activity' => 'active']),
             route('admin.users.index'),
             route('admin.system'),
-            route('admin.partners.index'),
+            route('admin.partners.index', ['expiring' => 1]),
         ] as $url) {
             $this->assertStringContainsString('href="'.e($url).'"', $html, "Missing link to {$url}");
         }

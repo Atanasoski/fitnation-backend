@@ -30,7 +30,8 @@ use Illuminate\View\View;
  * straight to a filtered list, and they ride along on every page link:
  * `partner`, `activity`, `access`, `goal`, `experience`, `platform` (has a
  * Device on it), `signin` (social / password), `stuck` (has a Stuck Session),
- * `deleted` (only deleted users), `q` (name or email contains) and `sort`
+ * `deleted` (only deleted users), `signed_up_days` (joined in the last N
+ * days), `q` (name or email contains) and `sort`
  * (`signup` / `last_session`, a leading `-` for descending; `-signup` by
  * default). Unknown values are ignored.
  */
@@ -78,6 +79,7 @@ class UserController extends Controller
             ->when($filters['signin'] === 'password', fn (Builder $q) => $q->whereNull('users.social_provider'))
             ->when($filters['stuck'], fn (Builder $q) => $q->whereHas('workoutSessions', fn (Builder $sessions) => $sessions->stuck()))
             ->when($filters['deleted'], fn (Builder $q) => $q->onlyTrashed())
+            ->when($filters['signed_up_days'], fn (Builder $q, int $days) => $q->where('users.created_at', '>=', now()->subDays($days)))
             ->when($filters['q'], fn (Builder $q, string $term) => $q->matching($term));
 
         if ($filters['activity'] !== null) {
@@ -199,6 +201,7 @@ class UserController extends Controller
             'signin' => $oneOf('signin', self::SIGNIN_METHODS),
             'stuck' => $request->boolean('stuck'),
             'deleted' => $request->boolean('deleted'),
+            'signed_up_days' => ($days = $request->integer('signed_up_days')) > 0 ? min($days, 3650) : null,
             'q' => $string('q') !== '' ? $string('q') : null,
             'sort' => $oneOf('sort', self::SORTS) ?? self::DEFAULT_SORT,
         ];

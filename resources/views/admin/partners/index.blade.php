@@ -4,7 +4,12 @@
 
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 class="font-display text-xl font-semibold text-gray-900 dark:text-white">Partners</h1>
+        <h1 class="font-display text-xl font-semibold text-gray-900 dark:text-white">
+            Partners
+            @if ($expiring)
+                <span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">sponsorship running out within 30 days · <a href="{{ route('admin.partners.index') }}" class="text-brand-600 hover:underline dark:text-brand-400">show all</a></span>
+            @endif
+        </h1>
         <a href="{{ route('partners.create') }}" class="inline-flex items-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">
             New partner
         </a>

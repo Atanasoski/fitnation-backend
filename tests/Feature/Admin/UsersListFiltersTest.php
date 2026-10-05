@@ -111,6 +111,16 @@ class UsersListFiltersTest extends TestCase
             ->assertDontSee('Barbara Liskov');
     }
 
+    public function test_the_signed_up_days_filter_finds_users_who_joined_in_the_last_n_days(): void
+    {
+        $this->member(['name' => 'Ada Lovelace', 'created_at' => now()->subDays(2)]);
+        $this->member(['name' => 'Grace Hopper', 'created_at' => now()->subDays(8)]);
+
+        $this->asAdmin('/admin/users?signed_up_days=7')
+            ->assertSee('Ada Lovelace')
+            ->assertDontSee('Grace Hopper');
+    }
+
     public function test_the_text_search_matches_part_of_a_name_or_an_email(): void
     {
         $this->member(['name' => 'Ada Lovelace', 'email' => 'countess@example.com']);

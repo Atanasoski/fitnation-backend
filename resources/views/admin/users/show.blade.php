@@ -119,8 +119,8 @@
             </section>
 
             <section class="{{ $card }}">
-                <h2 class="{{ $heading }}">Personal Records</h2>
-                <p class="text-theme-xs text-gray-500 dark:text-gray-400">Best set ever per exercise</p>
+                <h2 class="{{ $heading }}">Best sets</h2>
+                <p class="text-theme-xs text-gray-500 dark:text-gray-400">Best set ever per exercise, by estimated 1RM</p>
                 @if ($bests->isEmpty())
                     <p class="{{ $empty }}">None yet.</p>
                 @else

@@ -24,9 +24,8 @@ use Tests\TestCase;
 
 /**
  * The Admin Overview module (ticket 11): one structure of live counts with
- * known fixtures. "Now" is Wednesday 7 Oct 2026, 12:00, so this week so far
- * is Mon 5 Oct 00:00 → now and the same point last week is Mon 28 Sep 00:00
- * → Wed 30 Sep 12:00.
+ * known fixtures. "Now" is Wednesday 7 Oct 2026, 12:00; KPIs compare the last
+ * 7 days with the 7 days before.
  */
 class OverviewTest extends TestCase
 {
@@ -39,10 +38,10 @@ class OverviewTest extends TestCase
         $this->travelTo('2026-10-07 12:00:00');
     }
 
-    public function test_kpis_compare_this_week_so_far_with_the_same_point_last_week(): void
+    public function test_kpis_compare_the_last_7_days_with_the_7_days_before(): void
     {
-        // Signups: three this week, two in last week's same span, one later
-        // last week (Thursday, past the comparison point), two long ago.
+        // Last 7 days = 30 Sep 12:00 → now; the 7 before = 23 Sep 12:00 → 30 Sep 12:00.
+        // Signups: four in the last 7 days, two in the 7 before, two long ago.
         $ada = $this->member('2026-10-05 01:00:00');
         $grace = $this->member('2026-10-06 09:00:00');
         $this->member('2026-10-07 11:00:00');
@@ -57,22 +56,46 @@ class OverviewTest extends TestCase
         $this->userWithRole('partner_admin', ['created_at' => '2026-09-29 10:00:00']);
         $this->workoutSession($admin, WorkoutSessionStatus::Completed, '2026-10-06 10:00:00');
 
-        // Completed Sessions this week: Ada twice, Grace once.
+        // Completed Sessions in the last 7 days: Ada three times, Grace once.
+        $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-10-01 18:00:00');
         $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-10-05 18:00:00');
         $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-10-07 08:00:00');
         $this->workoutSession($grace, WorkoutSessionStatus::Completed, '2026-10-06 18:00:00');
         // Not completed: never counts.
         $this->workoutSession($linus, WorkoutSessionStatus::Active, '2026-10-06 18:00:00');
-        // Last week: Linus in the comparison span, Ada after it.
+        // The 7 days before: Linus only.
         $this->workoutSession($linus, WorkoutSessionStatus::Completed, '2026-09-29 18:00:00');
-        $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-10-01 18:00:00');
 
         $kpis = Overview::summary()['kpis'];
 
         $this->assertSame(['current' => 8, 'previous' => 4, 'delta' => 4], $kpis['users']);
-        $this->assertSame(['current' => 3, 'previous' => 2, 'delta' => 1], $kpis['signups']);
+        $this->assertSame(['current' => 4, 'previous' => 2, 'delta' => 2], $kpis['signups']);
         $this->assertSame(['current' => 2, 'previous' => 1, 'delta' => 1], $kpis['active']);
-        $this->assertSame(['current' => 3, 'previous' => 1, 'delta' => 2], $kpis['completed_sessions']);
+        $this->assertSame(['current' => 4, 'previous' => 1, 'delta' => 3], $kpis['completed_sessions']);
+    }
+
+    public function test_on_monday_morning_the_kpis_still_cover_a_full_7_days(): void
+    {
+        $this->travelTo('2026-10-12 09:00:00');
+
+        $this->member('2026-10-08 10:00:00');
+        $this->workoutSession($this->member('2026-08-01 10:00:00'), WorkoutSessionStatus::Completed, '2026-10-09 10:00:00');
+
+        $kpis = Overview::summary()['kpis'];
+
+        $this->assertSame(1, $kpis['signups']['current']);
+        $this->assertSame(1, $kpis['active']['current']);
+        $this->assertSame(1, $kpis['completed_sessions']['current']);
+    }
+
+    public function test_the_active_kpi_matches_the_active_users_list(): void
+    {
+        $this->workoutSession($this->member('2026-08-01 10:00:00'), WorkoutSessionStatus::Completed, '2026-10-01 10:00:00');
+        $this->workoutSession($this->member('2026-08-01 10:00:00'), WorkoutSessionStatus::Completed, '2026-09-25 10:00:00');
+
+        $listed = \App\Services\Admin\ActivityStatuses::constrain(User::query()->appUsers(), \App\Enums\ActivityStatus::Active)->count();
+
+        $this->assertSame($listed, Overview::summary()['kpis']['active']['current']);
     }
 
     public function test_the_funnel_counts_each_stage_for_users_who_signed_up_in_the_last_28_days(): void

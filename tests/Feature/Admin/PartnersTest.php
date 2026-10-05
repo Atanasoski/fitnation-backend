@@ -142,6 +142,34 @@ class PartnersTest extends TestCase
             ->assertSee('return confirm(', escape: false);
     }
 
+    public function test_the_house_partner_cannot_be_deactivated(): void
+    {
+        $house = Partner::factory()->create(['name' => 'Fit Nation', 'is_active' => true]);
+        config(['partners.house_partner_id' => $house->id]);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->patch("/admin/partners/{$house->slug}/active", ['active' => '0'])
+            ->assertSessionHasErrors('active');
+        $this->assertTrue($house->refresh()->is_active);
+
+        $this->asAdmin("/admin/partners/{$house->slug}")
+            ->assertDontSee('Deactivate partner');
+    }
+
+    public function test_the_expiring_filter_lists_only_sponsorships_running_out_within_30_days(): void
+    {
+        Partner::factory()->create(['name' => 'Iron Temple', 'plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2026-10-20 00:00:00']);
+        Partner::factory()->create(['name' => 'Lift Club', 'plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2027-01-01 00:00:00']);
+        Partner::factory()->create(['name' => 'Old Gym', 'plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2026-10-01 00:00:00']);
+        Partner::factory()->create(['name' => 'Free Gym', 'plan' => PartnerPlan::Free, 'plan_expires_at' => '2026-10-20 00:00:00']);
+
+        $this->asAdmin('/admin/partners?expiring=1')
+            ->assertSee('Iron Temple')
+            ->assertDontSee('Lift Club')
+            ->assertDontSee('Old Gym')
+            ->assertDontSee('Free Gym');
+    }
+
     public function test_the_active_flag_must_be_given(): void
     {
         $gym = Partner::factory()->create(['is_active' => true]);

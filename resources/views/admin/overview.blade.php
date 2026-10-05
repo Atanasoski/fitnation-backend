@@ -5,9 +5,9 @@
 @php
     $kpis = [
         ['label' => 'Users', 'kpi' => $overview['kpis']['users'], 'hint' => 'app users in total', 'url' => route('admin.users.index')],
-        ['label' => 'Signups', 'kpi' => $overview['kpis']['signups'], 'hint' => 'this week', 'url' => null],
-        ['label' => 'Active this week', 'kpi' => $overview['kpis']['active'], 'hint' => 'users with a Completed Session', 'url' => null],
-        ['label' => 'Completed Sessions', 'kpi' => $overview['kpis']['completed_sessions'], 'hint' => 'this week', 'url' => null],
+        ['label' => 'Signups', 'kpi' => $overview['kpis']['signups'], 'hint' => 'last 7 days', 'url' => route('admin.users.index', ['signed_up_days' => 7])],
+        ['label' => 'Active', 'kpi' => $overview['kpis']['active'], 'hint' => 'Completed Session in the last 7 days', 'url' => route('admin.users.index', ['activity' => 'active'])],
+        ['label' => 'Completed Sessions', 'kpi' => $overview['kpis']['completed_sessions'], 'hint' => 'last 7 days', 'url' => null],
     ];
 
     $attention = $overview['attention'];
@@ -16,7 +16,7 @@
         ['label' => 'Failed webhooks', 'value' => $attention['failed_webhooks'], 'detail' => 'RevenueCat calls waiting for a replay', 'url' => route('admin.system')],
         ['label' => 'Unfinished Accounts', 'value' => $attention['unfinished_accounts'], 'detail' => 'Unverified, or verified and not onboarded', 'url' => route('admin.users.index', ['activity' => 'unfinished'])],
         ['label' => 'Stuck sessions', 'value' => $attention['stuck_sessions'], 'detail' => 'Users with a session active for over 24 hours', 'url' => route('admin.users.index', ['stuck' => 1])],
-        ['label' => 'Sponsorships expiring', 'value' => $attention['expiring_sponsorships'], 'detail' => 'Sponsoring Partners running out within 30 days', 'url' => route('admin.partners.index')],
+        ['label' => 'Sponsorships expiring', 'value' => $attention['expiring_sponsorships'], 'detail' => 'Sponsoring Partners running out within 30 days', 'url' => route('admin.partners.index', ['expiring' => 1])],
     ];
 
     $funnel = $overview['funnel'];
@@ -34,7 +34,7 @@
     <x-common.page-breadcrumb pageTitle="Overview" />
 
     <div class="space-y-5">
-        {{-- KPIs: this week so far against the same point last week --}}
+        {{-- KPIs: the last 7 days against the 7 days before --}}
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
             @foreach ($kpis as $card)
                 @php($delta = $card['kpi']['delta'])
@@ -50,7 +50,7 @@
                             'text-gray-400' => $delta === 0,
                         ])>{{ $delta > 0 ? '+' : '' }}{{ number_format($delta) }}</span>
                     </div>
-                    <div class="text-theme-xs text-gray-400">{{ $card['hint'] }} · vs {{ number_format($card['kpi']['previous']) }} last week</div>
+                    <div class="text-theme-xs text-gray-400">{{ $card['hint'] }} · vs {{ number_format($card['kpi']['previous']) }} the 7 days before</div>
                 {!! $card['url'] ? '</a>' : '</div>' !!}
             @endforeach
         </div>

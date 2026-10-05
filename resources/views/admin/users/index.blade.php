@@ -72,6 +72,10 @@
                 <input type="checkbox" name="deleted" value="1" @checked($filters['deleted']) onchange="this.form.submit()" class="rounded border-gray-300 text-brand-500 dark:border-gray-700" />
                 Deleted
             </label>
+            @if ($filters['signed_up_days'])
+                <input type="hidden" name="signed_up_days" value="{{ $filters['signed_up_days'] }}" />
+                <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-theme-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">Signed up in the last {{ $filters['signed_up_days'] }} days</span>
+            @endif
             <button type="submit" class="rounded-lg bg-brand-500 px-3 py-1.5 text-theme-xs font-medium text-white hover:bg-brand-600">Filter</button>
             @if ($filtered)
                 <a href="{{ route('admin.users.index') }}" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">Clear filters</a>

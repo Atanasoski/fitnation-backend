@@ -95,15 +95,33 @@ class HousePartnerTest extends TestCase
         $this->assertNull($partnerAdmin->fresh()->partner_id);
     }
 
-    public function test_the_migration_does_nothing_when_the_house_partner_does_not_exist(): void
+    public function test_the_migration_refuses_to_run_when_users_need_a_missing_house_partner(): void
     {
         $partnerless = User::factory()->create(['partner_id' => null]);
         config(['partners.house_partner_id' => 999999]);
 
         $migration = require database_path('migrations/2026_10_05_000001_move_partnerless_users_to_the_house_partner.php');
+
+        $thrown = null;
+        try {
+            $migration->up();
+        } catch (\RuntimeException $e) {
+            $thrown = $e;
+        }
+
+        $this->assertNotNull($thrown, 'The migration ran without a House Partner.');
+        $this->assertStringContainsString('House Partner', $thrown->getMessage());
+        $this->assertNull($partnerless->fresh()->partner_id);
+    }
+
+    public function test_the_migration_needs_no_house_partner_when_nobody_is_partnerless(): void
+    {
+        config(['partners.house_partner_id' => 999999]);
+
+        $migration = require database_path('migrations/2026_10_05_000001_move_partnerless_users_to_the_house_partner.php');
         $migration->up();
 
-        $this->assertNull($partnerless->fresh()->partner_id);
+        $this->assertSame(0, User::query()->whereNull('partner_id')->count());
     }
 
     private function userWithRole(string $slug): User

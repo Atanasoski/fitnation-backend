@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\User;
 use App\Services\Admin\AccessSources;
 use App\Services\Admin\ActivityStatuses;
+use App\Services\Admin\Overview;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -25,9 +26,12 @@ class PartnerController extends Controller
 {
     private const MEMBERS_SHOWN = 10;
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $expiring = $request->boolean('expiring');
+
         $partners = Partner::query()
+            ->when($expiring, fn (Builder $q) => $q->sponsorshipExpiringWithin(Overview::EXPIRING_SPONSORSHIP_DAYS))
             ->withCount([
                 'users as members_count' => fn (Builder $users) => $users->appUsers(),
                 'users as active_this_week_count' => fn (Builder $users) => $users->appUsers()->trainedBetween(...$this->thisWeek()),
@@ -35,7 +39,7 @@ class PartnerController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.partners.index', ['partners' => $partners]);
+        return view('admin.partners.index', ['partners' => $partners, 'expiring' => $expiring]);
     }
 
     public function show(Partner $partner): View
@@ -64,6 +68,12 @@ class PartnerController extends Controller
     public function updateActive(Request $request, Partner $partner): RedirectResponse
     {
         $active = $request->validate(['active' => ['required', 'boolean']])['active'];
+
+        // Every signup without a gym lands on the House Partner; deactivating
+        // it would turn every one of them away.
+        if (! $active && $partner->isHouse()) {
+            return back()->withErrors(['active' => 'The House Partner cannot be deactivated.']);
+        }
 
         $partner->update(['is_active' => (bool) $active]);
 

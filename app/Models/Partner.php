@@ -66,6 +66,18 @@ class Partner extends Model
      * access without a subscription. scopeSponsoringMembers() is the same rule
      * in SQL; keep the two together.
      */
+    /**
+     * Sponsoring Partners whose sponsorship runs out after now and within
+     * $days days.
+     */
+    public function scopeSponsorshipExpiringWithin(Builder $query, int $days): Builder
+    {
+        return $query
+            ->where('plan', PartnerPlan::Sponsor)
+            ->where('plan_expires_at', '>', now())
+            ->where('plan_expires_at', '<=', now()->addDays($days));
+    }
+
     public function isSponsoringMembers(): bool
     {
         return $this->plan === PartnerPlan::Sponsor

@@ -46,4 +46,10 @@ legitimately moves 137 lbs to 135 — but a value that keeps moving is always a
 bug, covering both unit asymmetry and slow per-save drift.
 
 Admin and partner Blade tooling is deliberately excluded and stays metric — it
-is staff-facing, and staff read the canonical numbers.
+is staff-facing, and staff read the canonical numbers — with one exception
+(2026-10-05, issue 022): the super-admin **User page** shows a person's height,
+weight and Best sets in *their* Unit System, because a super admin reading it is
+usually answering that person's support question in the numbers they see in the
+app. It is read-only and converts through `MeasuredFields`, the same seam as the
+API; nothing on it writes a measurement, so the write half of this ADR does not
+apply.

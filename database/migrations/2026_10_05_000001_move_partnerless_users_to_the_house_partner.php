@@ -15,11 +15,7 @@ return new class extends Migration
     {
         $houseId = Partner::houseId();
 
-        if (! DB::table('partners')->where('id', $houseId)->exists()) {
-            return;
-        }
-
-        DB::table('users')
+        $partnerless = DB::table('users')
             ->whereNull('partner_id')
             ->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
@@ -27,8 +23,19 @@ return new class extends Migration
                     ->join('roles', 'roles.id', '=', 'role_user.role_id')
                     ->whereColumn('role_user.user_id', 'users.id')
                     ->whereIn('roles.slug', ['admin', 'partner_admin']);
-            })
-            ->update(['partner_id' => $houseId]);
+            });
+
+        // A fresh database has no users yet and needs no House Partner; one
+        // with partnerless users must not "succeed" while leaving them so.
+        if (! $partnerless->clone()->exists()) {
+            return;
+        }
+
+        if (! DB::table('partners')->where('id', $houseId)->exists()) {
+            throw new \RuntimeException("The House Partner (id {$houseId}, HOUSE_PARTNER_ID) does not exist; create it before migrating.");
+        }
+
+        $partnerless->update(['partner_id' => $houseId]);
     }
 
     /**

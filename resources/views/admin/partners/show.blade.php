@@ -36,6 +36,7 @@
             @include('admin.partners._status', ['partner' => $partner])
             <div class="ml-auto flex items-center gap-2">
                 <a href="{{ route('partners.edit', $partner) }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Edit partner &amp; branding</a>
+                @unless ($partner->isHouse() && $partner->is_active)
                 <form method="POST" action="{{ route('admin.partners.active.update', $partner) }}"
                     onsubmit="return confirm(@js($partner->is_active ? "Deactivate {$partner->name}? Nothing is deleted; you can reactivate it." : "Reactivate {$partner->name}?"))">
                     @csrf
@@ -47,6 +48,7 @@
                         <button type="submit" class="rounded-lg border border-brand-300 px-3 py-1.5 text-sm text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-500/10">Reactivate partner</button>
                     @endif
                 </form>
+                @endunless
             </div>
         </div>
 

@@ -2,9 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Webhooks\RevenueCat\ProcessRevenueCatWebhook;
+use App\Webhooks\RevenueCat\FailedWebhookCalls;
 use Illuminate\Console\Command;
-use Spatie\WebhookClient\Models\WebhookCall;
 
 class ReplayFailedRevenueCatWebhooks extends Command
 {
@@ -19,9 +18,7 @@ class ReplayFailedRevenueCatWebhooks extends Command
     {
         $ids = $this->option('id');
 
-        $query = WebhookCall::query()
-            ->where('name', 'revenuecat')
-            ->whereNotNull('exception');
+        $query = FailedWebhookCalls::query();
 
         if (! empty($ids)) {
             $query->whereIn('id', $ids);
@@ -40,10 +37,7 @@ class ReplayFailedRevenueCatWebhooks extends Command
         $this->info("Replaying {$calls->count()} failed RevenueCat webhook call(s)...");
 
         foreach ($calls as $call) {
-            // Clear the prior failure; the job re-records it via failed() if it
-            // fails again. The job's idempotency guards make replay safe.
-            $call->update(['exception' => null]);
-            ProcessRevenueCatWebhook::dispatch($call);
+            FailedWebhookCalls::replay($call);
             $this->line("  • dispatched webhook_call #{$call->id}");
         }
 

@@ -8,7 +8,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Failed jobs listed newest first; Retry puts the job back on the queue; Delete removes it
-- [ ] Failed webhook calls (exception set) listed; Replay clears the exception and dispatches the processing job — same logic as `ReplayFailedRevenueCatWebhooks`, shared, not copied (command keeps working)
-- [ ] Empty states when nothing failed
-- [ ] Feature tests with `Queue::fake`; non-admins 403
+- [x] Failed jobs listed newest first; Retry puts the job back on the queue; Delete removes it
+- [x] Failed webhook calls (exception set) listed; Replay clears the exception and dispatches the processing job — same logic as `ReplayFailedRevenueCatWebhooks`, shared, not copied (command keeps working)
+- [x] Empty states when nothing failed
+- [x] Feature tests with `Queue::fake`; non-admins 403

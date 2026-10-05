@@ -36,6 +36,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
         Route::view('/insights', 'admin.insights')->name('admin.insights');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');
+        Route::post('/system/failed-jobs/{id}/retry', [SystemController::class, 'retryJob'])->name('admin.system.failed-jobs.retry');
+        Route::delete('/system/failed-jobs/{id}', [SystemController::class, 'forgetJob'])->name('admin.system.failed-jobs.destroy');
+        Route::post('/system/webhooks/replay', [SystemController::class, 'replayAllWebhooks'])->name('admin.system.webhooks.replay-all');
+        Route::post('/system/webhooks/{id}/replay', [SystemController::class, 'replayWebhook'])->whereNumber('id')->name('admin.system.webhooks.replay');
 
         // Content: exercise library, workout splits and the generator preview
         Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');

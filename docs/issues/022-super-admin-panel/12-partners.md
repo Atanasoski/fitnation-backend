@@ -8,8 +8,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Kind derived from the House Partner config and the sponsor plan
-- [ ] Member counts exclude admin / partner-admin accounts
-- [ ] "All members →" link carries `?partner=`
-- [ ] Deactivate toggles `is_active` with confirmation
-- [ ] Existing partner create/edit tests stay green; new feature tests for list, page, deactivate; non-admins 403
+- [x] Kind derived from the House Partner config and the sponsor plan
+- [x] Member counts exclude admin / partner-admin accounts
+- [x] "All members →" link carries `?partner=`
+- [x] Deactivate toggles `is_active` with confirmation
+- [x] Existing partner create/edit tests stay green; new feature tests for list, page, deactivate; non-admins 403

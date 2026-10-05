@@ -38,7 +38,7 @@ class AdminShellTest extends TestCase
         $this->assertSame([
             ['Overview', '/admin'],
             ['Users', '/admin/users'],
-            ['Partners', '/partners'],
+            ['Partners', '/admin/partners'],
             ['Exercises', '/admin/exercises'],
             ['Workout Splits', '/admin/workout-splits'],
             ['Generator Preview', '/admin/workout-preview'],
@@ -74,7 +74,7 @@ class AdminShellTest extends TestCase
         return [
             'overview' => ['/admin', 'Overview', false],
             'users' => ['/admin/users', 'Users', false],
-            'partners' => ['/partners', 'Partners', false],
+            'partners' => ['/admin/partners', 'Partners', false],
             'partner create' => ['/partners/create', 'Partners', false],
             'exercises' => ['/admin/exercises', 'Exercises', true],
             'exercise create' => ['/admin/exercises/create', 'Exercises', true],

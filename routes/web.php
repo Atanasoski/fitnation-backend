@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserActionController;
@@ -43,6 +44,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users/{user}/verification', [UserActionController::class, 'resendVerification'])->whereNumber('user')->name('admin.users.verification.send');
         Route::delete('/users/{user}', [UserActionController::class, 'deactivate'])->whereNumber('user')->name('admin.users.destroy');
         Route::post('/users/{user}/restore', [UserActionController::class, 'restore'])->whereNumber('user')->withTrashed()->name('admin.users.restore');
+        Route::get('/partners', [AdminPartnerController::class, 'index'])->name('admin.partners.index');
+        Route::get('/partners/{partner}', [AdminPartnerController::class, 'show'])->name('admin.partners.show');
+        Route::patch('/partners/{partner}/active', [AdminPartnerController::class, 'updateActive'])->name('admin.partners.active.update');
         Route::get('/search', SearchController::class)->name('admin.search');
         Route::view('/insights', 'admin.insights')->name('admin.insights');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');

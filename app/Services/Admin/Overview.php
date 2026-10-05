@@ -69,7 +69,7 @@ final class Overview
             'kpis' => [
                 'users' => self::compare(fn (array $span) => User::query()->appUsers()->where('users.created_at', '<=', $span[1])->count(), $thisWeek, $lastWeek),
                 'signups' => self::compare(fn (array $span) => User::query()->appUsers()->whereBetween('users.created_at', $span)->count(), $thisWeek, $lastWeek),
-                'active' => self::compare(fn (array $span) => User::query()->appUsers()->whereHas('workoutSessions', self::completedBetween($span))->count(), $thisWeek, $lastWeek),
+                'active' => self::compare(fn (array $span) => User::query()->appUsers()->trainedBetween(...$span)->count(), $thisWeek, $lastWeek),
                 'completed_sessions' => self::compare(fn (array $span) => WorkoutSession::query()->where(self::completedBetween($span))->whereHas('user', fn (Builder $users) => $users->appUsers())->count(), $thisWeek, $lastWeek),
             ],
             'funnel' => self::funnel($now->subDays(self::FUNNEL_DAYS)),

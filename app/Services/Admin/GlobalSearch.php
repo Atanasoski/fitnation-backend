@@ -95,7 +95,7 @@ final class GlobalSearch
             ->map(fn (Partner $partner) => [
                 'id' => $partner->id,
                 'name' => $partner->name,
-                'url' => route('partners.show', $partner),
+                'url' => route('admin.partners.show', $partner),
             ])->values()->all();
     }
 

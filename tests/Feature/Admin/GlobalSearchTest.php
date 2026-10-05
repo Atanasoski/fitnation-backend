@@ -113,7 +113,7 @@ class GlobalSearchTest extends TestCase
 
         $this->assertSame([$studio->id], array_column($partners, 'id'));
         $this->assertSame('Flow Studio', $partners[0]['name']);
-        $this->assertSame(route('partners.show', $studio), $partners[0]['url']);
+        $this->assertSame(route('admin.partners.show', $studio), $partners[0]['url']);
     }
 
     public function test_pages_are_found_by_title(): void

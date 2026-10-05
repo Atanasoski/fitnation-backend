@@ -35,7 +35,7 @@ class MenuHelper
         return [
             self::item('dashboard', 'Overview', '/admin'),
             self::item('members', 'Users', '/admin/users', ['admin/users', 'admin/users/*']),
-            self::item('user-profile', 'Partners', '/partners', ['partners', 'partners/*']),
+            self::item('user-profile', 'Partners', '/admin/partners', ['admin/partners', 'admin/partners/*', 'partners', 'partners/*']),
             self::group('task', 'Content', [
                 self::item(null, 'Exercises', '/admin/exercises', ['admin/exercises', 'admin/exercises/*']),
                 self::item(null, 'Workout Splits', '/admin/workout-splits', ['admin/workout-splits', 'admin/workout-splits/*']),

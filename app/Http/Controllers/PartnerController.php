@@ -16,8 +16,13 @@ class PartnerController extends Controller
     /**
      * Display a listing of the partners.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        // The super admin's list lives under /admin now.
+        if (auth()->user()->hasRole('admin')) {
+            return redirect()->route('admin.partners.index');
+        }
+
         $this->authorize('viewAny', Partner::class);
 
         $partners = Partner::with('identity')
@@ -73,8 +78,13 @@ class PartnerController extends Controller
     /**
      * Display the specified partner.
      */
-    public function show(Partner $partner): View
+    public function show(Partner $partner): View|RedirectResponse
     {
+        // The super admin's partner page lives under /admin now.
+        if (auth()->user()->hasRole('admin')) {
+            return redirect()->route('admin.partners.show', $partner);
+        }
+
         $this->authorize('view', $partner);
 
         $partner->loadCount('users');

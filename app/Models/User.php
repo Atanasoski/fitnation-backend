@@ -6,6 +6,7 @@ use App\Enums\Entitlement;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -256,6 +257,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function scopeAppUsers(Builder $query): Builder
     {
         return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', ['admin', 'partner_admin']));
+    }
+
+    /**
+     * Users with at least one Completed Session finished between $from and
+     * $to — "active this week" on the Overview and the Partners list.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeTrainedBetween(Builder $query, DateTimeInterface $from, DateTimeInterface $to): Builder
+    {
+        return $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
+            ->completed()
+            ->whereBetween('completed_at', [$from, $to]));
     }
 
     /**

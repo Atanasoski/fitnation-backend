@@ -16,7 +16,7 @@
         ['label' => 'Failed webhooks', 'value' => $attention['failed_webhooks'], 'detail' => 'RevenueCat calls waiting for a replay', 'url' => route('admin.system')],
         ['label' => 'Unfinished Accounts', 'value' => $attention['unfinished_accounts'], 'detail' => 'Unverified, or verified and not onboarded', 'url' => route('admin.users.index', ['activity' => 'unfinished'])],
         ['label' => 'Stuck sessions', 'value' => $attention['stuck_sessions'], 'detail' => 'Users with a session active for over 24 hours', 'url' => route('admin.users.index', ['stuck' => 1])],
-        ['label' => 'Sponsorships expiring', 'value' => $attention['expiring_sponsorships'], 'detail' => 'Sponsoring Partners running out within 30 days', 'url' => route('partners.index')],
+        ['label' => 'Sponsorships expiring', 'value' => $attention['expiring_sponsorships'], 'detail' => 'Sponsoring Partners running out within 30 days', 'url' => route('admin.partners.index')],
     ];
 
     $funnel = $overview['funnel'];

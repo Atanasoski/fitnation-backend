@@ -26,9 +26,7 @@ class PartnerManagementCharacterizationTest extends TestCase
 
         $this->actingAs($this->userWithRole('admin'))
             ->get('/partners')
-            ->assertOk()
-            ->assertSee('Iron Temple')
-            ->assertSee('Lift Club');
+            ->assertRedirect(route('admin.partners.index'));
     }
 
     public function test_an_admin_can_open_a_partner(): void
@@ -38,8 +36,7 @@ class PartnerManagementCharacterizationTest extends TestCase
 
         $this->actingAs($this->userWithRole('admin'))
             ->get('/partners/iron-temple')
-            ->assertOk()
-            ->assertSee('Iron Temple');
+            ->assertRedirect(route('admin.partners.show', $partner));
     }
 
     public function test_an_admin_can_open_the_create_and_edit_forms(): void

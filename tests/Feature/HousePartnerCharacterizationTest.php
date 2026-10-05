@@ -13,7 +13,7 @@ use Tests\TestCase;
 /**
  * Locks how a new account gets its partner today, before the House Partner
  * comes from config: social sign-in falls back to partner 1, web registration
- * takes the invitation's partner or none.
+ * takes the invitation's partner or none (now the House Partner, ticket 022/02).
  */
 class HousePartnerCharacterizationTest extends TestCase
 {
@@ -90,8 +90,10 @@ class HousePartnerCharacterizationTest extends TestCase
         $this->assertSame($gym->id, $this->socialSignIn(['partner_id' => $gym->id])->partner_id);
     }
 
-    public function test_web_registration_without_an_invitation_has_no_partner(): void
+    public function test_web_registration_without_an_invitation_lands_on_partner_one(): void
     {
+        Partner::factory()->create(['id' => 1]);
+
         $this->post('/register', [
             'name' => 'Web Person',
             'email' => 'web@example.com',
@@ -99,7 +101,7 @@ class HousePartnerCharacterizationTest extends TestCase
             'password_confirmation' => 'password',
         ])->assertRedirect(route('dashboard', absolute: false));
 
-        $this->assertNull(User::where('email', 'web@example.com')->firstOrFail()->partner_id);
+        $this->assertSame(1, User::where('email', 'web@example.com')->firstOrFail()->partner_id);
     }
 
     public function test_web_registration_with_an_invitation_takes_the_invitations_partner(): void

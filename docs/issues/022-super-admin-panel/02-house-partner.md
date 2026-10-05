@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Characterization tests for social sign-in partner resolution and web registration, committed green against unchanged code in their own commit (house rule)
-- [ ] House Partner id read from config everywhere the literal was used
-- [ ] Web registration without invitation → House Partner; with invitation → invitation's partner (unchanged)
-- [ ] Migration moves partnerless non-admins to the House Partner, leaves admin / partner-admin accounts untouched (feature test)
-- [ ] Mobile API email registration behaviour unchanged
-- [ ] `composer test` green
+- [x] Characterization tests for social sign-in partner resolution and web registration, committed green against unchanged code in their own commit (house rule)
+- [x] House Partner id read from config everywhere the literal was used
+- [x] Web registration without invitation → House Partner; with invitation → invitation's partner (unchanged)
+- [x] Migration moves partnerless non-admins to the House Partner, leaves admin / partner-admin accounts untouched (feature test)
+- [x] Mobile API email registration behaviour unchanged
+- [x] `composer test` green

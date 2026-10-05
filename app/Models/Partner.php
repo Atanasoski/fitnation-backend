@@ -31,6 +31,20 @@ class Partner extends Model
         ];
     }
 
+    /**
+     * The House Partner's id: Fit Nation itself, where everyone who joins
+     * without a gym belongs.
+     */
+    public static function houseId(): int
+    {
+        return (int) config('partners.house_partner_id');
+    }
+
+    public function isHouse(): bool
+    {
+        return $this->getKey() === self::houseId();
+    }
+
     public function isSponsoringMembers(): bool
     {
         return $this->plan === PartnerPlan::Sponsor

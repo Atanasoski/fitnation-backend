@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Partner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +19,8 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        Partner::factory()->create(['id' => Partner::houseId()]);
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',

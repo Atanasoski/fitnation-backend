@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Admin\SearchController;
+use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\UserActionController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\LandingPageController;
@@ -27,8 +33,29 @@ Route::match(['get', 'post'], '/email/weekly-summary/unsubscribe/{user}', Weekly
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // Exercise Library - Admin routes (prefixed with /admin, no conflict with API routes since API routes use 'api.' prefix)
-    Route::prefix('admin')->group(function () {
+    // Super-admin panel: everything under /admin is for the admin role only.
+    Route::prefix('admin')->middleware('admin')->group(function () {
+        Route::get('/', [OverviewController::class, 'index'])->name('admin.overview');
+        Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->withTrashed()->name('admin.users.show');
+        Route::post('/users/{user}/complimentary-access', [UserActionController::class, 'grantComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.store');
+        Route::delete('/users/{user}/complimentary-access', [UserActionController::class, 'endComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.destroy');
+        Route::patch('/users/{user}/partner', [UserActionController::class, 'changePartner'])->whereNumber('user')->name('admin.users.partner.update');
+        Route::post('/users/{user}/verification', [UserActionController::class, 'resendVerification'])->whereNumber('user')->name('admin.users.verification.send');
+        Route::delete('/users/{user}', [UserActionController::class, 'deactivate'])->whereNumber('user')->name('admin.users.destroy');
+        Route::post('/users/{user}/restore', [UserActionController::class, 'restore'])->whereNumber('user')->withTrashed()->name('admin.users.restore');
+        Route::get('/partners', [AdminPartnerController::class, 'index'])->name('admin.partners.index');
+        Route::get('/partners/{partner}', [AdminPartnerController::class, 'show'])->name('admin.partners.show');
+        Route::patch('/partners/{partner}/active', [AdminPartnerController::class, 'updateActive'])->name('admin.partners.active.update');
+        Route::get('/search', SearchController::class)->name('admin.search');
+        Route::view('/insights', 'admin.insights')->name('admin.insights');
+        Route::get('/system', [SystemController::class, 'index'])->name('admin.system');
+        Route::post('/system/failed-jobs/{id}/retry', [SystemController::class, 'retryJob'])->name('admin.system.failed-jobs.retry');
+        Route::delete('/system/failed-jobs/{id}', [SystemController::class, 'forgetJob'])->name('admin.system.failed-jobs.destroy');
+        Route::post('/system/webhooks/replay', [SystemController::class, 'replayAllWebhooks'])->name('admin.system.webhooks.replay-all');
+        Route::post('/system/webhooks/{id}/replay', [SystemController::class, 'replayWebhook'])->whereNumber('id')->name('admin.system.webhooks.replay');
+
+        // Content: exercise library, workout splits and the generator preview
         Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');
         Route::get('/exercises/create', [ExerciseController::class, 'adminCreate'])->name('exercises.create');
         Route::get('/exercises/{exercise}', [ExerciseController::class, 'adminShow'])->name('exercises.show');

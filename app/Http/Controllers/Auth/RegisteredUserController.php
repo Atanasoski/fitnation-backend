@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Partner;
 use App\Models\User;
 use App\Models\UserInvitation;
 use Illuminate\Auth\Events\Registered;
@@ -88,7 +89,7 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'partner_id' => $invitation ? $invitation->partner_id : null,
+            'partner_id' => $invitation ? $invitation->partner_id : Partner::houseId(),
         ]);
 
         // Mark invitation as accepted

@@ -131,12 +131,12 @@ class SocialAuthController extends Controller
     private function resolvePartnerId(?int $requestedId): int
     {
         if (! $requestedId) {
-            return 1;
+            return Partner::houseId();
         }
 
         $partner = Partner::find($requestedId);
 
-        return ($partner && $partner->is_active) ? $requestedId : 1;
+        return ($partner && $partner->is_active) ? $requestedId : Partner::houseId();
     }
 
     private function findOrCreateUser(array $identity, ?string $name, int $partnerId, string $provider): User

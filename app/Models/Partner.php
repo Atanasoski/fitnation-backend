@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\PartnerKind;
 use App\Enums\PartnerPlan;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -31,10 +33,68 @@ class Partner extends Model
         ];
     }
 
+    /**
+     * The House Partner's id: Fit Nation itself, where everyone who joins
+     * without a gym belongs.
+     */
+    public static function houseId(): int
+    {
+        return (int) config('partners.house_partner_id');
+    }
+
+    public function isHouse(): bool
+    {
+        return $this->getKey() === self::houseId();
+    }
+
+    /**
+     * House if this is the configured House Partner, Sponsoring if it is on
+     * the sponsor plan (whether or not the sponsorship has run out), else
+     * plain.
+     */
+    public function kind(): PartnerKind
+    {
+        return match (true) {
+            $this->isHouse() => PartnerKind::House,
+            $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
+            default => PartnerKind::Plain,
+        };
+    }
+
+    /**
+     * A Sponsoring Partner whose sponsorship has not run out: its members have
+     * access without a subscription. scopeSponsoringMembers() is the same rule
+     * in SQL; keep the two together.
+     */
+    /**
+     * Sponsoring Partners whose sponsorship runs out after now and within
+     * $days days.
+     */
+    public function scopeSponsorshipExpiringWithin(Builder $query, int $days): Builder
+    {
+        return $query
+            ->where('plan', PartnerPlan::Sponsor)
+            ->where('plan_expires_at', '>', now())
+            ->where('plan_expires_at', '<=', now()->addDays($days));
+    }
+
     public function isSponsoringMembers(): bool
     {
         return $this->plan === PartnerPlan::Sponsor
             && ($this->plan_expires_at === null || $this->plan_expires_at > now());
+    }
+
+    /**
+     * @param  Builder<Partner>  $query
+     * @return Builder<Partner>
+     */
+    public function scopeSponsoringMembers(Builder $query): Builder
+    {
+        return $query
+            ->where('partners.plan', PartnerPlan::Sponsor)
+            ->where(fn (Builder $q) => $q
+                ->whereNull('partners.plan_expires_at')
+                ->orWhere('partners.plan_expires_at', '>', now()));
     }
 
     /**

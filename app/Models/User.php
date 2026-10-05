@@ -6,7 +6,9 @@ use App\Enums\Entitlement;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -219,11 +221,72 @@ class User extends Authenticatable implements MustVerifyEmail
             $set->push(Entitlement::AppAccess);
         }
 
-        if ($this->grace_period_ends_at && $this->grace_period_ends_at > now()) {
+        if ($this->hasComplimentaryAccess()) {
             $set->push(Entitlement::AppAccess);
         }
 
         return $set->unique()->values();
+    }
+
+    /**
+     * Complimentary Access (CONTEXT.md): an admin let this user in until a
+     * date. Stored as grace_period_ends_at, a name kept for now.
+     * scopeWithComplimentaryAccess() is the same rule in SQL.
+     */
+    public function hasComplimentaryAccess(): bool
+    {
+        return $this->grace_period_ends_at !== null && $this->grace_period_ends_at > now();
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithComplimentaryAccess(Builder $query): Builder
+    {
+        return $query->where('users.grace_period_ends_at', '>', now());
+    }
+
+    /**
+     * People using the app: everyone but staff (admin and partner-admin
+     * accounts), who the super-admin lists and counts leave out.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAppUsers(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', ['admin', 'partner_admin']));
+    }
+
+    /**
+     * Users with at least one Completed Session finished between $from and
+     * $to — "active this week" on the Overview and the Partners list.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeTrainedBetween(Builder $query, DateTimeInterface $from, DateTimeInterface $to): Builder
+    {
+        return $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
+            ->completed()
+            ->whereBetween('completed_at', [$from, $to]));
+    }
+
+    /**
+     * Users whose name or email contains $term, matched literally (a % or _
+     * in the term is not a wildcard).
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeMatching(Builder $query, string $term): Builder
+    {
+        $like = '%'.addcslashes($term, '\\%_').'%';
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('users.name', 'like', $like)
+            ->orWhere('users.email', 'like', $like));
     }
 
     public function hasEntitlement(Entitlement $e): bool

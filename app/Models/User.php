@@ -246,6 +246,34 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->where('users.grace_period_ends_at', '>', now());
     }
 
+    /**
+     * People using the app: everyone but staff (admin and partner-admin
+     * accounts), who the super-admin lists and counts leave out.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAppUsers(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', ['admin', 'partner_admin']));
+    }
+
+    /**
+     * Users whose name or email contains $term, matched literally (a % or _
+     * in the term is not a wildcard).
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeMatching(Builder $query, string $term): Builder
+    {
+        $like = '%'.addcslashes($term, '\\%_').'%';
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('users.name', 'like', $like)
+            ->orWhere('users.email', 'like', $like));
+    }
+
     public function hasEntitlement(Entitlement $e): bool
     {
         return $this->entitlements()->contains($e);

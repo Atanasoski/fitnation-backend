@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Each filter narrows correctly (one feature test per filter) and combines with the others
-- [ ] Platform = users with a Device on that platform
-- [ ] Stuck session = user has a session with status `active` started more than 24h ago
-- [ ] Text search matches name or email
-- [ ] Sort by signup and by last Completed Session, both directions
-- [ ] Filters round-trip: the URL reproduces the same list; pagination keeps them
+- [x] Each filter narrows correctly (one feature test per filter) and combines with the others
+- [x] Platform = users with a Device on that platform
+- [x] Stuck session = user has a session with status `active` started more than 24h ago
+- [x] Text search matches name or email
+- [x] Sort by signup and by last Completed Session, both directions
+- [x] Filters round-trip: the URL reproduces the same list; pagination keeps them

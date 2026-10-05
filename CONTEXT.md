@@ -54,6 +54,13 @@ completed twice reports the same records twice.
 
 _Avoid_: PR — it reads as pull request.
 
+### Stuck Session
+
+A workout session still `active` more than 24 hours after it started. Nobody
+trains for a day, so it almost always means the app lost track of the session
+— the athlete left without finishing or cancelling it. In code it is the query
+scope `WorkoutSession::stuck()`.
+
 ## Fitness Metrics
 
 ### Completed Session

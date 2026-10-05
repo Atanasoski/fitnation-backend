@@ -46,6 +46,23 @@ class WorkoutSession extends Model
     }
 
     /**
+     * How long a session may stay active before it counts as stuck.
+     */
+    public const STUCK_AFTER_HOURS = 24;
+
+    /**
+     * Stuck Sessions (CONTEXT.md): still active more than 24 hours after they
+     * started (performed_at is written when a session goes active). Almost
+     * always an app problem — the athlete left without finishing or cancelling.
+     */
+    public function scopeStuck(Builder $query): Builder
+    {
+        return $query
+            ->where('status', WorkoutSessionStatus::Active)
+            ->where('performed_at', '<', now()->subHours(self::STUCK_AFTER_HOURS));
+    }
+
+    /**
      * Display label for the session status (for UI badges).
      */
     public function getStatusLabelAttribute(): string

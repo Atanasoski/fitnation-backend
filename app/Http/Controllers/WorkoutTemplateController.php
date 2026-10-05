@@ -173,9 +173,7 @@ class WorkoutTemplateController extends Controller
             return redirect(PlanOutline::url($plan))->with('success', "{$workoutTemplate->name} removed.");
         }
 
-        $redirectRoute = $isLibrary ? 'partner.programs.show' : 'plans.show';
-
-        return redirect()->route($redirectRoute, $plan)
+        return redirect()->route('partner.programs.show', $plan)
             ->with('success', 'Workout template deleted successfully!');
     }
 

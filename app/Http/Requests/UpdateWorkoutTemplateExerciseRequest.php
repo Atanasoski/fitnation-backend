@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\UnitSystem;
 use App\Http\Requests\Concerns\ConvertsIncomingUnits;
 use App\Models\WorkoutTemplate;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,7 +27,7 @@ class UpdateWorkoutTemplateExerciseRequest extends FormRequest
             $this->merge(['target_weight' => 0]);
         }
 
-        $this->convertMeasuredInputs('workout_template_exercises', ['target_weight'], $this->ownersUnitSystem());
+        $this->convertMeasuredInputs('workout_template_exercises', ['target_weight'], $this->workout()->plan->ownerUnitSystem());
     }
 
     /**
@@ -46,15 +45,8 @@ class UpdateWorkoutTemplateExerciseRequest extends FormRequest
         ];
     }
 
-    /**
-     * Staff enter weights the way the plan's owner sees them; a library plan
-     * has no owner and stays metric.
-     */
-    private function ownersUnitSystem(): UnitSystem
+    private function workout(): WorkoutTemplate
     {
-        /** @var WorkoutTemplate $workout */
-        $workout = $this->route('workoutTemplate');
-
-        return $workout->plan->user?->unitSystem() ?? UnitSystem::Metric;
+        return $this->route('workoutTemplate');
     }
 }

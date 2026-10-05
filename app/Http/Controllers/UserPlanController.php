@@ -57,7 +57,7 @@ class UserPlanController extends Controller
                 ? $outline->plan->offeredExercises()->with('equipmentType')->orderBy('name')->get()
                 : collect(),
             'rowWeight' => $outline->row
-                ? $this->units->toDisplay($outline->row->target_weight, MeasuredFields::kindFor('workout_template_exercises', 'target_weight'), $user->unitSystem())
+                ? $this->units->toDisplay($outline->row->target_weight, MeasuredFields::kindFor('workout_template_exercises', 'target_weight'), $outline->plan->ownerUnitSystem())
                 : null,
             'units' => $user->unitSystem(),
             'back' => $back,

@@ -6,10 +6,16 @@
 
 **Blocked by:** 06, 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Writes go through resourceful routes guarded by the 05 policy, and each redirects to the touched node.
-- [ ] A partial update no longer resets other fields. Tested.
-- [ ] Imperial user: weight entered in lb is stored in kg, and shown back in lb. Tested.
-- [ ] Picker excludes archived exercises and other partners' exercises.
-- [ ] Reorder keeps `order` contiguous.
+- [x] Writes go through resourceful routes guarded by the 05 policy, and each redirects to the touched node.
+- [x] A partial update no longer resets other fields. Tested.
+- [x] Imperial user: weight entered in lb is stored in kg, and shown back in lb. Tested.
+- [x] Picker excludes archived exercises and other partners' exercises.
+- [x] Reorder keeps `order` contiguous.
+
+**Notes (done):**
+- New routes: `workout-exercises.swap` (PUT) and `workout-exercises.move` (POST, `direction=up|down`), both scoped to the workout. Outline URLs add `workout`, `row` and `add=workout|exercise`.
+- Moving a row reopens its workout (the order list lives there); every other write reopens the node it touched. Library-plan writes keep their old redirects.
+- Store and swap refuse exercises outside the plan's catalogue (`Plan::offeredExercises()`), for library plans too.
+- Until 08 retires them, the old user-plan pages (`workouts.show` add-exercise modal, `workout-exercises.edit`) show kg but their weight is now read in the owner's Unit System. Land 08 before release.

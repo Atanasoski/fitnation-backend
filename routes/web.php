@@ -61,6 +61,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/exercises/{exercise}', [ExerciseController::class, 'adminShow'])->name('exercises.show');
         Route::get('/exercises/{exercise}/edit', [ExerciseController::class, 'adminEdit'])->name('exercises.edit');
         Route::post('/exercises', [ExerciseController::class, 'store'])->name('exercises.store');
+        Route::post('/exercises/bulk-destroy', [ExerciseController::class, 'bulkDestroy'])->name('exercises.bulkDestroy');
+        Route::post('/exercises/{exercise}/restore', [ExerciseController::class, 'restore'])->name('exercises.restore');
         Route::put('/exercises/{exercise}', [ExerciseController::class, 'update'])->name('exercises.update');
         Route::delete('/exercises/{exercise}', [ExerciseController::class, 'destroy'])->name('exercises.destroy');
         Route::post('/exercises/{exercise}/update-muscle-group-image', [ExerciseController::class, 'updateMuscleGroupImage'])->name('exercises.updateMuscleGroupImage');

@@ -19,14 +19,17 @@ use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
 use App\Services\Exercise\ArchiveOutcome;
 use App\Services\Exercise\ExerciseArchive;
+use App\Services\Exercise\ExerciseGallery;
 use App\Services\Exercise\PartnerExerciseView;
 use App\Services\MuscleGroupImageService;
 use App\Services\PartnerExerciseFileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 
 class ExerciseController extends Controller
 {
@@ -35,23 +38,30 @@ class ExerciseController extends Controller
         private MuscleGroupImageService $muscleGroupImageService
     ) {}
 
-    public function index()
+    /**
+     * The exercise gallery (spec 023, ticket 03): a filtered, paginated slice
+     * of the catalogue with facet counts. `?edit={id}` or `?create=1` opens
+     * the editor in a slide-over over the same slice.
+     */
+    public function index(Request $request): View
     {
-        $user = auth()->user();
+        $gallery = ExerciseGallery::fromQuery($request->query());
 
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can access this page.');
+        $editing = null;
+        if ($request->filled('edit')) {
+            $editing = Exercise::with(['muscleGroups', 'trainingStyles'])->findOrFail($request->integer('edit'));
+        } elseif ($request->boolean('create')) {
+            $editing = new Exercise(['default_rest_sec' => 90, 'selection_priority' => 100]);
         }
 
-        $equipmentTypes = EquipmentType::with(['exercises' => function ($query) {
-            $query->with(['muscleGroups', 'partners', 'trainingStyles'])->orderBy('name');
-        }])
-            ->orderBy('display_order')
-            ->get();
-
-        $partners = Partner::orderBy('name')->get();
-
-        return view('exercises.admin.index', compact('equipmentTypes', 'partners'));
+        return view('exercises.admin.index', [
+            'gallery' => $gallery,
+            'exercises' => $gallery->exercises(),
+            'facets' => $gallery->facets(),
+            'page' => $request->integer('page') > 1 ? $request->integer('page') : null,
+            'editing' => $editing,
+            'lookups' => $editing ? $this->editorLookups() : null,
+        ]);
     }
 
     public function partnerIndex()
@@ -114,7 +124,7 @@ class ExerciseController extends Controller
             $this->syncClassification($exercise, $request);
         });
 
-        return redirect()->route('exercises.index')
+        return redirect()->to($this->galleryUrl($request))
             ->with('success', 'Exercise created successfully!');
     }
 
@@ -152,7 +162,7 @@ class ExerciseController extends Controller
             Storage::delete($path);
         }
 
-        return redirect()->route('exercises.show', $exercise)
+        return redirect()->to($this->galleryUrl($request))
             ->with('success', 'Exercise updated successfully!');
     }
 
@@ -268,150 +278,102 @@ class ExerciseController extends Controller
     }
 
     /**
-     * Show exercise details for admin.
+     * The old exercise page: the gallery with the exercise open.
      */
-    public function adminShow(Exercise $exercise)
+    public function adminShow(Exercise $exercise): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can access this page.');
-        }
-
-        // Load exercise with category relationship
-        $exercise->load('category');
-
-        return view('exercises.admin.show', compact('exercise'));
+        return redirect()->route('exercises.index', ['edit' => $exercise->id]);
     }
 
     /**
-     * Show edit form for admin exercise.
+     * The old edit page: the gallery with the exercise open.
      */
-    public function adminEdit(Exercise $exercise)
+    public function adminEdit(Exercise $exercise): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can edit exercises.');
-        }
-
-        // Load exercise with relationships
-        $exercise->load(['category', 'movementPattern', 'targetRegion', 'equipmentType', 'angle', 'muscleGroups', 'trainingStyles']);
-
-        // Get all categories for the dropdown
-        $categories = Category::where('type', CategoryType::Workout)
-            ->orderBy('display_order')
-            ->get();
-
-        $movementPatterns = MovementPattern::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $targetRegions = TargetRegion::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $equipmentTypes = EquipmentType::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $angles = Angle::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $muscleGroups = MuscleGroup::query()
-            ->orderBy('body_region')
-            ->orderBy('name')
-            ->get();
-
-        $trainingStyles = TrainingStyle::query()
-            ->orderBy('display_order')
-            ->get();
-
-        // Get currently selected muscle group IDs
-        $primaryMuscleGroupIds = $exercise->primaryMuscleGroups()->pluck('muscle_groups.id')->toArray();
-        $secondaryMuscleGroupIds = $exercise->secondaryMuscleGroups()->pluck('muscle_groups.id')->toArray();
-        $selectedTrainingStyleIds = $exercise->trainingStyles()->pluck('training_styles.id')->toArray();
-
-        return view('exercises.admin.edit', compact(
-            'exercise',
-            'categories',
-            'movementPatterns',
-            'targetRegions',
-            'equipmentTypes',
-            'angles',
-            'muscleGroups',
-            'trainingStyles',
-            'primaryMuscleGroupIds',
-            'secondaryMuscleGroupIds',
-            'selectedTrainingStyleIds',
-        ));
+        return redirect()->route('exercises.index', ['edit' => $exercise->id]);
     }
 
     /**
-     * Show create form for admin exercise.
+     * The old create page: the gallery with an empty editor open.
      */
-    public function adminCreate()
+    public function adminCreate(): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can create exercises.');
-        }
-
-        $categories = Category::where('type', CategoryType::Workout)
-            ->orderBy('display_order')
-            ->get();
-
-        $movementPatterns = MovementPattern::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $targetRegions = TargetRegion::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $equipmentTypes = EquipmentType::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $angles = Angle::query()
-            ->orderBy('display_order')
-            ->get();
-
-        $muscleGroups = MuscleGroup::query()
-            ->orderBy('body_region')
-            ->orderBy('name')
-            ->get();
-
-        $trainingStyles = TrainingStyle::query()
-            ->orderBy('display_order')
-            ->get();
-
-        return view('exercises.admin.create', compact(
-            'categories',
-            'movementPatterns',
-            'targetRegions',
-            'equipmentTypes',
-            'angles',
-            'muscleGroups',
-            'trainingStyles',
-        ));
+        return redirect()->route('exercises.index', ['create' => 1]);
     }
 
-    public function destroy(Exercise $exercise)
+    /**
+     * Everything the editor's selects and chips offer.
+     *
+     * @return array<string, \Illuminate\Support\Collection<int, \Illuminate\Database\Eloquent\Model>>
+     */
+    private function editorLookups(): array
     {
-        $user = auth()->user();
+        return [
+            'categories' => Category::where('type', CategoryType::Workout)->orderBy('display_order')->get(),
+            'movementPatterns' => MovementPattern::orderBy('display_order')->get(),
+            'targetRegions' => TargetRegion::orderBy('display_order')->get(),
+            'equipmentTypes' => EquipmentType::orderBy('display_order')->get(),
+            'angles' => Angle::orderBy('display_order')->get(),
+            'muscleGroups' => MuscleGroup::orderBy('body_region')->orderBy('name')->get(),
+            'trainingStyles' => TrainingStyle::orderBy('display_order')->get(),
+        ];
+    }
 
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can delete exercises.');
+    /**
+     * The gallery slice a form was posted from, carried in its `back` field
+     * as a query string. Only the gallery's own filters (and the page) are
+     * kept, so it can only ever lead back to the gallery.
+     */
+    private function galleryUrl(Request $request): string
+    {
+        parse_str((string) $request->input('back', ''), $query);
+
+        $params = ExerciseGallery::fromQuery($query)->query();
+        $page = (int) ($query['page'] ?? 0);
+        if ($page > 1) {
+            $params['page'] = (string) $page;
         }
 
+        return route('exercises.index', $params);
+    }
+
+    public function destroy(Request $request, Exercise $exercise): RedirectResponse
+    {
         $message = ExerciseArchive::archiveOrDelete($exercise) === ArchiveOutcome::Archived
             ? 'Exercise archived. It is used in plans or logged sessions, which keep it.'
             : 'Exercise deleted successfully!';
 
-        return redirect()->route('exercises.index')->with('success', $message);
+        return redirect()->to($this->galleryUrl($request))->with('success', $message);
+    }
+
+    /**
+     * Archive or delete the selected exercises, each by the Archived
+     * Exercise rule, and say how many went which way.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $ids = $request->validate([
+            'exercise_ids' => ['required', 'array', 'min:1'],
+            'exercise_ids.*' => ['integer'],
+        ])['exercise_ids'];
+
+        $counts = ExerciseArchive::archiveOrDeleteMany($ids);
+
+        return redirect()->to($this->galleryUrl($request))->with('success', sprintf(
+            '%d archived (used in plans or logged sessions), %d deleted.',
+            $counts['archived'],
+            $counts['deleted'],
+        ));
+    }
+
+    /**
+     * Put an Archived Exercise back in the catalogue.
+     */
+    public function restore(Request $request, Exercise $exercise): RedirectResponse
+    {
+        ExerciseArchive::restore($exercise);
+
+        return redirect()->to($this->galleryUrl($request))->with('success', 'Exercise restored to the catalogue.');
     }
 
     /**

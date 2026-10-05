@@ -19,6 +19,9 @@ use Tests\TestCase;
 /**
  * What creating and updating an exercise through the admin pages does, locked
  * before the exercise gallery (spec 023, ticket 03) changes it.
+ *
+ * Changed deliberately by the gallery: update used to land on the old
+ * exercise page (exercises.show); it now returns to the gallery.
  */
 class ExerciseStoreUpdateCharacterizationTest extends TestCase
 {
@@ -83,7 +86,7 @@ class ExerciseStoreUpdateCharacterizationTest extends TestCase
                 'video' => UploadedFile::fake()->create('demo.mp4', 100, 'video/mp4'),
                 'primary_muscle_group_ids' => [$back->id],
             ]))
-            ->assertRedirect(route('exercises.show', $exercise))
+            ->assertRedirect(route('exercises.index'))
             ->assertSessionHas('success', 'Exercise updated successfully!');
 
         $exercise->refresh();

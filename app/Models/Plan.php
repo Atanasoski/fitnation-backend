@@ -91,6 +91,15 @@ class Plan extends Model
     }
 
     /**
+     * The partner this plan belongs to: its own for a library plan, its
+     * owner's for a user's plan. Its catalogue is what the plan draws from.
+     */
+    public function ownerPartnerId(): ?int
+    {
+        return $this->user_id === null ? $this->partner_id : $this->user?->partner_id;
+    }
+
+    /**
      * Scope: Filter plans for a specific partner (library plans)
      */
     public function scopeForPartner(Builder $query, int $partnerId): Builder

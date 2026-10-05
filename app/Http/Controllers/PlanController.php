@@ -28,19 +28,9 @@ class PlanController extends Controller
     /**
      * Display a listing of the user's plans (user flow: plan for a specific user).
      */
-    public function userPlanIndex(Request $request, User $user): View
+    public function userPlanIndex(User $user): View
     {
-        $currentUser = $request->user();
-
-        if (! $currentUser->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can view plans.');
-        }
-
-        if ($user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($user->partner_id);
 
         $plans = Plan::query()
             ->where('user_id', $user->id)
@@ -56,20 +46,9 @@ class PlanController extends Controller
     /**
      * Show the form for creating a new plan for a user (user flow).
      */
-    public function userPlanCreate(Request $request, User $user): View
+    public function userPlanCreate(User $user): View
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        if (! $currentUser->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can create plans.');
-        }
-
-        if ($user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($user->partner_id);
 
         return view('plans.users.create', compact('user', 'partner'));
     }
@@ -79,13 +58,6 @@ class PlanController extends Controller
      */
     public function userPlanStore(StorePlanRequest $request, User $user): RedirectResponse
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        if ($user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
         $attributes = $this->planService->createAttributes($request->validated(), 'user', $user);
         $requestedActive = $attributes['is_active'] ?? false;
         $attributes['is_active'] = false;
@@ -103,29 +75,14 @@ class PlanController extends Controller
     /**
      * Display the specified plan (user flow: plan for a specific user).
      */
-    public function userPlanShow(Request $request, Plan $plan): View|RedirectResponse
+    public function userPlanShow(Plan $plan): View|RedirectResponse
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        if (! $currentUser->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can view plans.');
-        }
-
         // User plan show is only for plans assigned to a user; library plans use partner.programs.show
         if ($plan->user_id === null) {
-            if ($plan->partner_id === $currentUser->partner_id) {
-                return redirect()->route('partner.programs.show', $plan);
-            }
-            abort(404, 'Plan not found.');
+            return redirect()->route('partner.programs.show', $plan);
         }
 
-        $plan->load('user');
-        if ($plan->user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
         $plan->load([
             'workoutTemplates' => function ($query) {
@@ -195,21 +152,9 @@ class PlanController extends Controller
     /**
      * Show the form for editing the specified plan (user flow).
      */
-    public function userPlanEdit(Request $request, Plan $plan): View
+    public function userPlanEdit(Plan $plan): View
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        if (! $currentUser->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can edit plans.');
-        }
-
-        $plan->load('user');
-        if ($plan->user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
         return view('plans.users.edit', compact('plan', 'partner'));
     }
@@ -219,14 +164,6 @@ class PlanController extends Controller
      */
     public function userPlanUpdate(UpdatePlanRequest $request, Plan $plan): RedirectResponse
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        $plan->load('user');
-        if ($plan->user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
         // is_active is excluded on purpose — PlanActivation owns it, and
         // writing it here would land outside its transaction.
         $data = collect($request->validated())->except('cover_image', 'is_active')->all();
@@ -245,16 +182,8 @@ class PlanController extends Controller
     /**
      * Remove the specified plan from storage (user flow).
      */
-    public function userPlanDestroy(Request $request, Plan $plan): RedirectResponse
+    public function userPlanDestroy(Plan $plan): RedirectResponse
     {
-        $currentUser = $request->user();
-
-        // Authorization check
-        $plan->load('user');
-        if ($plan->user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
         $user = $plan->user;
         $plan->delete();
 
@@ -331,16 +260,9 @@ class PlanController extends Controller
     /**
      * Display the specified program (partner library).
      */
-    public function show(Request $request, Plan $plan): View
+    public function show(Plan $plan): View
     {
-        $currentUser = $request->user();
-
-        if (! $currentUser->hasRole('partner_admin') ||
-            $plan->partner_id !== $currentUser->partner_id) {
-            abort(403);
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
         $plan->load([
             'workoutTemplates' => function ($query) {
@@ -410,16 +332,9 @@ class PlanController extends Controller
     /**
      * Show the form for editing the specified program (partner library).
      */
-    public function edit(Request $request, Plan $plan): View
+    public function edit(Plan $plan): View
     {
-        $currentUser = $request->user();
-
-        if (! $currentUser->hasRole('partner_admin') ||
-            $plan->partner_id !== $currentUser->partner_id) {
-            abort(403);
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
         return view('plans.edit', compact('plan', 'partner'));
     }
@@ -429,13 +344,6 @@ class PlanController extends Controller
      */
     public function update(UpdatePlanRequest $request, Plan $plan): RedirectResponse
     {
-        $currentUser = $request->user();
-
-        if (! $currentUser->hasRole('partner_admin') ||
-            $plan->partner_id !== $currentUser->partner_id) {
-            abort(403);
-        }
-
         $data = collect($request->validated())->except('cover_image')->all();
         if ($request->hasFile('cover_image')) {
             $this->planFileService->deleteCoverImage($plan->cover_image);
@@ -452,15 +360,8 @@ class PlanController extends Controller
     /**
      * Remove the specified program from storage (partner library).
      */
-    public function destroy(Request $request, Plan $plan): RedirectResponse
+    public function destroy(Plan $plan): RedirectResponse
     {
-        $currentUser = $request->user();
-
-        if (! $currentUser->hasRole('partner_admin') ||
-            $plan->partner_id !== $currentUser->partner_id) {
-            abort(403);
-        }
-
         $plan->delete();
 
         return redirect()

@@ -46,7 +46,7 @@ class WorkoutTemplateExerciseController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
         $isLibrary = $workoutTemplate->plan->user_id === null;
         $user = $isLibrary ? null : $workoutTemplate->plan->user;
 

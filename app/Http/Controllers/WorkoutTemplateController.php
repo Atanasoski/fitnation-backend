@@ -22,7 +22,7 @@ class WorkoutTemplateController extends Controller
     public function create(Request $request, Plan $plan): View
     {
         $plan->load('user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
         $isLibrary = $plan->user_id === null;
         $user = $isLibrary ? null : $plan->user;
 
@@ -65,7 +65,7 @@ class WorkoutTemplateController extends Controller
     public function show(Request $request, WorkoutTemplate $workoutTemplate): View
     {
         $workoutTemplate->load('plan.user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
         $isLibrary = $workoutTemplate->plan->user_id === null;
         $user = $isLibrary ? null : $workoutTemplate->plan->user;
 
@@ -124,7 +124,7 @@ class WorkoutTemplateController extends Controller
     public function edit(Request $request, WorkoutTemplate $workoutTemplate): View
     {
         $workoutTemplate->load('plan.user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
         $isLibrary = $workoutTemplate->plan->user_id === null;
         $user = $isLibrary ? null : $workoutTemplate->plan->user;
 

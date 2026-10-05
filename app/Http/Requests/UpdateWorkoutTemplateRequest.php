@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\PlanTheActorMayChange;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateWorkoutTemplateRequest extends FormRequest
@@ -36,14 +37,7 @@ class UpdateWorkoutTemplateRequest extends FormRequest
             'plan_id' => [
                 'nullable',
                 'exists:plans,id',
-                function ($attribute, $value, $fail) {
-                    if ($value) {
-                        $plan = \App\Models\Plan::find($value);
-                        if ($plan && $plan->user_id !== auth()->id()) {
-                            $fail('The selected plan does not belong to you.');
-                        }
-                    }
-                },
+                new PlanTheActorMayChange,
             ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\WorkoutTemplate;
+use App\Rules\PlanTheActorMayChange;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWorkoutTemplateRequest extends FormRequest
@@ -37,19 +38,7 @@ class StoreWorkoutTemplateRequest extends FormRequest
             'plan_id' => [
                 'required',
                 'exists:plans,id',
-                function ($attribute, $value, $fail) {
-                    $plan = \App\Models\Plan::with('user')->find($value);
-                    $currentUser = auth()->user();
-                    if (! $plan || ! $currentUser) {
-                        return;
-                    }
-                    $planPartnerId = $plan->user_id === null
-                        ? $plan->partner_id
-                        : $plan->user?->partner_id;
-                    if ($planPartnerId === null || $planPartnerId !== $currentUser->partner_id) {
-                        $fail('The selected plan does not belong to your partner.');
-                    }
-                },
+                new PlanTheActorMayChange,
             ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',

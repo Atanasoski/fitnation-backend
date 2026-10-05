@@ -100,6 +100,25 @@ class Plan extends Model
     }
 
     /**
+     * The exercises a row of this plan may be given: its partner's catalogue,
+     * less Archived Exercises. None when the plan has no partner.
+     *
+     * @return Builder<Exercise>
+     */
+    public function offeredExercises(): Builder
+    {
+        $partnerId = $this->ownerPartnerId();
+
+        return Exercise::query()
+            ->available()
+            ->when(
+                $partnerId === null,
+                fn (Builder $query) => $query->whereRaw('1 = 0'),
+                fn (Builder $query) => $query->whereHas('partners', fn (Builder $q) => $q->where('partners.id', $partnerId)),
+            );
+    }
+
+    /**
      * Scope: Filter plans for a specific partner (library plans)
      */
     public function scopeForPartner(Builder $query, int $partnerId): Builder

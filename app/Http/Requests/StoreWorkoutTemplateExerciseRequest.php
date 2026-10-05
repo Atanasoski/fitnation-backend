@@ -2,27 +2,38 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UnitSystem;
+use App\Http\Requests\Concerns\ConvertsIncomingUnits;
+use App\Models\WorkoutTemplate;
+use App\Rules\ExerciseThePlanOffers;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * An exercise row added to a workout from the staff pages. The exercise comes
+ * from the plan's catalogue; the target weight is entered in the plan owner's
+ * Unit System (ADR-0001). Authorisation is the route's PlanPolicy guard.
+ */
 class StoreWorkoutTemplateExerciseRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    use ConvertsIncomingUnits;
+
     public function authorize(): bool
     {
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->convertMeasuredInputs('workout_template_exercises', ['target_weight'], $this->ownersUnitSystem());
+    }
+
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'exercise_id' => 'required|exists:workout_exercises,id',
+            'exercise_id' => ['required', 'integer', new ExerciseThePlanOffers($this->workout()->plan)],
             'order' => 'nullable|integer|min:0',
             'target_sets' => 'nullable|integer|min:0',
             'min_target_reps' => 'nullable|integer|min:1',
@@ -30,5 +41,19 @@ class StoreWorkoutTemplateExerciseRequest extends FormRequest
             'target_weight' => 'nullable|numeric|min:0',
             'rest_seconds' => 'nullable|integer|min:0',
         ];
+    }
+
+    private function workout(): WorkoutTemplate
+    {
+        return $this->route('workoutTemplate');
+    }
+
+    /**
+     * Staff enter weights the way the plan's owner sees them; a library plan
+     * has no owner and stays metric.
+     */
+    private function ownersUnitSystem(): UnitSystem
+    {
+        return $this->workout()->plan->user?->unitSystem() ?? UnitSystem::Metric;
     }
 }

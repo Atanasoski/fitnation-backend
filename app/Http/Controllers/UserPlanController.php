@@ -6,26 +6,41 @@ use App\Enums\PlanType;
 use App\Http\Requests\UserPlanRequest;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\MeasuredFields;
 use App\Services\Plan\PlanActivation;
 use App\Services\Plan\PlanOutline;
 use App\Services\PlanFileService;
+use App\Services\UnitConversionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * A user's plan outline (023/06), shared by super admins and partner admins:
+ * A user's plan outline (023/06, 023/07), shared by super admins and partner admins:
  * every route is guarded by PlanPolicy. Each write redirects back to the
  * outline with the plan it touched selected.
  */
 class UserPlanController extends Controller
 {
-    public function __construct(private PlanFileService $planFileService) {}
+    public function __construct(
+        private PlanFileService $planFileService,
+        private UnitConversionService $units,
+    ) {}
 
     public function index(Request $request, User $user): View
     {
-        $outline = PlanOutline::for($user, $request->integer('plan') ?: null);
+        $outline = PlanOutline::for(
+            $user,
+            $request->integer('plan') ?: null,
+            $request->integer('workout') ?: null,
+            $request->integer('row') ?: null,
+        );
         $creating = PlanType::tryFrom((string) $request->query('create'));
+        $adding = $creating || $outline->plan === null ? null : match ($request->query('add')) {
+            'workout' => 'workout',
+            'exercise' => $outline->workout ? 'exercise' : null,
+            default => null,
+        };
 
         $back = $request->user()->hasRole('admin')
             ? route('admin.users.show', $user)
@@ -35,7 +50,15 @@ class UserPlanController extends Controller
             'outline' => $outline,
             'user' => $user,
             'creating' => $creating,
+            'adding' => $adding,
             'replaces' => $creating ? null : $outline->replaces(),
+            // The picker, for adding a row or swapping one's exercise.
+            'offered' => $adding === 'exercise' || $outline->row
+                ? $outline->plan->offeredExercises()->with('equipmentType')->orderBy('name')->get()
+                : collect(),
+            'rowWeight' => $outline->row
+                ? $this->units->toDisplay($outline->row->target_weight, MeasuredFields::kindFor('workout_template_exercises', 'target_weight'), $user->unitSystem())
+                : null,
             'units' => $user->unitSystem(),
             'back' => $back,
         ]);

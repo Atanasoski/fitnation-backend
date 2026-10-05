@@ -130,6 +130,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/edit', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'edit'])->can('manage', 'workoutTemplate')->name('workout-exercises.edit');
     Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'update'])->can('manage', 'workoutTemplate')->name('workout-exercises.update');
     Route::delete('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'destroy'])->can('manage', 'workoutTemplate')->name('workout-exercises.destroy');
+    Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/swap', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'swap'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.swap');
+    Route::post('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/move', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'move'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.move');
 
     // User Invitations Management
     Route::get('/user-invitations', [UserController::class, 'invitationsIndex'])->name('user-invitations.index');

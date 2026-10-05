@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
+use App\Services\Plan\PlanOutline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -19,6 +20,9 @@ use Tests\TestCase;
  * the plan policy (023/05) puts every write behind one rule: a partner admin
  * on their own member's plans and their own library plans, and an app user on
  * their own plan through the API.
+ *
+ * Since 023/07 a member plan's workout and row writes reopen the plan outline
+ * on the node they touched; a library plan keeps its own pages.
  */
 class PlanWritesCharacterizationTest extends TestCase
 {
@@ -57,7 +61,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->put(route('workouts.update', $workout), ['name' => 'Renamed'])
-            ->assertRedirect(route('plans.show', $workout->plan_id));
+            ->assertRedirect($kind === 'library' ? route('plans.show', $workout->plan_id) : PlanOutline::url($workout));
 
         $this->assertSame('Renamed', $workout->fresh()->name);
     }
@@ -70,7 +74,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->delete(route('workouts.destroy', $workout))
-            ->assertRedirect(route($kind === 'library' ? 'partner.programs.show' : 'plans.show', $plan));
+            ->assertRedirect($kind === 'library' ? route('partner.programs.show', $plan) : PlanOutline::url($plan));
 
         $this->assertModelMissing($workout);
     }
@@ -79,13 +83,15 @@ class PlanWritesCharacterizationTest extends TestCase
     public function test_own_partner_admin_adds_an_exercise_row(string $kind): void
     {
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $this->plan($kind)->id]);
+        // Since 023/07 the exercise must come from the partner's catalogue.
         $exercise = Exercise::factory()->create();
+        $exercise->partners()->attach($this->partner);
 
-        $this->actingAs($this->partnerAdmin)
-            ->post(route('workout-exercises.store', $workout), ['exercise_id' => $exercise->id, 'target_sets' => 5])
-            ->assertRedirect(route('workouts.show', $workout));
+        $response = $this->actingAs($this->partnerAdmin)
+            ->post(route('workout-exercises.store', $workout), ['exercise_id' => $exercise->id, 'target_sets' => 5]);
 
         $row = $workout->workoutTemplateExercises()->sole();
+        $response->assertRedirect($kind === 'library' ? route('workouts.show', $workout) : PlanOutline::url($row));
         $this->assertSame($exercise->id, $row->exercise_id);
         $this->assertSame(5, $row->target_sets);
     }
@@ -100,18 +106,19 @@ class PlanWritesCharacterizationTest extends TestCase
                 'target_sets' => 6, 'min_target_reps' => 3, 'max_target_reps' => 5,
                 'target_weight' => 80, 'rest_seconds' => 180,
             ])
-            ->assertRedirect(route('workouts.show', $row->workout_template_id));
+            ->assertRedirect($kind === 'library' ? route('workouts.show', $row->workout_template_id) : PlanOutline::url($row));
 
         $this->assertSame(6, $row->fresh()->target_sets);
         $this->assertSame(180, $row->fresh()->rest_seconds);
     }
 
     /**
-     * Today a partial update resets every omitted field to its default.
+     * A partial update changes only what it sends (023/07; it used to reset
+     * every omitted field to its default).
      */
-    public function test_a_partial_row_update_resets_the_omitted_fields(): void
+    public function test_a_partial_row_update_keeps_the_omitted_fields(): void
     {
-        $row = $this->row($this->plan('member'));
+        $row = $this->row($this->plan('library'));
         $row->update(['target_sets' => 5, 'min_target_reps' => 4, 'max_target_reps' => 6, 'target_weight' => 100, 'rest_seconds' => 200]);
 
         $this->actingAs($this->partnerAdmin)
@@ -120,17 +127,17 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $row->refresh();
         $this->assertSame(4, $row->target_sets);
-        $this->assertSame(8, $row->min_target_reps);
-        $this->assertSame(12, $row->max_target_reps);
-        $this->assertEquals(0, $row->target_weight);
-        $this->assertSame(120, $row->rest_seconds);
+        $this->assertSame(4, $row->min_target_reps);
+        $this->assertSame(6, $row->max_target_reps);
+        $this->assertEquals(100, $row->target_weight);
+        $this->assertSame(200, $row->rest_seconds);
     }
 
     /**
-     * Today the web row form stores a target weight as sent, whatever the
-     * plan owner's Unit System.
+     * Since 023/07 the web row form takes a target weight in the plan owner's
+     * Unit System and stores kilograms (it used to store it as sent).
      */
-    public function test_a_row_target_weight_is_stored_as_sent_for_an_imperial_member(): void
+    public function test_a_row_target_weight_is_converted_for_an_imperial_member(): void
     {
         $this->member->profile->update(['unit_system' => UnitSystem::Imperial]);
         $row = $this->row($this->plan('member'));
@@ -141,7 +148,7 @@ class PlanWritesCharacterizationTest extends TestCase
                 'target_weight' => 100, 'rest_seconds' => 120,
             ]);
 
-        $this->assertEquals(100, $row->fresh()->target_weight);
+        $this->assertEqualsWithDelta(45.36, (float) $row->fresh()->target_weight, 0.01);
     }
 
     #[DataProvider('plans')]
@@ -151,7 +158,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->delete(route('workout-exercises.destroy', [$row->workout_template_id, $row]))
-            ->assertRedirect(route('workouts.show', $row->workout_template_id));
+            ->assertRedirect($kind === 'library' ? route('workouts.show', $row->workout_template_id) : PlanOutline::url($row->workoutTemplate));
 
         $this->assertModelMissing($row);
     }

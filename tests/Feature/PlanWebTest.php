@@ -105,7 +105,7 @@ class PlanWebTest extends TestCase
         $this->assertEquals(0, $workout->order_index);
     }
 
-    public function test_workout_store_for_user_plan_redirects_to_plans_show(): void
+    public function test_workout_store_for_user_plan_opens_the_outline_on_it(): void
     {
         $partner = Partner::factory()->create();
         $admin = User::factory()->create([
@@ -125,10 +125,9 @@ class PlanWebTest extends TestCase
             'week_number' => 1,
         ]);
 
-        $response->assertRedirect(route('plans.show', $plan));
-
         $workout = WorkoutTemplate::where('name', 'User Plan Workout')->first();
         $this->assertNotNull($workout);
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan, 'workout' => $workout]));
         $this->assertEquals(1, $workout->week_number);
         $this->assertEquals(0, $workout->order_index);
     }

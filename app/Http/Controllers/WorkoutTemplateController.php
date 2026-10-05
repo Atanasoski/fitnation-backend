@@ -10,6 +10,7 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\WorkoutTemplate;
+use App\Services\Plan\PlanOutline;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,13 +50,16 @@ class WorkoutTemplateController extends Controller
             'plan_id' => $plan->id,
             'name' => $request->name,
             'description' => $request->description,
+            'day_of_week' => $request->validated('day_of_week'),
             'week_number' => $week,
             'order_index' => $orderIndex,
         ]);
 
-        $planShowRoute = $plan->user_id ? 'plans.show' : 'partner.programs.show';
+        if ($plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate))->with('success', 'Workout added.');
+        }
 
-        return redirect()->route($planShowRoute, $plan)
+        return redirect()->route('partner.programs.show', $plan)
             ->with('success', 'Workout template created successfully!');
     }
 
@@ -147,6 +151,10 @@ class WorkoutTemplateController extends Controller
         // day_of_week (commented out): day-uniqueness swap logic removed
         $workoutTemplate->update($validated);
 
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate))->with('success', 'Workout saved.');
+        }
+
         return redirect()->route('plans.show', $workoutTemplate->plan)
             ->with('success', 'Workout template updated successfully!');
     }
@@ -160,6 +168,10 @@ class WorkoutTemplateController extends Controller
         $plan = $workoutTemplate->plan;
         $isLibrary = $plan->user_id === null;
         $workoutTemplate->delete();
+
+        if (! $isLibrary) {
+            return redirect(PlanOutline::url($plan))->with('success', "{$workoutTemplate->name} removed.");
+        }
 
         $redirectRoute = $isLibrary ? 'partner.programs.show' : 'plans.show';
 

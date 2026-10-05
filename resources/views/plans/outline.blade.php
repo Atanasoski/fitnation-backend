@@ -2,8 +2,8 @@
 
 @section('title', $user->name.' · Plans')
 
-{{-- A user's plan outline (023/06): every plan → workout → exercise row in a tree on the left,
-     the selected plan's editor on the right. The selection lives in the URL. --}}
+{{-- A user's plan outline (023/06, 023/07): every plan → workout → exercise row in a tree on the
+     left, the selected node's editor on the right. The selection lives in the URL. --}}
 @section('content')
     @php
         $card = 'rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]';
@@ -12,7 +12,10 @@
         $primary = 'rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600';
         $node = 'flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-sm hover:bg-gray-100 dark:hover:bg-white/5';
         $days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        $dayName = fn (?int $day) => $day === null ? 'Any day' : ($days[$day] ?? '');
         $selected = $creating ? null : $outline->plan;
+        $workout = $creating ? null : $outline->workout;
+        $row = $creating ? null : $outline->row;
         $outlineUrl = fn (array $query = []) => route('plans.index', ['user' => $user] + $query);
         // The plan form: the selected plan when editing, nothing when creating.
         $form = $creating
@@ -53,7 +56,7 @@
 
                 @forelse ($outline->plans as $plan)
                     <div x-data="{ open: @js($selected?->is($plan) ?? false) }">
-                        <div class="{{ $node }} {{ $selected?->is($plan) ? 'bg-brand-500/15' : '' }}">
+                        <div class="{{ $node }} {{ $selected?->is($plan) && ! $workout && ! $adding ? 'bg-brand-500/15' : '' }}">
                             <button type="button" class="w-3 text-gray-400" @click="open = !open" :aria-expanded="open" aria-label="Show workouts">
                                 <span x-text="open ? '▾' : '▸'">▸</span>
                             </button>
@@ -64,25 +67,29 @@
                             </a>
                         </div>
                         <div x-show="open" x-cloak class="ml-4 border-l border-gray-200 pl-1 dark:border-gray-800">
-                            @forelse ($plan->workoutTemplates as $workout)
-                                <div class="flex items-center gap-1.5 px-2 py-1 text-sm">
-                                    <span class="flex-1 truncate text-gray-700 dark:text-gray-300">{{ $workout->name }}</span>
+                            @foreach ($plan->workoutTemplates as $planWorkout)
+                                <a href="{{ $outlineUrl(['plan' => $plan->id, 'workout' => $planWorkout->id]) }}"
+                                    class="{{ $node }} {{ $workout?->is($planWorkout) && ! $row && ! $adding ? 'bg-brand-500/15' : '' }}">
+                                    <span class="flex-1 truncate text-gray-700 dark:text-gray-300">{{ $planWorkout->name }}</span>
                                     <span class="text-theme-xs text-gray-400">
-                                        @if ($plan->isProgram() && $workout->week_number) W{{ $workout->week_number }} @endif
-                                        {{ $workout->day_of_week !== null ? ($days[$workout->day_of_week] ?? '') : 'Any day' }}
+                                        @if ($plan->isProgram() && $planWorkout->week_number) W{{ $planWorkout->week_number }} @endif
+                                        {{ $dayName($planWorkout->day_of_week) }}
                                     </span>
-                                </div>
+                                </a>
                                 <div class="ml-3 border-l border-gray-200 pl-1 dark:border-gray-800">
-                                    @foreach ($workout->workoutTemplateExercises as $row)
-                                        <div class="flex items-center gap-1.5 px-2 py-0.5 text-theme-xs">
-                                            <span class="flex-1 truncate text-gray-600 dark:text-gray-400">{{ $row->exercise?->name ?? 'Unknown exercise' }}</span>
-                                            <span class="text-gray-400">{{ $row->target_sets }}×{{ $row->max_target_reps }}</span>
-                                        </div>
+                                    @foreach ($planWorkout->workoutTemplateExercises as $planRow)
+                                        <a href="{{ $outlineUrl(['plan' => $plan->id, 'workout' => $planWorkout->id, 'row' => $planRow->id]) }}"
+                                            class="{{ $node }} py-0.5 text-theme-xs {{ $row?->is($planRow) ? 'bg-brand-500/15' : '' }}">
+                                            <span class="flex-1 truncate text-gray-600 dark:text-gray-400">{{ $planRow->exercise?->name ?? 'Unknown exercise' }}</span>
+                                            <span class="text-gray-400">{{ $planRow->target_sets }}×{{ $planRow->max_target_reps }}</span>
+                                        </a>
                                     @endforeach
+                                    <a href="{{ $outlineUrl(['plan' => $plan->id, 'workout' => $planWorkout->id, 'add' => 'exercise']) }}"
+                                        class="{{ $node }} py-0.5 text-theme-xs text-gray-400 {{ $adding === 'exercise' && $workout?->is($planWorkout) ? 'bg-brand-500/15' : '' }}">+ exercise</a>
                                 </div>
-                            @empty
-                                <p class="px-2 py-1 text-theme-xs text-gray-400">No workouts yet.</p>
-                            @endforelse
+                            @endforeach
+                            <a href="{{ $outlineUrl(['plan' => $plan->id, 'add' => 'workout']) }}"
+                                class="{{ $node }} text-theme-xs text-gray-400 {{ $adding === 'workout' && $selected?->is($plan) ? 'bg-brand-500/15' : '' }}">+ workout</a>
                         </div>
                     </div>
                 @empty
@@ -92,7 +99,27 @@
 
             {{-- Node editor --}}
             <section class="{{ $card }} min-w-0 flex-1 p-6">
-                @if ($form)
+                @if ($selected)
+                    <div class="mb-4 text-theme-xs text-gray-400">
+                        <a href="{{ $outlineUrl(['plan' => $selected->id]) }}" class="hover:underline">{{ $selected->name }}</a>
+                        @if ($workout)
+                            / <a href="{{ $outlineUrl(['plan' => $selected->id, 'workout' => $workout->id]) }}" class="hover:underline">{{ $workout->name }}</a>
+                        @endif
+                        @if ($row)
+                            / {{ $row->exercise?->name }}
+                        @endif
+                    </div>
+                @endif
+
+                @if ($adding === 'workout')
+                    @include('plans._outline-new-workout')
+                @elseif ($row)
+                    @include('plans._outline-row')
+                @elseif ($adding === 'exercise')
+                    @include('plans._outline-picker')
+                @elseif ($workout)
+                    @include('plans._outline-workout')
+                @elseif ($form)
                     <div class="max-w-xl space-y-4">
                         <div class="flex items-center gap-3">
                             <h2 class="font-display text-lg font-semibold text-gray-800 dark:text-white/90">

@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
+use App\Services\Plan\PlanOutline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -93,10 +94,10 @@ class PlanPolicyTest extends TestCase
         $admin = $this->actor('super_admin');
 
         $this->actingAs($admin)->put(route('workouts.update', $workout), ['name' => 'By the super admin'])
-            ->assertRedirect(route('plans.show', $workout->plan_id));
+            ->assertRedirect(PlanOutline::url($workout));
         $this->actingAs($admin)->post(route('workouts.store', $workout->plan_id), [
             'plan_id' => $workout->plan_id, 'name' => 'Added',
-        ])->assertRedirect(route('plans.show', $workout->plan_id));
+        ])->assertRedirect(PlanOutline::url(WorkoutTemplate::where('name', 'Added')->sole()));
         $this->actingAs($admin)->post(route('plans.store', $this->member), [
             'name' => 'Set up by staff', 'type' => 'routine',
         ])->assertRedirect();

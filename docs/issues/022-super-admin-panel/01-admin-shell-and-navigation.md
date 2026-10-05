@@ -13,5 +13,5 @@
 - [x] An admin-only gate protects every `/admin` super-admin route; a partner admin and a plain user get 403 (feature test)
 - [x] `/dashboard` sends admins to the new Overview placeholder and partner admins to their dashboard as today
 - [x] Partner-admin navigation unchanged (feature test)
-- [ ] Unused TailAdmin demo components (ecommerce widgets, example tables) deleted; nothing references them
+- [x] Unused TailAdmin demo components (ecommerce widgets, example tables) deleted; nothing references them
 - [x] `composer test` green; pint on touched files

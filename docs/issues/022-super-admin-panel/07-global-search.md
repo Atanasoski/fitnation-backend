@@ -12,5 +12,5 @@
 - [x] Users matched by partial name and email; admin accounts excluded
 - [x] User results include both chips
 - [x] Keyboard: open shortcut, arrows, Enter, Escape
-- [ ] Feature tests on the endpoint; palette behaviour checked manually against prototype variant A
-  (endpoint tests done in `tests/Feature/Admin/GlobalSearchTest.php`; the in-browser palette check is still to do)
+- [x] Feature tests on the endpoint; palette behaviour checked manually against prototype variant A
+  (endpoint tests done in `tests/Feature/Admin/GlobalSearchTest.php`; checked in the browser 2026-10-05: search, chips, Enter to open, Esc; dark-mode contrast fixed in ecf62e0)

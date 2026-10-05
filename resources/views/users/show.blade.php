@@ -267,7 +267,7 @@
                                         <div class="text-sm text-gray-500 dark:text-gray-400">
                                             {{ $plan->workout_templates_count ?? 0 }} templates
                                         </div>
-                                        <a href="{{ route('plans.show', $plan) }}" class="flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
+                                        <a href="{{ \App\Services\Plan\PlanOutline::url($plan) }}" class="flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
                                             Manage
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>

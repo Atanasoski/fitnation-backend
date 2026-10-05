@@ -6,6 +6,7 @@ use App\Helpers\ColorHelper;
 use App\Http\Requests\StorePartnerRequest;
 use App\Http\Requests\UpdatePartnerRequest;
 use App\Models\Partner;
+use App\Models\PartnerIdentity;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -40,7 +41,7 @@ class PartnerController extends Controller
     {
         $this->authorize('create', Partner::class);
 
-        return view('partners.create');
+        return view('partners.create', ['branding' => $this->brandingForm(null)]);
     }
 
     /**
@@ -131,42 +132,7 @@ class PartnerController extends Controller
 
         $partner->load('identity');
 
-        // Process colors using ColorHelper
-        $colors = ColorHelper::processPartnerColors($partner->identity);
-        $darkDefaults = config('branding.dark');
-
-        // Build color arrays for form - separated by light/dark
-        $lightColorFormData = [
-            ['id' => 'primary_color', 'name' => 'Primary Color', 'value' => old('primary_color', $colors['primary']), 'required' => true],
-            ['id' => 'secondary_color', 'name' => 'Secondary Color', 'value' => old('secondary_color', $colors['secondary']), 'required' => true],
-            ['id' => 'background_color', 'name' => 'Background', 'value' => old('background_color', $colors['background']), 'required' => false],
-            ['id' => 'card_background_color', 'name' => 'Card Background', 'value' => old('card_background_color', $colors['card_background']), 'required' => false],
-            ['id' => 'text_primary_color', 'name' => 'Text Primary', 'value' => old('text_primary_color', $colors['text_primary']), 'required' => false],
-            ['id' => 'text_secondary_color', 'name' => 'Text Secondary', 'value' => old('text_secondary_color', $colors['text_secondary']), 'required' => false],
-            ['id' => 'text_on_primary_color', 'name' => 'Text On Primary', 'value' => old('text_on_primary_color', $colors['text_on_primary']), 'required' => false],
-            ['id' => 'success_color', 'name' => 'Success', 'value' => old('success_color', $colors['success']), 'required' => false],
-            ['id' => 'warning_color', 'name' => 'Warning', 'value' => old('warning_color', $colors['warning']), 'required' => false],
-            ['id' => 'danger_color', 'name' => 'Danger', 'value' => old('danger_color', $colors['danger']), 'required' => false],
-            ['id' => 'accent_color', 'name' => 'Accent', 'value' => old('accent_color', $colors['accent']), 'required' => false],
-            ['id' => 'border_color', 'name' => 'Border', 'value' => old('border_color', $colors['border']), 'required' => false],
-        ];
-
-        $darkColorFormData = [
-            ['id' => 'primary_color_dark', 'name' => 'Primary Color', 'value' => old('primary_color_dark', $partner->identity->primary_color_dark ?? $darkDefaults['primary']), 'required' => false],
-            ['id' => 'secondary_color_dark', 'name' => 'Secondary Color', 'value' => old('secondary_color_dark', $partner->identity->secondary_color_dark ?? $darkDefaults['secondary']), 'required' => false],
-            ['id' => 'background_color_dark', 'name' => 'Background', 'value' => old('background_color_dark', $partner->identity->background_color_dark ?? $darkDefaults['background']), 'required' => false],
-            ['id' => 'card_background_color_dark', 'name' => 'Card Background', 'value' => old('card_background_color_dark', $partner->identity->card_background_color_dark ?? $darkDefaults['card_background']), 'required' => false],
-            ['id' => 'text_primary_color_dark', 'name' => 'Text Primary', 'value' => old('text_primary_color_dark', $partner->identity->text_primary_color_dark ?? $darkDefaults['text_primary']), 'required' => false],
-            ['id' => 'text_secondary_color_dark', 'name' => 'Text Secondary', 'value' => old('text_secondary_color_dark', $partner->identity->text_secondary_color_dark ?? $darkDefaults['text_secondary']), 'required' => false],
-            ['id' => 'text_on_primary_color_dark', 'name' => 'Text On Primary', 'value' => old('text_on_primary_color_dark', $partner->identity->text_on_primary_color_dark ?? $darkDefaults['text_on_primary']), 'required' => false],
-            ['id' => 'success_color_dark', 'name' => 'Success', 'value' => old('success_color_dark', $partner->identity->success_color_dark ?? $darkDefaults['success']), 'required' => false],
-            ['id' => 'warning_color_dark', 'name' => 'Warning', 'value' => old('warning_color_dark', $partner->identity->warning_color_dark ?? $darkDefaults['warning']), 'required' => false],
-            ['id' => 'danger_color_dark', 'name' => 'Danger', 'value' => old('danger_color_dark', $partner->identity->danger_color_dark ?? $darkDefaults['danger']), 'required' => false],
-            ['id' => 'accent_color_dark', 'name' => 'Accent', 'value' => old('accent_color_dark', $partner->identity->accent_color_dark ?? $darkDefaults['accent']), 'required' => false],
-            ['id' => 'border_color_dark', 'name' => 'Border', 'value' => old('border_color_dark', $partner->identity->border_color_dark ?? $darkDefaults['border']), 'required' => false],
-        ];
-
-        return view('partners.edit', compact('partner', 'lightColorFormData', 'darkColorFormData'));
+        return view('partners.edit', ['partner' => $partner, 'branding' => $this->brandingForm($partner->identity)]);
     }
 
     /**
@@ -175,6 +141,10 @@ class PartnerController extends Controller
     public function update(UpdatePartnerRequest $request, Partner $partner): RedirectResponse
     {
         $this->authorize('update', $partner);
+
+        if ($request->has('is_active') && ! $request->boolean('is_active') && ! $partner->canBeDeactivated()) {
+            return back()->withInput()->withErrors(['is_active' => Partner::HOUSE_CANNOT_BE_DEACTIVATED]);
+        }
 
         $partner->update($request->only(['name', 'slug', 'domain', 'is_active']));
 
@@ -243,5 +213,25 @@ class PartnerController extends Controller
 
         return redirect()->route('partners.index')
             ->with('success', 'Partner deleted successfully.');
+    }
+
+    /**
+     * The colours the form and its preview start from, per mode. Only primary
+     * and secondary are fields; the backgrounds and text colours are the
+     * stored (or default) values the app renders with, for the preview.
+     *
+     * @return array{light: array<string, string>, dark: array<string, string>}
+     */
+    private function brandingForm(?PartnerIdentity $identity): array
+    {
+        $light = ColorHelper::processPartnerColors($identity);
+        $dark = ColorHelper::processPartnerDarkColors($identity);
+
+        foreach (['primary', 'secondary'] as $slot) {
+            $light[$slot] = old("{$slot}_color", $light[$slot]);
+            $dark[$slot] = old("{$slot}_color_dark", $dark[$slot]);
+        }
+
+        return ['light' => $light, 'dark' => $dark];
     }
 }

@@ -77,7 +77,7 @@ class AdminShellTest extends TestCase
             'partners' => ['/admin/partners', 'Partners', false],
             'partner create' => ['/partners/create', 'Partners', false],
             'exercises' => ['/admin/exercises', 'Exercises', true],
-            'exercise create' => ['/admin/exercises/create', 'Exercises', true],
+            'exercise create' => ['/admin/exercises?create=1', 'Exercises', true],
             'workout splits' => ['/admin/workout-splits', 'Workout Splits', true],
             'generator preview' => ['/admin/workout-preview', 'Generator Preview', true],
             'insights' => ['/admin/insights', 'Insights', false],

@@ -221,6 +221,7 @@ Access control
 - `config/database.php` has an unrelated uncommitted change in the working tree; leave it out of this work.
 - The CONTEXT.md glossary additions (House Partner, Sponsoring Partner, Access Source, Complimentary Access, Activity Status) are uncommitted; commit them as the first commit on the work branch.
 - Mobile clients are unaffected: Access Source is admin-only and does not alter entitlements.
+- **v2: consider Livewire** for the Users list (filters, sort, pagination without reloads) and Insights (charts, date ranges). Livewire 3 bundles Alpine, so the separate Alpine bootstrap would go. The Activity Status, Access Source and Overview modules stay the seam; only the controller and view on top change.
 
 ## Tickets
 

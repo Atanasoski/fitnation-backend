@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CategoryType;
 use App\Http\Requests\BulkLinkExerciseRequest;
+use App\Http\Requests\ExerciseRequest;
 use App\Http\Requests\StoreExerciseRequest;
 use App\Http\Requests\UpdateExerciseRequest;
 use App\Http\Requests\UpdatePartnerExerciseRequest;
@@ -94,41 +95,24 @@ class ExerciseController extends Controller
         return view('exercises.partner.index', compact('categories', 'partner'));
     }
 
-    public function store(StoreExerciseRequest $request)
+    public function store(StoreExerciseRequest $request): RedirectResponse
     {
-        $exercise = Exercise::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'category_id' => $request->category_id,
-            'movement_pattern_id' => $request->movement_pattern_id,
-            'target_region_id' => $request->target_region_id,
-            'equipment_type_id' => $request->equipment_type_id,
-            'angle_id' => $request->angle_id,
+        $attributes = $this->exerciseAttributes($request) + [
             'default_rest_sec' => $request->default_rest_sec ?? 90,
-        ]);
+            'selection_priority' => $request->selection_priority ?? 100,
+        ];
 
-        // Sync muscle groups
-        $muscleGroupAttachments = [];
-
-        // Add primary muscle groups
-        if ($request->has('primary_muscle_group_ids') && is_array($request->primary_muscle_group_ids)) {
-            foreach ($request->primary_muscle_group_ids as $muscleGroupId) {
-                $muscleGroupAttachments[$muscleGroupId] = ['is_primary' => true];
-            }
+        if ($request->hasFile('image')) {
+            $attributes['image'] = $request->file('image')->store('exercises/images');
+        }
+        if ($request->hasFile('video')) {
+            $attributes['video'] = $request->file('video')->store('exercises/videos');
         }
 
-        // Add secondary muscle groups
-        if ($request->has('secondary_muscle_group_ids') && is_array($request->secondary_muscle_group_ids)) {
-            foreach ($request->secondary_muscle_group_ids as $muscleGroupId) {
-                // If already in array as primary, skip (can't be both)
-                if (! isset($muscleGroupAttachments[$muscleGroupId])) {
-                    $muscleGroupAttachments[$muscleGroupId] = ['is_primary' => false];
-                }
-            }
-        }
-
-        $exercise->muscleGroups()->sync($muscleGroupAttachments);
-        $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
+        DB::transaction(function () use ($attributes, $request) {
+            $exercise = Exercise::create($attributes);
+            $this->syncClassification($exercise, $request);
+        });
 
         return redirect()->route('exercises.index')
             ->with('success', 'Exercise created successfully!');
@@ -136,16 +120,12 @@ class ExerciseController extends Controller
 
     public function update(UpdateExerciseRequest $request, Exercise $exercise): RedirectResponse
     {
-        $updateData = [
-            'name' => $request->name,
-            'description' => $request->description,
-            'category_id' => $request->category_id,
-            'movement_pattern_id' => $request->movement_pattern_id,
-            'target_region_id' => $request->target_region_id,
-            'equipment_type_id' => $request->equipment_type_id,
-            'angle_id' => $request->angle_id,
+        $updateData = $this->exerciseAttributes($request) + [
             'default_rest_sec' => $request->default_rest_sec,
         ];
+        if ($request->filled('selection_priority')) {
+            $updateData['selection_priority'] = $request->selection_priority;
+        }
 
         $oldFilesToDelete = [];
 
@@ -163,24 +143,9 @@ class ExerciseController extends Controller
             $updateData['video'] = $request->file('video')->store('exercises/videos');
         }
 
-        $muscleGroupAttachments = [];
-        if ($request->has('primary_muscle_group_ids') && is_array($request->primary_muscle_group_ids)) {
-            foreach ($request->primary_muscle_group_ids as $muscleGroupId) {
-                $muscleGroupAttachments[$muscleGroupId] = ['is_primary' => true];
-            }
-        }
-        if ($request->has('secondary_muscle_group_ids') && is_array($request->secondary_muscle_group_ids)) {
-            foreach ($request->secondary_muscle_group_ids as $muscleGroupId) {
-                if (! isset($muscleGroupAttachments[$muscleGroupId])) {
-                    $muscleGroupAttachments[$muscleGroupId] = ['is_primary' => false];
-                }
-            }
-        }
-
-        DB::transaction(function () use ($exercise, $updateData, $muscleGroupAttachments, $request) {
+        DB::transaction(function () use ($exercise, $updateData, $request) {
             $exercise->update($updateData);
-            $exercise->muscleGroups()->sync($muscleGroupAttachments);
-            $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
+            $this->syncClassification($exercise, $request);
         });
 
         foreach ($oldFilesToDelete as $path) {
@@ -189,6 +154,43 @@ class ExerciseController extends Controller
 
         return redirect()->route('exercises.show', $exercise)
             ->with('success', 'Exercise updated successfully!');
+    }
+
+    /**
+     * The exercise columns a create or update form sets directly.
+     *
+     * @return array<string, mixed>
+     */
+    private function exerciseAttributes(ExerciseRequest $request): array
+    {
+        return [
+            'name' => $request->name,
+            'description' => $request->description,
+            'category_id' => $request->category_id,
+            'movement_pattern_id' => $request->movement_pattern_id,
+            'target_region_id' => $request->target_region_id,
+            'equipment_type_id' => $request->equipment_type_id,
+            'angle_id' => $request->angle_id,
+            'difficulty' => $request->difficulty ?: null,
+        ];
+    }
+
+    /**
+     * Muscle groups (a group chosen as both primary and secondary stays
+     * primary) and training styles, as the form sent them.
+     */
+    private function syncClassification(Exercise $exercise, ExerciseRequest $request): void
+    {
+        $muscleGroups = [];
+        foreach ((array) $request->input('primary_muscle_group_ids', []) as $id) {
+            $muscleGroups[$id] = ['is_primary' => true];
+        }
+        foreach ((array) $request->input('secondary_muscle_group_ids', []) as $id) {
+            $muscleGroups[$id] ??= ['is_primary' => false];
+        }
+
+        $exercise->muscleGroups()->sync($muscleGroups);
+        $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
     }
 
     /**

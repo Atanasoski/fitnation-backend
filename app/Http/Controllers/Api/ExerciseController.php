@@ -66,7 +66,7 @@ class ExerciseController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'category_id' => $request->category_id,
-            'image' => $request->image,
+            'image' => $request->file('image')?->store('exercises/images'),
             'default_rest_sec' => $request->default_rest_sec ?? 90,
         ]);
 

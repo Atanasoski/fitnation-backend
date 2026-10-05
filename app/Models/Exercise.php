@@ -36,6 +36,7 @@ class Exercise extends Model
     {
         return [
             'difficulty' => ExerciseDifficulty::class,
+            'archived_at' => 'datetime',
         ];
     }
 

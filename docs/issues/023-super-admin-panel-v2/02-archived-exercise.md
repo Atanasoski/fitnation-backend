@@ -6,12 +6,16 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Characterization commit first: lock the current admin exercise destroy and the API destroy (no tests today).
-- [ ] Migration adds `archived_at`, nullable and indexed.
-- [ ] Module: archive if used, delete if not, restore. Bulk variant returns archived and deleted counts.
-- [ ] `available()` is applied at every listing and picker site above. The generator candidate set excludes archived exercises.
-- [ ] `GET /api/exercises/{id}`, session detail and template resources still return archived exercises.
-- [ ] Tests: the four fixtures from Seam 2 in the spec. Referencing rows survive archiving.
-- [ ] Release note line: archived exercises leave the app's search and pickers.
+- [x] Characterization commit first: lock the current admin exercise destroy and the API destroy (no tests today).
+- [x] Migration adds `archived_at`, nullable and indexed.
+- [x] Module: archive if used, delete if not, restore. Bulk variant returns archived and deleted counts.
+- [x] `available()` is applied at every listing and picker site above. The generator candidate set excludes archived exercises.
+- [x] `GET /api/exercises/{id}`, session detail and template resources still return archived exercises.
+- [x] Tests: the four fixtures from Seam 2 in the spec. Referencing rows survive archiving.
+- [x] Release note line: archived exercises leave the app's search and pickers.
+
+**Release note:** Archived exercises disappear from the app's exercise search and pickers. Deleting an exercise someone used now archives it, and their plans and history keep it. `DELETE /api/exercises/{id}` then answers "Exercise archived successfully".
+
+**Done notes:** module `App\Services\Exercise\ExerciseArchive` (`archiveOrDelete`, `archiveOrDeleteMany`, `restore`) returning `ArchiveOutcome`. Restore and bulk have no HTTP route yet; ticket 03 (gallery) adds them. The user-plan and library-plan show pages compute a picker list (`$workoutExerciseData`) that no view renders; `available()` is applied there, but only the workout page's picker is observable and tested.

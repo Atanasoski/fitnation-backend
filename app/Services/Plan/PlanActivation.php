@@ -56,6 +56,27 @@ final class PlanActivation
     }
 
     /**
+     * The plan that activating this one would deactivate: the owner's other
+     * active plan of the same type, or null when there is none. A library plan
+     * replaces nothing. Asked before activating, so a person is told what
+     * they are about to switch off.
+     */
+    public static function replaces(Plan $plan): ?Plan
+    {
+        if ($plan->user_id === null || $plan->is_active) {
+            return null;
+        }
+
+        return Plan::query()
+            ->where('user_id', $plan->user_id)
+            ->where('type', $plan->type)
+            ->whereKeyNot($plan->getKey())
+            ->where('is_active', true)
+            ->latest('updated_at')
+            ->first();
+    }
+
+    /**
      * Apply an is_active flag taken from a request: activate under the rule
      * when truthy, deactivate this plan alone when falsy, and leave it exactly
      * as it is when the flag was absent.

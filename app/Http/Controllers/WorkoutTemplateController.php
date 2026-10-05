@@ -10,6 +10,7 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\WorkoutTemplate;
+use App\Services\Plan\PlanOutline;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,22 +18,18 @@ use Illuminate\View\View;
 class WorkoutTemplateController extends Controller
 {
     /**
-     * Show the form for creating a new workout template for a plan.
+     * Show the form for creating a new workout template for a library plan.
+     * A user's plan adds workouts in the outline.
      */
-    public function create(Request $request, Plan $plan): View
+    public function create(Plan $plan): View|RedirectResponse
     {
-        $plan->load('user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
-        $isLibrary = $plan->user_id === null;
-        $user = $isLibrary ? null : $plan->user;
+        if ($plan->user_id !== null) {
+            return redirect(PlanOutline::adding($plan));
+        }
 
-        // day_of_week (commented out)
-        // $dayOfWeekOptions = $this->dayOfWeekOptions();
-        // $dayOfWeekValue = $request->old('day_of_week');
+        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
 
-        $view = $isLibrary ? 'workout-templates.create' : 'workout-templates.users.create';
-
-        return view($view, compact('plan', 'partner', 'isLibrary', 'user'));
+        return view('workout-templates.create', compact('plan', 'partner'));
     }
 
     /**
@@ -49,25 +46,30 @@ class WorkoutTemplateController extends Controller
             'plan_id' => $plan->id,
             'name' => $request->name,
             'description' => $request->description,
+            'day_of_week' => $request->validated('day_of_week'),
             'week_number' => $week,
             'order_index' => $orderIndex,
         ]);
 
-        $planShowRoute = $plan->user_id ? 'plans.show' : 'partner.programs.show';
+        if ($plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate))->with('success', 'Workout added.');
+        }
 
-        return redirect()->route($planShowRoute, $plan)
+        return redirect()->route('partner.programs.show', $plan)
             ->with('success', 'Workout template created successfully!');
     }
 
     /**
-     * Display the specified workout template.
+     * Display a library plan's workout template. A user's plan shows its
+     * workouts in the outline.
      */
-    public function show(Request $request, WorkoutTemplate $workoutTemplate): View
+    public function show(WorkoutTemplate $workoutTemplate): View|RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate));
+        }
+
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
 
         $workoutTemplate->load([
             'workoutTemplateExercises.exercise.category',
@@ -114,28 +116,22 @@ class WorkoutTemplateController extends Controller
             ->map(fn ($mg) => ['id' => $mg->id, 'name' => $mg->name])
             ->values();
 
-        $view = $isLibrary ? 'workout-templates.show' : 'workout-templates.users.show';
-
-        return view($view, compact('workoutTemplate', 'partner', 'dayName', 'exercises', 'availableExercises', 'equipmentTypes', 'muscleGroups', 'isLibrary', 'user'));
+        return view('workout-templates.show', compact('workoutTemplate', 'partner', 'dayName', 'exercises', 'availableExercises', 'equipmentTypes', 'muscleGroups'));
     }
 
     /**
-     * Show the form for editing the specified workout template.
+     * Show the form for editing a library plan's workout template. A user's
+     * plan edits its workouts in the outline.
      */
-    public function edit(Request $request, WorkoutTemplate $workoutTemplate): View
+    public function edit(WorkoutTemplate $workoutTemplate): View|RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate));
+        }
 
-        // day_of_week (commented out)
-        // $dayOfWeekOptions = $this->dayOfWeekOptions();
-        // $dayOfWeekValue = $request->old('day_of_week', $workoutTemplate->day_of_week);
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
 
-        $view = $isLibrary ? 'workout-templates.edit' : 'workout-templates.users.edit';
-
-        return view($view, compact('workoutTemplate', 'partner', 'isLibrary', 'user'));
+        return view('workout-templates.edit', compact('workoutTemplate', 'partner'));
     }
 
     /**
@@ -146,6 +142,10 @@ class WorkoutTemplateController extends Controller
         $validated = $request->validated();
         // day_of_week (commented out): day-uniqueness swap logic removed
         $workoutTemplate->update($validated);
+
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate))->with('success', 'Workout saved.');
+        }
 
         return redirect()->route('plans.show', $workoutTemplate->plan)
             ->with('success', 'Workout template updated successfully!');
@@ -161,9 +161,11 @@ class WorkoutTemplateController extends Controller
         $isLibrary = $plan->user_id === null;
         $workoutTemplate->delete();
 
-        $redirectRoute = $isLibrary ? 'partner.programs.show' : 'plans.show';
+        if (! $isLibrary) {
+            return redirect(PlanOutline::url($plan))->with('success', "{$workoutTemplate->name} removed.");
+        }
 
-        return redirect()->route($redirectRoute, $plan)
+        return redirect()->route('partner.programs.show', $plan)
             ->with('success', 'Workout template deleted successfully!');
     }
 

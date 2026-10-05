@@ -104,6 +104,7 @@ class PlanActivationTest extends TestCase
         ]);
         $oldProgram = Plan::factory()->program()->create(['user_id' => $member->id, 'is_active' => true]);
 
+        // A new plan starts inactive (023/06); activating it is its own step.
         $this->actingAs($admin)->post(route('plans.store', $member), [
             'name' => 'New Program',
             'type' => PlanType::Program->value,
@@ -112,6 +113,8 @@ class PlanActivationTest extends TestCase
         ]);
 
         $created = Plan::where('name', 'New Program')->firstOrFail();
+        $this->assertFalse($created->is_active);
+        $this->actingAs($admin)->post(route('plans.activate', $created));
 
         $this->assertTrue($routine->fresh()->is_active, 'Creating a program deactivated the user\'s routine.');
         $this->assertFalse($oldProgram->fresh()->is_active);

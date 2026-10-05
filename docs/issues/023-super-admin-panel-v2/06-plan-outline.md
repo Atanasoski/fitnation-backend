@@ -6,10 +6,10 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Characterization commit first: the current partner-admin user-plan index, store, update and destroy responses.
-- [ ] Tree lists Programs and Routines, both types.
-- [ ] `is_active` only changes through `PlanActivation`. Changing an active plan's type re-enters activation.
-- [ ] Tests: activate a Routine while a Program is active (both stay active). A second Program replaces the first. Delete keeps sessions and set logs. Policy matrix on the page.
-- [ ] Super admin sees it in the admin shell. Partner admin sees it in theirs.
+- [x] Characterization commit first: the current partner-admin user-plan index, store, update and destroy responses.
+- [x] Tree lists Programs and Routines, both types.
+- [x] `is_active` only changes through `PlanActivation`. Changing an active plan's type re-enters activation.
+- [x] Tests: activate a Routine while a Program is active (both stay active). A second Program replaces the first. Delete keeps sessions and set logs. Policy matrix on the page.
+- [x] Super admin sees it in the admin shell. Partner admin sees it in theirs.

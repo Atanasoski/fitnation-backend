@@ -7,6 +7,9 @@ use App\Http\Requests\UpdateWorkoutTemplateExerciseRequest;
 use App\Models\Partner;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
+use App\Rules\ExerciseThePlanOffers;
+use App\Services\Plan\PlanOutline;
+use App\Services\Plan\WorkoutRowOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,43 +21,49 @@ class WorkoutTemplateExerciseController extends Controller
      */
     public function store(StoreWorkoutTemplateExerciseRequest $request, WorkoutTemplate $workoutTemplate): RedirectResponse
     {
-        // Get the highest order value and increment
-        $order = $request->order ?? ($workoutTemplate->workoutTemplateExercises()->max('order') ?? -1) + 1;
-
-        WorkoutTemplateExercise::create([
+        $row = WorkoutTemplateExercise::create([
             'workout_template_id' => $workoutTemplate->id,
-            'exercise_id' => $request->exercise_id,
-            'order' => $order,
-            'target_sets' => $request->target_sets ?? 3,
-            'min_target_reps' => $request->min_target_reps ?? 8,
-            'max_target_reps' => $request->max_target_reps ?? 12,
-            'target_weight' => $request->target_weight ?? 0,
-            'rest_seconds' => $request->rest_seconds ?? 120,
+            'exercise_id' => $request->validated('exercise_id'),
+            'order' => $request->validated('order') ?? WorkoutRowOrder::next($workoutTemplate),
+            'target_sets' => $request->validated('target_sets') ?? 3,
+            'min_target_reps' => $request->validated('min_target_reps') ?? 8,
+            'max_target_reps' => $request->validated('max_target_reps') ?? 12,
+            'target_weight' => $request->validated('target_weight') ?? 0,
+            'rest_seconds' => $request->validated('rest_seconds') ?? 120,
         ]);
 
-        return redirect()->route('workouts.show', $workoutTemplate)
-            ->with('success', 'Exercise added successfully!');
+        return $this->back($workoutTemplate, $row, 'Exercise added.', 'Exercise added successfully!');
     }
 
     /**
-     * Show the form for editing the specified exercise in the workout template.
+     * There is no add-exercise page: a user's plan adds rows in the outline,
+     * a library plan from its workout page.
      */
-    public function edit(Request $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View
+    public function create(WorkoutTemplate $workoutTemplate): RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
+        return $workoutTemplate->plan->user_id === null
+            ? redirect()->route('workouts.show', $workoutTemplate)
+            : redirect(PlanOutline::adding($workoutTemplate));
+    }
+
+    /**
+     * Show the form for editing a library plan's row. A user's plan edits its
+     * rows in the outline.
+     */
+    public function edit(WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View|RedirectResponse
+    {
         if ($workoutTemplateExercise->workout_template_id !== $workoutTemplate->id) {
             abort(403, 'Unauthorized.');
         }
 
-        $partner = Partner::with('identity')->findOrFail($request->user()->partner_id);
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplateExercise));
+        }
 
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
         $workoutTemplateExercise->load('exercise');
 
-        $view = $isLibrary ? 'workout-template-exercises.edit' : 'workout-template-exercises.users.edit';
-
-        return view($view, compact('workoutTemplate', 'workoutTemplateExercise', 'partner', 'user'));
+        return view('workout-template-exercises.edit', compact('workoutTemplate', 'workoutTemplateExercise', 'partner'));
     }
 
     /**
@@ -66,18 +75,10 @@ class WorkoutTemplateExerciseController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        $validated = $request->validated();
-        $workoutTemplateExercise->update([
-            'order' => $validated['order'] ?? $workoutTemplateExercise->order,
-            'target_sets' => $validated['target_sets'] ?? 3,
-            'min_target_reps' => $validated['min_target_reps'] ?? 8,
-            'max_target_reps' => $validated['max_target_reps'] ?? 12,
-            'target_weight' => $validated['target_weight'] ?? 0,
-            'rest_seconds' => $validated['rest_seconds'] ?? 120,
-        ]);
+        // Only what was sent changes; an omitted field keeps its value.
+        $workoutTemplateExercise->update(array_filter($request->validated(), fn ($value) => $value !== null));
 
-        return redirect()->route('workouts.show', $workoutTemplate)
-            ->with('success', 'Exercise updated successfully!');
+        return $this->back($workoutTemplate, $workoutTemplateExercise, 'Exercise saved.', 'Exercise updated successfully!');
     }
 
     /**
@@ -90,8 +91,50 @@ class WorkoutTemplateExerciseController extends Controller
         }
 
         $workoutTemplateExercise->delete();
+        WorkoutRowOrder::close($workoutTemplate);
 
-        return redirect()->route('workouts.show', $workoutTemplate)
-            ->with('success', 'Exercise removed successfully!');
+        return $this->back($workoutTemplate, null, 'Exercise removed.', 'Exercise removed successfully!');
+    }
+
+    /**
+     * Give a row another exercise from the plan's catalogue; its targets stay.
+     * The route scopes the row to the workout.
+     */
+    public function swap(Request $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): RedirectResponse
+    {
+        $validated = $request->validate([
+            'exercise_id' => ['required', 'integer', new ExerciseThePlanOffers($workoutTemplate->plan)],
+        ]);
+
+        $workoutTemplateExercise->update(['exercise_id' => $validated['exercise_id']]);
+
+        return $this->back($workoutTemplate, $workoutTemplateExercise, 'Exercise swapped.', 'Exercise swapped successfully!');
+    }
+
+    /**
+     * Move a row one place up or down. The route scopes the row to the workout.
+     */
+    public function move(Request $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): RedirectResponse
+    {
+        $validated = $request->validate(['direction' => ['required', 'in:up,down']]);
+
+        WorkoutRowOrder::move($workoutTemplateExercise, $validated['direction'] === 'up' ? -1 : 1);
+
+        return $this->back($workoutTemplate, null, null, 'Exercise moved.');
+    }
+
+    /**
+     * A user's plan reopens the outline on the row, or on the workout when
+     * there is no row to show. A library plan keeps its own workout page.
+     */
+    private function back(WorkoutTemplate $workout, ?WorkoutTemplateExercise $row, ?string $outlineMessage, string $libraryMessage): RedirectResponse
+    {
+        if ($workout->plan->user_id === null) {
+            return redirect()->route('workouts.show', $workout)->with('success', $libraryMessage);
+        }
+
+        $redirect = redirect(PlanOutline::url($row ?? $workout));
+
+        return $outlineMessage === null ? $redirect : $redirect->with('success', $outlineMessage);
     }
 }

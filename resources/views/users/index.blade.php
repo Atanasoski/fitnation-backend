@@ -74,7 +74,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 dark:text-white">
                                         @if($user->activeProgram)
-                                            <a href="{{ route('plans.show', $user->activeProgram) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
+                                            <a href="{{ \App\Services\Plan\PlanOutline::url($user->activeProgram) }}" class="text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300">
                                                 {{ $user->activeProgram->name }}
                                             </a>
                                         @else

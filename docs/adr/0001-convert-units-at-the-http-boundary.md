@@ -53,3 +53,11 @@ usually answering that person's support question in the numbers they see in the
 app. It is read-only and converts through `MeasuredFields`, the same seam as the
 API; nothing on it writes a measurement, so the write half of this ADR does not
 apply.
+
+A second exception (2026-10-05, issue 023): the **plan outline**
+(`/users/{user}/plans`) shows and takes a row's target weight in the *plan
+owner's* Unit System, so staff prescribe what the person will see. It writes,
+so both halves apply: the row requests convert through `ConvertsIncomingUnits`
+with the owner's system (`Plan::ownerUnitSystem()`, not the signed-in staff
+member's), and the page converts for display through `MeasuredFields`. Library
+plans have no owner and stay metric.

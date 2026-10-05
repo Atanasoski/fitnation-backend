@@ -78,9 +78,10 @@ class ArchivedExerciseVisibilityTest extends TestCase
         $this->assertSame([$this->live->id], $partner->exercises()->pluck('workout_exercises.id')->all());
     }
 
-    public function test_the_workout_exercise_picker_leaves_out_archived_exercises(): void
+    public function test_the_library_workout_exercise_picker_leaves_out_archived_exercises(): void
     {
-        $plan = Plan::factory()->create(['user_id' => $this->member()->id, 'partner_id' => null]);
+        // A user's plan picks in the outline (PlanOutlineWorkoutsTest).
+        $plan = Plan::factory()->partnerLibrary($this->partner)->create();
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
         $this->actingAs($this->partnerAdmin())

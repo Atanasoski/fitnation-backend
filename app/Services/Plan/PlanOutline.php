@@ -23,7 +23,6 @@ final class PlanOutline
      * @param  Collection<int, Plan>  $plans
      */
     private function __construct(
-        public readonly User $user,
         public readonly Collection $plans,
         public readonly ?Plan $plan,
     ) {}
@@ -47,7 +46,7 @@ final class PlanOutline
 
         $selected = $plans->firstWhere('id', $planId) ?? $plans->first();
 
-        return new self($user, $plans, $selected);
+        return new self($plans, $selected);
     }
 
     /**

@@ -14,11 +14,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Locks what deleting an exercise does today, through the admin web page and
- * the API, before the Archived Exercise rule changes it (spec 023, ticket 02).
+ * What deleting an exercise does, through the admin web page and the API.
  *
- * These describe current behaviour, not desired behaviour: a used exercise is
- * hard-deleted and its users' history goes with it through ON DELETE CASCADE.
+ * Written first to lock the old behaviour, where a used exercise was
+ * hard-deleted and its users' history went with it through ON DELETE CASCADE.
+ * The Archived Exercise rule (spec 023, ticket 02) changed the two used-exercise
+ * cases deliberately: a used exercise is now archived and every referencing
+ * row is kept. The unused cases are unchanged.
  */
 class ExerciseDestroyCharacterizationTest extends TestCase
 {
@@ -36,18 +38,17 @@ class ExerciseDestroyCharacterizationTest extends TestCase
         $this->assertDatabaseMissing('workout_exercises', ['id' => $exercise->id]);
     }
 
-    public function test_the_admin_page_deletes_a_used_exercise_and_its_history_with_it(): void
+    public function test_the_admin_page_archives_a_used_exercise_and_keeps_its_history(): void
     {
         ['exercise' => $exercise, 'rows' => $rows] = $this->usedExercise();
 
         $this->actingAs($this->admin())
             ->delete(route('exercises.destroy', $exercise))
-            ->assertRedirect(route('exercises.index'));
+            ->assertRedirect(route('exercises.index'))
+            ->assertSessionHas('success', 'Exercise archived. It is used in plans or logged sessions, which keep it.');
 
-        $this->assertDatabaseMissing('workout_exercises', ['id' => $exercise->id]);
-        $this->assertDatabaseMissing('workout_template_exercises', ['id' => $rows['template']]);
-        $this->assertDatabaseMissing('workout_session_exercises', ['id' => $rows['session']]);
-        $this->assertDatabaseMissing('workout_session_set_logs', ['id' => $rows['set']]);
+        $this->assertNotNull($exercise->fresh()?->archived_at);
+        $this->assertHistoryKept($exercise, $rows);
     }
 
     public function test_a_non_admin_cannot_delete_through_the_admin_page(): void
@@ -73,19 +74,27 @@ class ExerciseDestroyCharacterizationTest extends TestCase
         $this->assertDatabaseMissing('workout_exercises', ['id' => $exercise->id]);
     }
 
-    public function test_the_api_deletes_a_used_exercise_and_its_history_with_it(): void
+    public function test_the_api_archives_a_used_exercise_and_keeps_its_history(): void
     {
         ['exercise' => $exercise, 'rows' => $rows] = $this->usedExercise();
 
         $this->actingAs(User::factory()->entitled()->create(), 'sanctum')
             ->deleteJson("/api/exercises/{$exercise->id}")
             ->assertOk()
-            ->assertExactJson(['message' => 'Exercise deleted successfully']);
+            ->assertExactJson(['message' => 'Exercise archived successfully']);
 
-        $this->assertDatabaseMissing('workout_exercises', ['id' => $exercise->id]);
-        $this->assertDatabaseMissing('workout_template_exercises', ['id' => $rows['template']]);
-        $this->assertDatabaseMissing('workout_session_exercises', ['id' => $rows['session']]);
-        $this->assertDatabaseMissing('workout_session_set_logs', ['id' => $rows['set']]);
+        $this->assertNotNull($exercise->fresh()?->archived_at);
+        $this->assertHistoryKept($exercise, $rows);
+    }
+
+    /**
+     * @param  array{template: int, session: int, set: int}  $rows
+     */
+    private function assertHistoryKept(Exercise $exercise, array $rows): void
+    {
+        $this->assertDatabaseHas('workout_template_exercises', ['id' => $rows['template'], 'exercise_id' => $exercise->id]);
+        $this->assertDatabaseHas('workout_session_exercises', ['id' => $rows['session'], 'exercise_id' => $exercise->id]);
+        $this->assertDatabaseHas('workout_session_set_logs', ['id' => $rows['set'], 'exercise_id' => $exercise->id]);
     }
 
     private function admin(): User

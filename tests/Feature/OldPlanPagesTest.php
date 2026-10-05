@@ -78,6 +78,8 @@ class OldPlanPagesTest extends TestCase
         $this->get(route('plans.show', $plan))->assertRedirect(route('partner.programs.show', $plan));
         $this->get(route('plans.edit', $plan))->assertRedirect(route('partner.programs.edit', $plan));
         $this->get(route('workout-exercises.create', $workout))->assertRedirect(route('workouts.show', $workout));
+        $this->get(route('partner.programs.create'))->assertOk()->assertSee('Create Program');
+        $this->get(route('partner.programs.edit', $plan))->assertOk()->assertSee('Update Program');
         $this->get(route('workouts.create', $plan))->assertOk();
         $this->get(route('workouts.show', $workout))->assertOk();
         $this->get(route('workouts.edit', $workout))->assertOk();

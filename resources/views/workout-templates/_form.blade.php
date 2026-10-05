@@ -3,7 +3,7 @@
     'workoutTemplate' => null,
     'action' => '',
     'method' => 'POST',
-    'context' => 'library', // 'library' or 'user'
+    'context' => 'library', // only library plans use this form; a user's plans are edited in the outline
     // day_of_week (commented out): form UI and passing from controller/views are disabled
     'dayOfWeekOptions' => [],
     'dayOfWeekValue' => null,
@@ -85,12 +85,6 @@
     <div class="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-6 dark:border-gray-800">
         @if ($context === 'library' && $plan)
             <a href="{{ route('partner.programs.show', $plan) }}">
-                <x-ui.button variant="outline" size="md">
-                    Cancel
-                </x-ui.button>
-            </a>
-        @elseif ($context === 'user' && $plan)
-            <a href="{{ route('plans.show', $plan) }}">
                 <x-ui.button variant="outline" size="md">
                     Cancel
                 </x-ui.button>

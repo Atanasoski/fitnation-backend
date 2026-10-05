@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->middleware('admin')->group(function () {
         Route::get('/', [OverviewController::class, 'index'])->name('admin.overview');
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->withTrashed()->name('admin.users.show');
         Route::get('/search', SearchController::class)->name('admin.search');
         Route::view('/insights', 'admin.insights')->name('admin.insights');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');

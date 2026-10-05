@@ -6,12 +6,17 @@ use App\Enums\AccessSource;
 use App\Enums\ActivityStatus;
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
+use App\Enums\UnitSystem;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\Partner;
 use App\Models\User;
+use App\Models\UserInvitation;
 use App\Services\Admin\AccessSources;
+use App\Services\Admin\ActivePlan;
 use App\Services\Admin\ActivityStatuses;
 use App\Services\FitnessMetrics\CompletedSessions;
+use App\Services\WorkoutSession\BestSets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,7 +35,13 @@ use Illuminate\View\View;
  */
 class UserController extends Controller
 {
+    use FormatsMeasurements;
+
     public const PER_PAGE = 25;
+
+    public const RECENT_SESSIONS = 10;
+
+    public const RECENT_SENT_RECORDS = 10;
 
     /** Device platforms, as the mobile app registers them. */
     public const PLATFORMS = ['ios' => 'iOS', 'android' => 'Android'];
@@ -87,6 +98,84 @@ class UserController extends Controller
             'partners' => Partner::query()->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
         ]);
+    }
+
+    /**
+     * One user's page: the four-fact strip (Activity Status, Access Source,
+     * Partner, active plan) and everything else about them below it. Staff
+     * accounts are not users and 404; deleted users keep their page.
+     */
+    public function show(Request $request, User $user): View
+    {
+        abort_unless(User::query()->appUsers()->withTrashed()->whereKey($user->getKey())->exists(), 404);
+
+        $user->load(['partner', 'profile']);
+        $units = $user->unitSystem();
+
+        return view('admin.users.show', [
+            'user' => $user,
+            'status' => ActivityStatuses::for($user),
+            'access' => AccessSources::for($user),
+            'plan' => ActivePlan::for($user),
+            'height' => $this->height($user->profile?->height, $units),
+            'weight' => $this->weight($user->profile?->weight, 'user_profiles', 'weight', $units),
+            'sessions' => $user->workoutSessions()
+                ->with('workoutTemplate:id,name')
+                ->latest('performed_at')
+                ->latest('id')
+                ->limit(self::RECENT_SESSIONS)
+                ->get(),
+            'bests' => BestSets::forUser($user)->map(fn (array $best) => [
+                ...$best,
+                'weight' => $this->weight($best['weight'], 'workout_session_set_logs', 'weight', $units),
+            ]),
+            'devices' => $user->devices()->latest('last_seen_at')->get(),
+            'sent' => $user->notifications()->latest()->limit(self::RECENT_SENT_RECORDS)->get(),
+            'invitation' => UserInvitation::query()
+                ->where('email', $user->email)
+                ->with(['inviter:id,name', 'partner:id,name'])
+                ->orderByRaw('accepted_at IS NULL')
+                ->latest()
+                ->first(),
+            'back' => $this->backToList($request),
+        ]);
+    }
+
+    /**
+     * The Users list the page was opened from, filters intact: list rows pass
+     * their own query string as `back`. Only ever rebuilt as a query on the
+     * Users list route, so it cannot point anywhere else.
+     */
+    private function backToList(Request $request): string
+    {
+        $back = $request->query('back');
+        parse_str(is_string($back) ? $back : '', $query);
+        unset($query['back']);
+
+        return route('admin.users.index', $query);
+    }
+
+    /**
+     * Measurements on the user page are shown in the user's own Unit System,
+     * converted here at the HTTP boundary (ADR-0001), so the admin reads the
+     * same numbers the user sees in the app.
+     */
+    private function weight(string|float|null $kg, string $table, string $column, UnitSystem $units): ?string
+    {
+        $value = $this->formatMeasured($kg, $table, $column, $units);
+
+        return $value === null ? null : $value.' '.$units->weightUnit();
+    }
+
+    private function height(?int $cm, UnitSystem $units): ?string
+    {
+        $value = $this->formatMeasured($cm, 'user_profiles', 'height', $units);
+
+        return match (true) {
+            $value === null => null,
+            $units === UnitSystem::Imperial => intdiv((int) $value, 12).' ft '.((int) $value % 12).' in',
+            default => $value.' cm',
+        };
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PartnerKind;
 use App\Enums\PartnerPlan;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,6 +45,20 @@ class Partner extends Model
     public function isHouse(): bool
     {
         return $this->getKey() === self::houseId();
+    }
+
+    /**
+     * House if this is the configured House Partner, Sponsoring if it is on
+     * the sponsor plan (whether or not the sponsorship has run out), else
+     * plain.
+     */
+    public function kind(): PartnerKind
+    {
+        return match (true) {
+            $this->isHouse() => PartnerKind::House,
+            $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
+            default => PartnerKind::Plain,
+        };
     }
 
     /**

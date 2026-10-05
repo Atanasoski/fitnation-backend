@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Strip shows the right four values for fixture users of each kind (feature test)
-- [ ] Detail line examples render: renews date, "Cancelled, paid until", "Complimentary until"
-- [ ] Measurements displayed in the user's Unit System (ADR-0001: convert at the boundary)
-- [ ] Stuck sessions flagged
-- [ ] Back link carries the originating list's query string
-- [ ] Admin-only; admin/partner-admin accounts are not viewable as users (404)
+- [x] Strip shows the right four values for fixture users of each kind (feature test)
+- [x] Detail line examples render: renews date, "Cancelled, paid until", "Complimentary until"
+- [x] Measurements displayed in the user's Unit System (ADR-0001: convert at the boundary)
+- [x] Stuck sessions flagged
+- [x] Back link carries the originating list's query string
+- [x] Admin-only; admin/partner-admin accounts are not viewable as users (404)

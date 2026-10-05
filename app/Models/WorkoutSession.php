@@ -63,6 +63,16 @@ class WorkoutSession extends Model
     }
 
     /**
+     * The same rule as scopeStuck(), for one session already in hand.
+     */
+    public function isStuck(): bool
+    {
+        return $this->status === WorkoutSessionStatus::Active
+            && $this->performed_at !== null
+            && $this->performed_at < now()->subHours(self::STUCK_AFTER_HOURS);
+    }
+
+    /**
      * Display label for the session status (for UI badges).
      */
     public function getStatusLabelAttribute(): string

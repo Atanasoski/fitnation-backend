@@ -6,7 +6,6 @@ use App\Helpers\MenuHelper;
 use App\Models\Partner;
 use App\Models\User;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 /**
@@ -78,20 +77,9 @@ final class GlobalSearch
         ])->values()->all();
     }
 
-    /**
-     * The user page once it exists (ticket 06); until then the Users list
-     * narrowed to that person.
-     */
     private static function userUrl(User $user): string
     {
-        if (Route::has('admin.users.show')) {
-            return route('admin.users.show', $user->id);
-        }
-
-        return route('admin.users.index', array_filter([
-            'q' => $user->email,
-            'deleted' => $user->trashed() ? 1 : null,
-        ]));
+        return route('admin.users.show', $user->id);
     }
 
     /**

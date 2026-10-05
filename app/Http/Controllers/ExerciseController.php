@@ -73,6 +73,7 @@ class ExerciseController extends Controller
                     $q->where('partners.id', $partner->id)
                         ->withPivot(['description', 'image', 'video']);
                 }, 'muscleGroups'])
+                    ->available()
                     ->orderBy('name');
             }])
             ->orderBy('display_order')

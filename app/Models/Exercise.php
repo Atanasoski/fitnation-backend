@@ -150,6 +150,18 @@ class Exercise extends Model
     }
 
     /**
+     * Scope: exercises that may be offered — searched, picked or generated.
+     * Leaves out Archived Exercises (see App\Services\Exercise\ExerciseArchive).
+     *
+     * Apply it where an exercise is offered, never on relations or reads by
+     * id: an archived exercise must still load wherever it was already used.
+     */
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->whereNull('workout_exercises.archived_at');
+    }
+
+    /**
      * Tokenize a search term into a list of lowercase, alphanumeric tokens.
      *
      * Strips characters that are unsafe for FULLTEXT boolean syntax and trims

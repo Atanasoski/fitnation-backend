@@ -31,6 +31,7 @@ class ExerciseController extends Controller
 
         $query = Exercise::with('category', 'muscleGroups', 'partners', 'angle', 'movementPattern', 'targetRegion', 'equipmentType')
             ->forPartner(auth()->user()?->partner)
+            ->available()
             ->leftJoin('equipment_types', 'workout_exercises.equipment_type_id', '=', 'equipment_types.id')
             ->select('workout_exercises.*');
 

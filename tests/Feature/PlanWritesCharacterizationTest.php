@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UnitSystem;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\Plan;
@@ -103,6 +104,44 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->assertSame(6, $row->fresh()->target_sets);
         $this->assertSame(180, $row->fresh()->rest_seconds);
+    }
+
+    /**
+     * Today a partial update resets every omitted field to its default.
+     */
+    public function test_a_partial_row_update_resets_the_omitted_fields(): void
+    {
+        $row = $this->row($this->plan('member'));
+        $row->update(['target_sets' => 5, 'min_target_reps' => 4, 'max_target_reps' => 6, 'target_weight' => 100, 'rest_seconds' => 200]);
+
+        $this->actingAs($this->partnerAdmin)
+            ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), ['target_sets' => 4])
+            ->assertRedirect(route('workouts.show', $row->workout_template_id));
+
+        $row->refresh();
+        $this->assertSame(4, $row->target_sets);
+        $this->assertSame(8, $row->min_target_reps);
+        $this->assertSame(12, $row->max_target_reps);
+        $this->assertEquals(0, $row->target_weight);
+        $this->assertSame(120, $row->rest_seconds);
+    }
+
+    /**
+     * Today the web row form stores a target weight as sent, whatever the
+     * plan owner's Unit System.
+     */
+    public function test_a_row_target_weight_is_stored_as_sent_for_an_imperial_member(): void
+    {
+        $this->member->profile->update(['unit_system' => UnitSystem::Imperial]);
+        $row = $this->row($this->plan('member'));
+
+        $this->actingAs($this->partnerAdmin)
+            ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), [
+                'target_sets' => 3, 'min_target_reps' => 8, 'max_target_reps' => 12,
+                'target_weight' => 100, 'rest_seconds' => 120,
+            ]);
+
+        $this->assertEquals(100, $row->fresh()->target_weight);
     }
 
     #[DataProvider('plans')]

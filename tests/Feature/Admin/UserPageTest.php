@@ -146,8 +146,7 @@ class UserPageTest extends TestCase
                 'Access Source', 'Complimentary', 'Complimentary until 1 Dec 2026',
                 'Partner', 'Flow Studio', 'Partner',
                 'Active plan', 'No active plan',
-            ])
-            ->assertDontSee('Old Plan');
+            ]);
     }
 
     public function test_the_strip_for_a_cancelled_member_with_no_access_left_afterwards(): void
@@ -363,6 +362,56 @@ class UserPageTest extends TestCase
             ->get("/admin/users/{$member->id}")
             ->assertOk()
             ->assertSee('href="'.e(route('admin.users.index')).'"', false);
+    }
+
+    public function test_the_plans_section_lists_every_plan_and_links_each_to_its_outline_node(): void
+    {
+        $member = $this->member(Partner::factory()->create());
+        $program = Plan::factory()->program()->create(['user_id' => $member->id, 'name' => 'Hypertrophy 4-day', 'is_active' => true, 'duration_weeks' => 8]);
+        $this->templates($program, week: 1, names: ['Upper', 'Lower']);
+        $routine = Plan::factory()->create(['user_id' => $member->id, 'name' => 'Saturday Mobility', 'is_active' => false]);
+        $this->templates($routine, week: 1, names: ['Hips']);
+        $program->forceFill(['updated_at' => Carbon::parse('2026-10-03 09:00:00')])->save();
+        $routine->forceFill(['updated_at' => Carbon::parse('2026-09-01 09:00:00')])->save();
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get("/admin/users/{$member->id}")
+            ->assertOk()
+            ->assertSeeInOrder([
+                'Open plan outline',
+                'Hypertrophy 4-day', 'Program', 'Active', '2', '3 Oct 2026',
+                'Saturday Mobility', 'Routine', 'Inactive', '1', '1 Sep 2026',
+            ])
+            ->assertSee('href="'.e(route('plans.index', $member)).'"', false)
+            ->assertSee('href="'.e(route('plans.index', ['user' => $member->id, 'plan' => $program->id])).'"', false)
+            ->assertSee('href="'.e(route('plans.index', ['user' => $member->id, 'plan' => $routine->id])).'"', false);
+    }
+
+    public function test_a_user_without_plans_says_so_and_still_links_to_the_outline(): void
+    {
+        $member = $this->member(Partner::factory()->create());
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get("/admin/users/{$member->id}")
+            ->assertOk()
+            ->assertSee('No plans yet.')
+            ->assertSee('href="'.e(route('plans.index', $member)).'"', false);
+    }
+
+    public function test_the_active_plan_fact_links_to_its_outline_node(): void
+    {
+        $member = $this->member(Partner::factory()->create());
+        $program = Plan::factory()->program()->create(['user_id' => $member->id, 'name' => 'Hypertrophy 4-day', 'is_active' => true, 'duration_weeks' => 8]);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get("/admin/users/{$member->id}")
+            ->assertOk()
+            ->assertSeeInOrder([
+                'Active plan',
+                'href="'.e(route('plans.index', ['user' => $member->id, 'plan' => $program->id])).'"',
+                'Hypertrophy 4-day',
+                'Recent sessions',
+            ], false);
     }
 
     private function set(WorkoutSession $session, Exercise $exercise, float $kg, int $reps): SetLog

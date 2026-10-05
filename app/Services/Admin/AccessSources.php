@@ -3,8 +3,10 @@
 namespace App\Services\Admin;
 
 use App\Enums\AccessSource;
+use App\Enums\AdminChangeKind;
 use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStatus;
+use App\Models\AdminChange;
 use App\Models\Partner;
 use App\Models\Subscription;
 use App\Models\User;
@@ -42,7 +44,8 @@ final class AccessSources
     }
 
     /**
-     * Two queries for any number of users: their subscriptions and partners.
+     * Two queries for any number of users: their subscriptions and partners,
+     * plus one for who granted any Complimentary Access.
      *
      * @param  Collection<int, User>  $users
      * @return Collection<int, Access> keyed by user id
@@ -61,9 +64,41 @@ final class AccessSources
         $partnerIds = $users->pluck('partner_id')->filter()->unique()->values()->all();
         $partners = $partnerIds === [] ? collect() : Partner::query()->whereKey($partnerIds)->get()->keyBy('id');
 
-        return $users->mapWithKeys(fn (User $user) => [
+        $access = $users->mapWithKeys(fn (User $user) => [
             $user->id => self::resolve($user, $subscriptions[$user->id] ?? null, $partners[$user->partner_id] ?? null),
         ]);
+
+        return self::withGrantors($access);
+    }
+
+    /**
+     * Name the admin behind each Complimentary Access: whoever made the latest
+     * grant in the admin change record. One more query, only when some user
+     * reads Complimentary; a grant made outside the panel names nobody.
+     *
+     * @param  Collection<int, Access>  $access  keyed by user id
+     * @return Collection<int, Access>
+     */
+    private static function withGrantors(Collection $access): Collection
+    {
+        $complimentary = $access->filter(fn (Access $a) => $a->source === AccessSource::Complimentary);
+        if ($complimentary->isEmpty()) {
+            return $access;
+        }
+
+        $grants = AdminChange::query()
+            ->whereIn('user_id', $complimentary->keys()->all())
+            ->where('kind', AdminChangeKind::ComplimentaryAccess)
+            ->whereNotNull('until')
+            ->with('admin:id,name')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->keyBy('user_id');
+
+        return $access->map(fn (Access $a, int $userId) => isset($complimentary[$userId], $grants[$userId])
+            ? new Access(AccessSource::Complimentary, until: $a->until, grantedBy: $grants[$userId]->admin?->name)
+            : $a);
     }
 
     /**

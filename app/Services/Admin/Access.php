@@ -12,7 +12,8 @@ use Carbon\CarbonInterface;
  * detail line. Which facts are set depends on the source: subscription
  * states carry product, period, store, cancelledAt and until (the end of the
  * paid period); Sponsored carries the sponsor and until (null: no end date);
- * Complimentary carries until; None carries nothing.
+ * Complimentary carries until and grantedBy (the admin who made the latest
+ * grant, when the admin change record has one); None carries nothing.
  */
 final class Access
 {
@@ -24,6 +25,7 @@ final class Access
         public readonly ?SubscriptionStore $store = null,
         public readonly ?CarbonInterface $cancelledAt = null,
         public readonly ?Partner $sponsor = null,
+        public readonly ?string $grantedBy = null,
     ) {}
 
     /**
@@ -46,7 +48,7 @@ final class Access
             AccessSource::BillingIssue => $line($this->period, $store, 'payment failed, store retrying', 'paid until '.$date($this->until)),
             AccessSource::Paused => $line($this->period, $store, 'paused at period end', 'paid until '.$date($this->until)),
             AccessSource::Sponsored => $line($this->sponsor?->name.' pays', $this->until ? 'sponsorship until '.$date($this->until) : 'no end date'),
-            AccessSource::Complimentary => 'Complimentary until '.$date($this->until),
+            AccessSource::Complimentary => $line('Complimentary until '.$date($this->until), $this->grantedBy ? 'granted by '.$this->grantedBy : null),
             AccessSource::None => 'No subscription, no sponsor, no Complimentary Access',
         };
     }

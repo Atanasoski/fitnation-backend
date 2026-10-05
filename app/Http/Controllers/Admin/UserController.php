@@ -15,6 +15,7 @@ use App\Models\UserInvitation;
 use App\Services\Admin\AccessSources;
 use App\Services\Admin\ActivePlan;
 use App\Services\Admin\ActivityStatuses;
+use App\Services\Admin\UserChanges;
 use App\Services\FitnessMetrics\CompletedSessions;
 use App\Services\WorkoutSession\BestSets;
 use Illuminate\Database\Eloquent\Builder;
@@ -137,6 +138,8 @@ class UserController extends Controller
                 ->orderByRaw('accepted_at IS NULL')
                 ->latest()
                 ->first(),
+            'history' => UserChanges::history($user),
+            'activePartners' => Partner::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'back' => $this->backToList($request),
         ]);
     }

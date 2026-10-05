@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Migration for the admin change record: user, admin, kind (`complimentary_access` | `partner_change`), kind values, reason, timestamps
-- [ ] Grant/extend writes `users.grace_period_ends_at` and a record; date must be in the future, reason required
-- [ ] End now clears access and writes a record
-- [ ] Change partner: target must be active, reason required, record holds from and to
-- [ ] Access Source on the user page reflects the change immediately
-- [ ] Each action confirms first and flashes success; validation failures rejected; non-admins 403 (feature tests)
+- [x] Migration for the admin change record: user, admin, kind (`complimentary_access` | `partner_change`), kind values, reason, timestamps
+- [x] Grant/extend writes `users.grace_period_ends_at` and a record; date must be in the future, reason required
+- [x] End now clears access and writes a record
+- [x] Change partner: target must be active, reason required, record holds from and to
+- [x] Access Source on the user page reflects the change immediately
+- [x] Each action confirms first and flashes success; validation failures rejected; non-admins 403 (feature tests)

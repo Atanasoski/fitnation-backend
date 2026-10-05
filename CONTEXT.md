@@ -354,3 +354,13 @@ The day boundaries are the [Inactivity Nudge](#inactivity-nudge) ladder's, so a
 Slipping user is one the nudges are working on.
 
 _Avoid_: engagement level, churned, dormant.
+
+### Admin Change
+
+A record of something a super admin changed about a user by hand: a grant,
+extension or early end of [Complimentary Access](#complimentary-access), or a
+move to another partner. It says who, when, what (until, or from → to) and
+why. The user page lists them as "Grants & partner changes". Two kinds only;
+it is not a general audit log.
+
+_Avoid_: audit log, activity log.

@@ -12,6 +12,19 @@
     <div class="space-y-6">
         <a href="{{ $back }}" class="inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">← Users</a>
 
+        @if (session('success'))
+            <div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+                <p class="text-sm text-success-800 dark:text-success-200">{{ session('success') }}</p>
+            </div>
+        @endif
+        @if ($errors->any())
+            <div class="rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+                @foreach ($errors->all() as $error)
+                    <p class="text-sm text-error-700 dark:text-error-300">{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
         <div>
             <h1 class="font-display text-xl font-semibold text-gray-800 dark:text-white/90">{{ $user->name }}</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</p>
@@ -170,6 +183,29 @@
                     <p class="{{ $empty }}">Joined without an invitation.</p>
                 @endif
             </section>
+            <section class="{{ $card }} lg:col-span-2">
+                <h2 class="{{ $heading }}">Grants &amp; partner changes</h2>
+                @forelse ($history as $change)
+                    <div class="mt-3 text-sm">
+                        <span class="font-medium text-gray-800 dark:text-white/90">{{ $change->kind->label() }}</span>
+                        <span class="text-gray-500 dark:text-gray-400">
+                            · by {{ $change->admin?->name ?? 'a deleted account' }} · {{ $change->created_at->format('j M Y') }}
+                            @if ($change->kind === \App\Enums\AdminChangeKind::ComplimentaryAccess)
+                                · {{ $change->until ? 'until '.$change->until->format('j M Y') : 'ended' }}
+                            @else
+                                · {{ $change->fromPartner?->name ?? 'no partner' }} → {{ $change->toPartner?->name ?? 'a deleted partner' }}
+                            @endif
+                        </span>
+                        @if ($change->reason)
+                            <div class="text-theme-xs text-gray-500 dark:text-gray-400">Reason: {{ $change->reason }}</div>
+                        @endif
+                    </div>
+                @empty
+                    <p class="{{ $empty }}">None.</p>
+                @endforelse
+            </section>
+
+            @include('admin.users._actions')
         </div>
     </div>
 @endsection

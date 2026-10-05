@@ -27,20 +27,28 @@ final class ExerciseArchive
     /**
      * Archive the exercise if anyone used it, delete it if nobody did.
      * Archiving an exercise that is already archived keeps its original date.
+     *
+     * The exercise row is locked first: a set or row inserted for it takes a
+     * shared lock on that row through its foreign key, so nothing can start
+     * using the exercise between the check and the delete and be cascaded away.
      */
     public static function archiveOrDelete(Exercise $exercise): ArchiveOutcome
     {
-        if (! self::isUsed($exercise)) {
-            $exercise->delete();
+        return DB::transaction(function () use ($exercise) {
+            Exercise::whereKey($exercise->getKey())->lockForUpdate()->first();
 
-            return ArchiveOutcome::Deleted;
-        }
+            if (! self::isUsed($exercise)) {
+                $exercise->delete();
 
-        if ($exercise->archived_at === null) {
-            $exercise->forceFill(['archived_at' => now()])->save();
-        }
+                return ArchiveOutcome::Deleted;
+            }
 
-        return ArchiveOutcome::Archived;
+            if ($exercise->archived_at === null) {
+                $exercise->forceFill(['archived_at' => now()])->save();
+            }
+
+            return ArchiveOutcome::Archived;
+        });
     }
 
     /**

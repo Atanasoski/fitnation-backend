@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
@@ -34,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->middleware('admin')->group(function () {
         Route::get('/', [OverviewController::class, 'index'])->name('admin.overview');
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::get('/search', SearchController::class)->name('admin.search');
         Route::view('/insights', 'admin.insights')->name('admin.insights');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');
         Route::post('/system/failed-jobs/{id}/retry', [SystemController::class, 'retryJob'])->name('admin.system.failed-jobs.retry');

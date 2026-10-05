@@ -47,6 +47,22 @@ class MenuHelper
     }
 
     /**
+     * Every page in the super-admin navigation, groups flattened, for the
+     * global search: [['title' => 'Exercises', 'section' => 'Content', 'url' => …], …].
+     *
+     * @return list<array{title: string, section: ?string, url: string}>
+     */
+    public static function superAdminPages(): array
+    {
+        return collect(self::superAdminNavItems())
+            ->flatMap(fn (array $item) => isset($item['subItems'])
+                ? array_map(fn (array $sub) => ['title' => $sub['name'], 'section' => $item['name'], 'url' => url($sub['path'])], $item['subItems'])
+                : [['title' => $item['name'], 'section' => null, 'url' => url($item['path'])]])
+            ->values()
+            ->all();
+    }
+
+    /**
      * A menu link, active when the request matches one of $patterns
      * (the link's own path when none are given).
      */

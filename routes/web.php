@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\LandingPageController;
@@ -27,8 +30,14 @@ Route::match(['get', 'post'], '/email/weekly-summary/unsubscribe/{user}', Weekly
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // Exercise Library - Admin routes (prefixed with /admin, no conflict with API routes since API routes use 'api.' prefix)
-    Route::prefix('admin')->group(function () {
+    // Super-admin panel: everything under /admin is for the admin role only.
+    Route::prefix('admin')->middleware('admin')->group(function () {
+        Route::get('/', [OverviewController::class, 'index'])->name('admin.overview');
+        Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::view('/insights', 'admin.insights')->name('admin.insights');
+        Route::get('/system', [SystemController::class, 'index'])->name('admin.system');
+
+        // Content: exercise library, workout splits and the generator preview
         Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');
         Route::get('/exercises/create', [ExerciseController::class, 'adminCreate'])->name('exercises.create');
         Route::get('/exercises/{exercise}', [ExerciseController::class, 'adminShow'])->name('exercises.show');

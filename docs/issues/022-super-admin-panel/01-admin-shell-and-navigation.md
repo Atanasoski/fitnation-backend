@@ -8,10 +8,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Sidebar shows the six items for admins, with Content as an expandable group; active item highlighted
-- [ ] Exercises, Workout Splits and Generator Preview reachable under Content with no behaviour change
-- [ ] An admin-only gate protects every `/admin` super-admin route; a partner admin and a plain user get 403 (feature test)
-- [ ] `/dashboard` sends admins to the new Overview placeholder and partner admins to their dashboard as today
-- [ ] Partner-admin navigation unchanged (feature test)
+- [x] Sidebar shows the six items for admins, with Content as an expandable group; active item highlighted
+- [x] Exercises, Workout Splits and Generator Preview reachable under Content with no behaviour change
+- [x] An admin-only gate protects every `/admin` super-admin route; a partner admin and a plain user get 403 (feature test)
+- [x] `/dashboard` sends admins to the new Overview placeholder and partner admins to their dashboard as today
+- [x] Partner-admin navigation unchanged (feature test)
 - [ ] Unused TailAdmin demo components (ecommerce widgets, example tables) deleted; nothing references them
-- [ ] `composer test` green; pint on touched files
+- [x] `composer test` green; pint on touched files

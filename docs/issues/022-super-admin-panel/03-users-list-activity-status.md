@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Activity Status module per the spec's rules (Unfinished, New, Active, Slipping, Inactive, Deleted); owns its own loading
-- [ ] Agreement test: fixture users on each side of every boundary (6/7/8, 13/14/15 days; New vs Inactive at 14 days from onboarding); per-user label == expected, and the constraint for each label returns exactly those users; time frozen
-- [ ] Users list excludes admin and partner-admin accounts; deleted users hidden unless the Deleted status is filtered
-- [ ] `?partner=` and `?activity=` filter the list and survive pagination
-- [ ] Partner admins and plain users get 403
-- [ ] Prototype variant A is the layout reference
+- [x] Activity Status module per the spec's rules (Unfinished, New, Active, Slipping, Inactive, Deleted); owns its own loading
+- [x] Agreement test: fixture users on each side of every boundary (6/7/8, 13/14/15 days; New vs Inactive at 14 days from onboarding); per-user label == expected, and the constraint for each label returns exactly those users; time frozen
+- [x] Users list excludes admin and partner-admin accounts; deleted users hidden unless the Deleted status is filtered
+- [x] `?partner=` and `?activity=` filter the list and survive pagination
+- [x] Partner admins and plain users get 403
+- [x] Prototype variant A is the layout reference

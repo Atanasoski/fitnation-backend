@@ -94,7 +94,7 @@ class AdminShellTest extends TestCase
             ->assertSee('Coming soon');
     }
 
-    public function test_the_system_and_users_placeholders_render_for_an_admin(): void
+    public function test_the_system_and_users_pages_render_for_an_admin(): void
     {
         $admin = $this->userWithRole('admin');
 

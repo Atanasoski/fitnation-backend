@@ -16,7 +16,7 @@
 
 @section('content')
     <div class="space-y-4" x-data="{ picked: [] }">
-        @if (session('success'))
+        @if (session('success') && ! $editing)
             <div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
                 <p class="text-sm text-success-800 dark:text-success-200">{{ session('success') }}</p>
             </div>
@@ -151,6 +151,6 @@
     </div>
 
     @if ($editing)
-        @include('exercises.admin._editor', ['exercise' => $editing, 'close' => route('exercises.index', $base), 'back' => $back])
+        @include('exercises.admin._editor', ['exercise' => $editing, 'overrides' => $overrides, 'close' => route('exercises.index', $base), 'back' => $back])
     @endif
 @endsection

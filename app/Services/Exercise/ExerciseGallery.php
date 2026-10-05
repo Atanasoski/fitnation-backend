@@ -92,6 +92,27 @@ final class ExerciseGallery
     }
 
     /**
+     * The gallery URL a form was posted from, carried in its `back` field as a
+     * query string. Only the gallery's own filters (and the page) are kept, so
+     * it can only ever lead back to the gallery. $open adds parameters that
+     * reopen the slide-over, such as `edit`.
+     *
+     * @param  array<string, int|string>  $open
+     */
+    public static function backUrl(?string $back, array $open = []): string
+    {
+        parse_str((string) $back, $query);
+
+        $params = self::fromQuery($query)->query();
+        $page = (int) ($query['page'] ?? 0);
+        if ($page > 1) {
+            $params['page'] = (string) $page;
+        }
+
+        return route('exercises.index', $params + $open);
+    }
+
+    /**
      * Whether a filter value is on: a facet value (`region`, `equipment`,
      * `difficulty`) or a toggle (`missing` => 'media', `archived` => '1').
      */

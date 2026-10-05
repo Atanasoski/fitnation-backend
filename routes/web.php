@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Admin\PartnerOverrideController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserActionController;
@@ -66,6 +67,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/exercises/{exercise}', [ExerciseController::class, 'update'])->name('exercises.update');
         Route::delete('/exercises/{exercise}', [ExerciseController::class, 'destroy'])->name('exercises.destroy');
         Route::post('/exercises/{exercise}/update-muscle-group-image', [ExerciseController::class, 'updateMuscleGroupImage'])->name('exercises.updateMuscleGroupImage');
+        Route::post('/exercises/{exercise}/partners', [PartnerOverrideController::class, 'link'])->name('exercises.partners.link');
+        Route::put('/exercises/{exercise}/partners/{partner}', [PartnerOverrideController::class, 'update'])->name('exercises.partners.update');
+        Route::delete('/exercises/{exercise}/partners/{partner}/override', [PartnerOverrideController::class, 'clear'])->name('exercises.partners.clear');
+        Route::delete('/exercises/{exercise}/partners/{partner}', [PartnerOverrideController::class, 'unlink'])->name('exercises.partners.unlink');
 
         Route::resource('workout-splits', WorkoutSplitController::class)
             ->names([

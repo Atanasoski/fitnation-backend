@@ -60,7 +60,28 @@ class ExerciseController extends Controller
             'page' => $request->integer('page') > 1 ? $request->integer('page') : null,
             'editing' => $editing,
             'lookups' => $editing ? $this->editorLookups() : null,
+            'overrides' => $editing?->exists ? $this->partnerOverrides($editing) : null,
         ]);
+    }
+
+    /**
+     * The slide-over's Partner Overrides: every partner linked to the
+     * exercise with what its members see, and the partners it could be
+     * linked to.
+     *
+     * @return array{linked: \Illuminate\Support\Collection<int, array{partner: Partner, view: PartnerExerciseView}>, unlinked: \Illuminate\Support\Collection<int, Partner>}
+     */
+    private function partnerOverrides(Exercise $exercise): array
+    {
+        $linked = $exercise->loadMissing('partners')->partners->sortBy('name')->values();
+
+        return [
+            'linked' => $linked->map(fn (Partner $partner) => [
+                'partner' => $partner,
+                'view' => PartnerExerciseView::of($exercise, $partner),
+            ]),
+            'unlinked' => Partner::whereKeyNot($linked->modelKeys())->orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     public function partnerIndex()
@@ -271,21 +292,11 @@ class ExerciseController extends Controller
     }
 
     /**
-     * The gallery slice a form was posted from, carried in its `back` field
-     * as a query string. Only the gallery's own filters (and the page) are
-     * kept, so it can only ever lead back to the gallery.
+     * The gallery slice a form was posted from (its `back` field).
      */
     private function galleryUrl(Request $request): string
     {
-        parse_str((string) $request->input('back', ''), $query);
-
-        $params = ExerciseGallery::fromQuery($query)->query();
-        $page = (int) ($query['page'] ?? 0);
-        if ($page > 1) {
-            $params['page'] = (string) $page;
-        }
-
-        return route('exercises.index', $params);
+        return ExerciseGallery::backUrl($request->input('back'));
     }
 
     public function destroy(Request $request, Exercise $exercise): RedirectResponse

@@ -39,7 +39,7 @@ class WorkoutTemplateExerciseController extends Controller
     /**
      * Show the form for editing the specified exercise in the workout template.
      */
-    public function edit(Request $request, WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View
+    public function edit(WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View
     {
         $workoutTemplate->load('plan.user');
         if ($workoutTemplateExercise->workout_template_id !== $workoutTemplate->id) {

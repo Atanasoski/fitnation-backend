@@ -6,9 +6,9 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Failing test first: a plain user, and another partner's admin, can today update or delete someone else's workout and workout-exercise. Commit that test (marked or skipped if needed) before the fix.
-- [ ] `PlanPolicy` (or a module method) with the matrix from Seam 4 in the spec. Tested as a table.
-- [ ] Every web write path authorises against the plan. Library-plan flows (`/partner/programs`) keep working for their own partner admin.
-- [ ] `PlanWebTest` and `PlanActivationTest` stay green.
+- [x] Failing test first: a plain user, and another partner's admin, can today update or delete someone else's workout and workout-exercise. Commit that test (marked or skipped if needed) before the fix.
+- [x] `PlanPolicy` (or a module method) with the matrix from Seam 4 in the spec. Tested as a table.
+- [x] Every web write path authorises against the plan. Library-plan flows (`/partner/programs`) keep working for their own partner admin.
+- [x] `PlanWebTest` and `PlanActivationTest` stay green.

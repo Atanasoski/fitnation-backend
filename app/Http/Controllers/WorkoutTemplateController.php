@@ -19,7 +19,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Show the form for creating a new workout template for a plan.
      */
-    public function create(Request $request, Plan $plan): View
+    public function create(Plan $plan): View
     {
         $plan->load('user');
         $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
@@ -62,7 +62,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Display the specified workout template.
      */
-    public function show(Request $request, WorkoutTemplate $workoutTemplate): View
+    public function show(WorkoutTemplate $workoutTemplate): View
     {
         $workoutTemplate->load('plan.user');
         $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
@@ -121,7 +121,7 @@ class WorkoutTemplateController extends Controller
     /**
      * Show the form for editing the specified workout template.
      */
-    public function edit(Request $request, WorkoutTemplate $workoutTemplate): View
+    public function edit(WorkoutTemplate $workoutTemplate): View
     {
         $workoutTemplate->load('plan.user');
         $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());

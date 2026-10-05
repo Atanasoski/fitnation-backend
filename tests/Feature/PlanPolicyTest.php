@@ -102,8 +102,8 @@ class PlanPolicyTest extends TestCase
             'name' => 'Set up by staff', 'type' => 'routine',
         ])->assertRedirect();
         $this->actingAs($admin)->get(route('plans.index', $this->member))->assertOk();
-        $this->actingAs($admin)->get(route('plans.show', $workout->plan_id))->assertOk();
-        $this->actingAs($admin)->get(route('workouts.show', $workout))->assertOk();
+        $this->actingAs($admin)->get(route('plans.show', $workout->plan_id))->assertRedirect(PlanOutline::url($workout->plan));
+        $this->actingAs($admin)->get(route('workouts.show', $workout))->assertRedirect(PlanOutline::url($workout));
 
         $this->assertSame('By the super admin', $workout->fresh()->name);
         $this->assertSame(2, WorkoutTemplate::where('plan_id', $workout->plan_id)->count());

@@ -9,7 +9,6 @@ use App\Models\Exercise;
 use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\Plan;
-use App\Models\User;
 use App\Services\PlanFileService;
 use App\Services\PlanService;
 use Illuminate\Http\RedirectResponse;
@@ -22,104 +21,6 @@ class PlanController extends Controller
         private PlanFileService $planFileService,
         private PlanService $planService
     ) {}
-
-    /**
-     * Show the form for creating a new plan for a user (user flow).
-     */
-    public function userPlanCreate(User $user): View
-    {
-        $partner = Partner::with('identity')->findOrFail($user->partner_id);
-
-        return view('plans.users.create', compact('user', 'partner'));
-    }
-
-    /**
-     * Display the specified plan (user flow: plan for a specific user).
-     */
-    public function userPlanShow(Plan $plan): View|RedirectResponse
-    {
-        // User plan show is only for plans assigned to a user; library plans use partner.programs.show
-        if ($plan->user_id === null) {
-            return redirect()->route('partner.programs.show', $plan);
-        }
-
-        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
-
-        $plan->load([
-            'workoutTemplates' => function ($query) {
-                $query->withCount('workoutTemplateExercises')
-                    ->orderBy('week_number')
-                    ->orderBy('order_index');
-            },
-        ]);
-
-        $dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-        // Prepare exercise data for add exercise modal
-        $workoutExerciseData = [];
-        foreach ($plan->workoutTemplates as $workout) {
-            // Get current exercise IDs in this workout template
-            $currentExerciseIds = $workout->workoutTemplateExercises()->pluck('exercise_id')->toArray();
-
-            // Get exercises available for this partner (excluding already added ones)
-            $exercises = Exercise::whereHas('partners', function ($q) use ($partner) {
-                $q->where('partners.id', $partner->id);
-            })
-                ->available()
-                ->whereNotIn('id', $currentExerciseIds)
-                ->with(['muscleGroups', 'primaryMuscleGroups', 'equipmentType'])
-                ->orderBy('name')
-                ->get()
-                ->map(function ($exercise) {
-                    return [
-                        'id' => $exercise->id,
-                        'name' => $exercise->name,
-                        'equipment_type_id' => $exercise->equipment_type_id,
-                        'equipment_type_name' => $exercise->equipmentType?->name ?? 'Unknown',
-                        'muscle_groups' => $exercise->muscleGroups->map(fn ($mg) => [
-                            'id' => $mg->id,
-                            'name' => $mg->name,
-                        ])->values()->toArray(),
-                        'primary_muscle_group_ids' => $exercise->primaryMuscleGroups->pluck('id')->values()->toArray(),
-                    ];
-                })
-                ->values();
-
-            $workoutExerciseData[$workout->id] = $exercises;
-        }
-
-        // Get all equipment types and muscle groups for filters
-        $equipmentTypes = EquipmentType::orderBy('display_order')
-            ->get(['id', 'name'])
-            ->map(fn ($et) => ['id' => $et->id, 'name' => $et->name])
-            ->values();
-
-        $muscleGroups = MuscleGroup::orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($mg) => ['id' => $mg->id, 'name' => $mg->name])
-            ->values();
-
-        $weeks = max(1, (int) ($plan->duration_weeks ?? 1));
-        $workoutsByWeek = [];
-        for ($w = 1; $w <= $weeks; $w++) {
-            $workoutsByWeek[$w] = $plan->workoutTemplates
-                ->where('week_number', $w)
-                ->sortBy('order_index')
-                ->values();
-        }
-
-        return view('plans.users.show', compact('plan', 'partner', 'dayNames', 'workoutExerciseData', 'equipmentTypes', 'muscleGroups', 'weeks', 'workoutsByWeek'));
-    }
-
-    /**
-     * Show the form for editing the specified plan (user flow).
-     */
-    public function userPlanEdit(Plan $plan): View
-    {
-        $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
-
-        return view('plans.users.edit', compact('plan', 'partner'));
-    }
 
     // ===============================================
     // PARTNER LIBRARY PROGRAMS (CRUD)

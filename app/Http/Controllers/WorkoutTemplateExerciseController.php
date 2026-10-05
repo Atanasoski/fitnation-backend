@@ -36,24 +36,34 @@ class WorkoutTemplateExerciseController extends Controller
     }
 
     /**
-     * Show the form for editing the specified exercise in the workout template.
+     * There is no add-exercise page: a user's plan adds rows in the outline,
+     * a library plan from its workout page.
      */
-    public function edit(WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View
+    public function create(WorkoutTemplate $workoutTemplate): RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
+        return $workoutTemplate->plan->user_id === null
+            ? redirect()->route('workouts.show', $workoutTemplate)
+            : redirect(PlanOutline::adding($workoutTemplate));
+    }
+
+    /**
+     * Show the form for editing a library plan's row. A user's plan edits its
+     * rows in the outline.
+     */
+    public function edit(WorkoutTemplate $workoutTemplate, WorkoutTemplateExercise $workoutTemplateExercise): View|RedirectResponse
+    {
         if ($workoutTemplateExercise->workout_template_id !== $workoutTemplate->id) {
             abort(403, 'Unauthorized.');
         }
 
-        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplateExercise));
+        }
 
+        $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
         $workoutTemplateExercise->load('exercise');
 
-        $view = $isLibrary ? 'workout-template-exercises.edit' : 'workout-template-exercises.users.edit';
-
-        return view($view, compact('workoutTemplate', 'workoutTemplateExercise', 'partner', 'user'));
+        return view('workout-template-exercises.edit', compact('workoutTemplate', 'workoutTemplateExercise', 'partner'));
     }
 
     /**

@@ -108,10 +108,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // partner admins. Every plan, workout and workout-exercise route is
     // guarded by PlanPolicy.
     Route::get('/users/{user}/plans', [UserPlanController::class, 'index'])->can('manageFor', [Plan::class, 'user'])->name('plans.index');
-    Route::get('/users/{user}/plans/create', [PlanController::class, 'userPlanCreate'])->can('manageFor', [Plan::class, 'user'])->name('plans.create');
+    Route::get('/users/{user}/plans/create', [UserPlanController::class, 'create'])->can('manageFor', [Plan::class, 'user'])->name('plans.create');
     Route::post('/users/{user}/plans', [UserPlanController::class, 'store'])->can('manageFor', [Plan::class, 'user'])->name('plans.store');
-    Route::get('/plans/{plan}', [PlanController::class, 'userPlanShow'])->can('manage', 'plan')->name('plans.show');
-    Route::get('/plans/{plan}/edit', [PlanController::class, 'userPlanEdit'])->can('manage', 'plan')->name('plans.edit');
+    Route::get('/plans/{plan}', [UserPlanController::class, 'show'])->can('manage', 'plan')->name('plans.show');
+    Route::get('/plans/{plan}/edit', [UserPlanController::class, 'edit'])->can('manage', 'plan')->name('plans.edit');
     Route::put('/plans/{plan}', [UserPlanController::class, 'update'])->can('manage', 'plan')->name('plans.update');
     Route::post('/plans/{plan}/activate', [UserPlanController::class, 'activate'])->can('manage', 'plan')->name('plans.activate');
     Route::delete('/plans/{plan}', [UserPlanController::class, 'destroy'])->can('manage', 'plan')->name('plans.destroy');

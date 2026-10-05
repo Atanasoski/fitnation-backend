@@ -72,15 +72,32 @@ final class PlanOutline
      */
     public static function url(Plan|WorkoutTemplate|WorkoutTemplateExercise $node): string
     {
+        return route('plans.index', self::selecting($node));
+    }
+
+    /**
+     * The outline open on a node's "add" form: a new workout under a plan, or
+     * the exercise picker under a workout.
+     */
+    public static function adding(Plan|WorkoutTemplate $node): string
+    {
+        return route('plans.index', self::selecting($node) + ['add' => $node instanceof Plan ? 'workout' : 'exercise']);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function selecting(Plan|WorkoutTemplate|WorkoutTemplateExercise $node): array
+    {
         $row = $node instanceof WorkoutTemplateExercise ? $node : null;
         $workout = $row?->workoutTemplate ?? ($node instanceof WorkoutTemplate ? $node : null);
         $plan = $workout?->plan ?? $node;
 
-        return route('plans.index', array_filter([
+        return array_filter([
             'user' => $plan->user_id,
             'plan' => $plan->id,
             'workout' => $workout?->id,
             'row' => $row?->id,
-        ]));
+        ]);
     }
 }

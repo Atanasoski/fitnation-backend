@@ -18,22 +18,18 @@ use Illuminate\View\View;
 class WorkoutTemplateController extends Controller
 {
     /**
-     * Show the form for creating a new workout template for a plan.
+     * Show the form for creating a new workout template for a library plan.
+     * A user's plan adds workouts in the outline.
      */
-    public function create(Plan $plan): View
+    public function create(Plan $plan): View|RedirectResponse
     {
-        $plan->load('user');
+        if ($plan->user_id !== null) {
+            return redirect(PlanOutline::adding($plan));
+        }
+
         $partner = Partner::with('identity')->findOrFail($plan->ownerPartnerId());
-        $isLibrary = $plan->user_id === null;
-        $user = $isLibrary ? null : $plan->user;
 
-        // day_of_week (commented out)
-        // $dayOfWeekOptions = $this->dayOfWeekOptions();
-        // $dayOfWeekValue = $request->old('day_of_week');
-
-        $view = $isLibrary ? 'workout-templates.create' : 'workout-templates.users.create';
-
-        return view($view, compact('plan', 'partner', 'isLibrary', 'user'));
+        return view('workout-templates.create', compact('plan', 'partner'));
     }
 
     /**
@@ -64,14 +60,16 @@ class WorkoutTemplateController extends Controller
     }
 
     /**
-     * Display the specified workout template.
+     * Display a library plan's workout template. A user's plan shows its
+     * workouts in the outline.
      */
-    public function show(WorkoutTemplate $workoutTemplate): View
+    public function show(WorkoutTemplate $workoutTemplate): View|RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate));
+        }
+
         $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
 
         $workoutTemplate->load([
             'workoutTemplateExercises.exercise.category',
@@ -118,28 +116,22 @@ class WorkoutTemplateController extends Controller
             ->map(fn ($mg) => ['id' => $mg->id, 'name' => $mg->name])
             ->values();
 
-        $view = $isLibrary ? 'workout-templates.show' : 'workout-templates.users.show';
-
-        return view($view, compact('workoutTemplate', 'partner', 'dayName', 'exercises', 'availableExercises', 'equipmentTypes', 'muscleGroups', 'isLibrary', 'user'));
+        return view('workout-templates.show', compact('workoutTemplate', 'partner', 'dayName', 'exercises', 'availableExercises', 'equipmentTypes', 'muscleGroups'));
     }
 
     /**
-     * Show the form for editing the specified workout template.
+     * Show the form for editing a library plan's workout template. A user's
+     * plan edits its workouts in the outline.
      */
-    public function edit(WorkoutTemplate $workoutTemplate): View
+    public function edit(WorkoutTemplate $workoutTemplate): View|RedirectResponse
     {
-        $workoutTemplate->load('plan.user');
+        if ($workoutTemplate->plan->user_id !== null) {
+            return redirect(PlanOutline::url($workoutTemplate));
+        }
+
         $partner = Partner::with('identity')->findOrFail($workoutTemplate->plan->ownerPartnerId());
-        $isLibrary = $workoutTemplate->plan->user_id === null;
-        $user = $isLibrary ? null : $workoutTemplate->plan->user;
 
-        // day_of_week (commented out)
-        // $dayOfWeekOptions = $this->dayOfWeekOptions();
-        // $dayOfWeekValue = $request->old('day_of_week', $workoutTemplate->day_of_week);
-
-        $view = $isLibrary ? 'workout-templates.edit' : 'workout-templates.users.edit';
-
-        return view($view, compact('workoutTemplate', 'partner', 'isLibrary', 'user'));
+        return view('workout-templates.edit', compact('workoutTemplate', 'partner'));
     }
 
     /**

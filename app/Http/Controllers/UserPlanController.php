@@ -65,6 +65,29 @@ class UserPlanController extends Controller
     }
 
     /**
+     * The old plan pages (create, show, edit) are the outline now; their
+     * links redirect to the matching node. A library plan keeps its pages.
+     */
+    public function create(User $user): RedirectResponse
+    {
+        return redirect()->route('plans.index', ['user' => $user, 'create' => PlanType::Program->value]);
+    }
+
+    public function show(Plan $plan): RedirectResponse
+    {
+        return $plan->user_id === null
+            ? redirect()->route('partner.programs.show', $plan)
+            : redirect(PlanOutline::url($plan));
+    }
+
+    public function edit(Plan $plan): RedirectResponse
+    {
+        return $plan->user_id === null
+            ? redirect()->route('partner.programs.edit', $plan)
+            : redirect(PlanOutline::url($plan));
+    }
+
+    /**
      * A new Program or Routine starts inactive; activating it is its own step.
      */
     public function store(UserPlanRequest $request, User $user): RedirectResponse

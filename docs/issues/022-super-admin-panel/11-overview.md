@@ -8,8 +8,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Admin Overview module returns one structure; live queries, cached ~10 min; weeks Monday–Sunday
-- [ ] Module test with frozen time and known fixture counts: KPIs, deltas, funnel stages, None count, every Needs attention count
-- [ ] Counts use the Activity Status / Access Source query constraints (no second definition)
-- [ ] Every link carries the right filter query (feature test); page test only checks numbers appear
-- [ ] Replaces the old admin dashboard; old view and its controller branch removed
+- [x] Admin Overview module returns one structure; live queries, cached ~10 min; weeks Monday–Sunday
+- [x] Module test with frozen time and known fixture counts: KPIs, deltas, funnel stages, None count, every Needs attention count
+- [x] Counts use the Activity Status / Access Source query constraints (no second definition)
+- [x] Every link carries the right filter query (feature test); page test only checks numbers appear
+- [x] Replaces the old admin dashboard; old view and its controller branch removed

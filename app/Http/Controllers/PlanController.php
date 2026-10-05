@@ -65,6 +65,7 @@ class PlanController extends Controller
             $exercises = Exercise::whereHas('partners', function ($q) use ($partner) {
                 $q->where('partners.id', $partner->id);
             })
+                ->available()
                 ->whereNotIn('id', $currentExerciseIds)
                 ->with(['muscleGroups', 'primaryMuscleGroups', 'equipmentType'])
                 ->orderBy('name')
@@ -213,6 +214,7 @@ class PlanController extends Controller
             $exercises = Exercise::whereHas('partners', function ($q) use ($partner) {
                 $q->where('partners.id', $partner->id);
             })
+                ->available()
                 ->whereNotIn('id', $currentExerciseIds)
                 ->with(['muscleGroups', 'primaryMuscleGroups', 'equipmentType'])
                 ->orderBy('name')

@@ -84,6 +84,7 @@ class WorkoutTemplateController extends Controller
         $availableExercises = Exercise::whereHas('partners', function ($q) use ($partner) {
             $q->where('partners.id', $partner->id);
         })
+            ->available()
             ->whereNotIn('id', $currentExerciseIds)
             ->with(['muscleGroups', 'primaryMuscleGroups', 'equipmentType'])
             ->orderBy('name')

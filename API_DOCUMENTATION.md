@@ -692,6 +692,10 @@ GET /api/exercises
 ```
 *Requires authentication*
 
+Archived exercises are left out of the list and of search results. They are
+still returned by `GET /api/exercises/{id}` and wherever they are already used
+(plan workouts, sessions, history).
+
 **Response:**
 ```typescript
 interface ExerciseListResponse {
@@ -778,10 +782,14 @@ DELETE /api/exercises/{id}
 ```
 *Requires authentication + admin role*
 
+An exercise used in any plan, session or logged set is **archived**, not
+deleted: it leaves the catalogue, search and pickers, and every plan and history
+row that uses it is kept. Only an exercise nobody used is deleted.
+
 **Response:**
 ```typescript
 interface DeleteExerciseResponse {
-  message: "Exercise deleted successfully";
+  message: "Exercise deleted successfully" | "Exercise archived successfully";
 }
 ```
 

@@ -16,6 +16,8 @@ use App\Models\MuscleGroup;
 use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
+use App\Services\Exercise\ArchiveOutcome;
+use App\Services\Exercise\ExerciseArchive;
 use App\Services\Exercise\PartnerExerciseView;
 use App\Services\MuscleGroupImageService;
 use App\Services\PartnerExerciseFileService;
@@ -71,6 +73,7 @@ class ExerciseController extends Controller
                     $q->where('partners.id', $partner->id)
                         ->withPivot(['description', 'image', 'video']);
                 }, 'muscleGroups'])
+                    ->available()
                     ->orderBy('name');
             }])
             ->orderBy('display_order')
@@ -402,10 +405,11 @@ class ExerciseController extends Controller
             abort(403, 'Only system administrators can delete exercises.');
         }
 
-        $exercise->delete();
+        $message = ExerciseArchive::archiveOrDelete($exercise) === ArchiveOutcome::Archived
+            ? 'Exercise archived. It is used in plans or logged sessions, which keep it.'
+            : 'Exercise deleted successfully!';
 
-        return redirect()->route('exercises.index')
-            ->with('success', 'Exercise deleted successfully!');
+        return redirect()->route('exercises.index')->with('success', $message);
     }
 
     /**

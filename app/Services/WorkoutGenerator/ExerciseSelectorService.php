@@ -12,7 +12,8 @@ class ExerciseSelectorService
      */
     public function getAvailableExercises(array $filters = [], $partner = null): Collection
     {
-        $query = Exercise::with(['muscleGroups', 'category', 'movementPattern', 'targetRegion', 'equipmentType', 'angle', 'trainingStyles']);
+        $query = Exercise::with(['muscleGroups', 'category', 'movementPattern', 'targetRegion', 'equipmentType', 'angle', 'trainingStyles'])
+            ->available();
 
         if ($partner !== null) {
             $query->forPartner($partner);

@@ -10,6 +10,8 @@ use App\Http\Requests\UpdateExerciseRequest;
 use App\Http\Resources\Api\ExerciseHistoryResource;
 use App\Http\Resources\Api\ExerciseResource;
 use App\Models\Exercise;
+use App\Services\Exercise\ArchiveOutcome;
+use App\Services\Exercise\ExerciseArchive;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,6 +31,7 @@ class ExerciseController extends Controller
 
         $query = Exercise::with('category', 'muscleGroups', 'partners', 'angle', 'movementPattern', 'targetRegion', 'equipmentType')
             ->forPartner(auth()->user()?->partner)
+            ->available()
             ->leftJoin('equipment_types', 'workout_exercises.equipment_type_id', '=', 'equipment_types.id')
             ->select('workout_exercises.*');
 
@@ -105,14 +108,15 @@ class ExerciseController extends Controller
     }
 
     /**
-     * Remove the specified exercise from storage.
+     * Remove the exercise from the catalogue: archived if anyone used it,
+     * deleted if nobody did (ExerciseArchive).
      */
     public function destroy(Exercise $exercise): JsonResponse
     {
-        $exercise->delete();
+        $archived = ExerciseArchive::archiveOrDelete($exercise) === ArchiveOutcome::Archived;
 
         return response()->json([
-            'message' => 'Exercise deleted successfully',
+            'message' => $archived ? 'Exercise archived successfully' : 'Exercise deleted successfully',
         ]);
     }
 

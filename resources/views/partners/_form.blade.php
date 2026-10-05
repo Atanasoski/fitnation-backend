@@ -152,8 +152,8 @@
                             </div>
                         </div>
                         <div class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                            White on primary: <b x-text="contrastWithWhite(f.{{ $mode }}.primary)"></b>
-                            <span x-show="contrastWithWhite(f.{{ $mode }}.primary) !== '—' && parseFloat(contrastWithWhite(f.{{ $mode }}.primary)) < 4.5" class="text-orange-500">(below 4.5:1)</span>
+                            White on primary: <b x-text="contrastWithWhite(f.{{ $mode }}.primary)?.toFixed(1).concat(':1') ?? '—'"></b>
+                            <span x-show="(contrastWithWhite(f.{{ $mode }}.primary) ?? Infinity) < 4.5" class="text-orange-500">(below 4.5:1)</span>
                         </div>
                     </div>
                 @endforeach
@@ -183,17 +183,17 @@
                             this.f.logo = URL.createObjectURL(file);
                         }
                     },
-                    // WCAG contrast ratio of white text on the given hex colour, e.g. "4.6:1".
+                    // WCAG contrast ratio of white text on the given hex colour (e.g. 4.6), null when it is not #rrggbb.
                     contrastWithWhite(hex) {
                         if (! /^#[0-9a-f]{6}$/i.test(hex || '')) {
-                            return '—';
+                            return null;
                         }
                         const channel = (i) => {
                             const c = parseInt(hex.slice(i, i + 2), 16) / 255;
                             return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
                         };
                         const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-                        return (1.05 / (luminance + 0.05)).toFixed(1) + ':1';
+                        return 1.05 / (luminance + 0.05);
                     },
                 };
             }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PartnerPlan;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -45,10 +46,28 @@ class Partner extends Model
         return $this->getKey() === self::houseId();
     }
 
+    /**
+     * A Sponsoring Partner whose sponsorship has not run out: its members have
+     * access without a subscription. scopeSponsoringMembers() is the same rule
+     * in SQL; keep the two together.
+     */
     public function isSponsoringMembers(): bool
     {
         return $this->plan === PartnerPlan::Sponsor
             && ($this->plan_expires_at === null || $this->plan_expires_at > now());
+    }
+
+    /**
+     * @param  Builder<Partner>  $query
+     * @return Builder<Partner>
+     */
+    public function scopeSponsoringMembers(Builder $query): Builder
+    {
+        return $query
+            ->where('partners.plan', PartnerPlan::Sponsor)
+            ->where(fn (Builder $q) => $q
+                ->whereNull('partners.plan_expires_at')
+                ->orWhere('partners.plan_expires_at', '>', now()));
     }
 
     /**

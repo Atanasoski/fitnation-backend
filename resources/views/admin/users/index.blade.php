@@ -7,7 +7,7 @@
 
     @php
         $select = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
-        $filtered = $filters['partner'] !== null || $filters['activity'] !== null;
+        $filtered = $filters['partner'] !== null || $filters['activity'] !== null || $filters['access'] !== null;
     @endphp
 
     <form method="GET" action="{{ route('admin.users.index') }}" class="mb-4 flex flex-wrap items-center gap-2 text-sm">
@@ -21,6 +21,12 @@
             <option value="">Any Activity Status</option>
             @foreach (\App\Enums\ActivityStatus::cases() as $status)
                 <option value="{{ $status->value }}" @selected($filters['activity'] === $status)>{{ $status->label() }}</option>
+            @endforeach
+        </select>
+        <select name="access" class="{{ $select }}" onchange="this.form.submit()" aria-label="Access Source">
+            <option value="">Any Access Source</option>
+            @foreach (\App\Enums\AccessSource::cases() as $source)
+                <option value="{{ $source->value }}" @selected($filters['access'] === $source)>{{ $source->label() }}</option>
             @endforeach
         </select>
         <noscript><button type="submit" class="rounded-lg bg-brand-500 px-3 py-1.5 text-theme-xs font-medium text-white">Filter</button></noscript>
@@ -45,7 +51,8 @@
                             <th class="px-3 py-2 font-medium">Signed up</th>
                             <th class="px-3 py-2 font-medium">Last Completed Session</th>
                             <th class="px-3 py-2 font-medium">Sessions 30d</th>
-                            <th class="px-5 py-2 font-medium sm:px-6">Activity Status</th>
+                            <th class="px-3 py-2 font-medium">Activity Status</th>
+                            <th class="px-5 py-2 font-medium sm:px-6">Access Source</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,7 +67,8 @@
                                 <td class="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-400">{{ $user->created_at->format('j M Y') }}</td>
                                 <td class="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-400" @if ($last) title="{{ $last->diffForHumans() }}" @endif>{{ $last?->format('j M Y') ?? '—' }}</td>
                                 <td class="px-3 py-3 text-gray-600 dark:text-gray-400">{{ $user->completed_sessions_30d }}</td>
-                                <td class="px-5 py-3 sm:px-6"><x-admin.activity-chip :status="$statuses[$user->id]" /></td>
+                                <td class="px-3 py-3"><x-admin.activity-chip :status="$statuses[$user->id]" /></td>
+                                <td class="px-5 py-3 sm:px-6"><x-admin.access-chip :access="$access[$user->id]" /></td>
                             </tr>
                         @endforeach
                     </tbody>

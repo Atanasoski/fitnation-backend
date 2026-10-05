@@ -8,9 +8,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Precedence: subscription states, then Sponsored, then Complimentary, else None; subscription states only while `expires_at` is in the future (matches `Subscription::isActive()`)
-- [ ] Agreement test like 03's, including expiry just past / just ahead for subscriptions, sponsorships and Complimentary Access
-- [ ] Label is identical with `subscriptions.enforced` on and off
-- [ ] Precedence cases: sponsored + active subscription → Subscribed; Complimentary + active subscription → Subscribed
-- [ ] `User::entitlements()` and API behaviour unchanged (existing entitlement tests stay green); shared predicates factored, not duplicated
-- [ ] Detail facts available per user (product/period, renew/expiry date, sponsor partner, Complimentary until)
+- [x] Precedence: subscription states, then Sponsored, then Complimentary, else None; subscription states only while `expires_at` is in the future (matches `Subscription::isActive()`)
+- [x] Agreement test like 03's, including expiry just past / just ahead for subscriptions, sponsorships and Complimentary Access
+- [x] Label is identical with `subscriptions.enforced` on and off
+- [x] Precedence cases: sponsored + active subscription → Subscribed; Complimentary + active subscription → Subscribed
+- [x] `User::entitlements()` and API behaviour unchanged (existing entitlement tests stay green); shared predicates factored, not duplicated
+- [x] Detail facts available per user (product/period, renew/expiry date, sponsor partner, Complimentary until)

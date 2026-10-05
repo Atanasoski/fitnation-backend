@@ -7,6 +7,7 @@ use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -219,11 +220,30 @@ class User extends Authenticatable implements MustVerifyEmail
             $set->push(Entitlement::AppAccess);
         }
 
-        if ($this->grace_period_ends_at && $this->grace_period_ends_at > now()) {
+        if ($this->hasComplimentaryAccess()) {
             $set->push(Entitlement::AppAccess);
         }
 
         return $set->unique()->values();
+    }
+
+    /**
+     * Complimentary Access (CONTEXT.md): an admin let this user in until a
+     * date. Stored as grace_period_ends_at, a name kept for now.
+     * scopeWithComplimentaryAccess() is the same rule in SQL.
+     */
+    public function hasComplimentaryAccess(): bool
+    {
+        return $this->grace_period_ends_at !== null && $this->grace_period_ends_at > now();
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithComplimentaryAccess(Builder $query): Builder
+    {
+        return $query->where('users.grace_period_ends_at', '>', now());
     }
 
     public function hasEntitlement(Entitlement $e): bool

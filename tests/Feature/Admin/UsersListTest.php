@@ -8,6 +8,7 @@ use App\Enums\WorkoutSessionStatus;
 use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\Role;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutTemplate;
@@ -163,6 +164,90 @@ class UsersListTest extends TestCase
             ->assertOk()
             ->assertSee('value="'.$gym->id.'" selected', false)
             ->assertSee('value="slipping" selected', false);
+    }
+
+    public function test_each_row_shows_the_access_source_chip(): void
+    {
+        $gym = Partner::factory()->create();
+        $sponsor = Partner::factory()->sponsor()->create();
+        $ada = $this->member($gym, ['name' => 'Ada Lovelace']);
+        Subscription::factory()->trial()->create(['user_id' => $ada->id]);
+        $this->member($sponsor, ['name' => 'Grace Hopper']);
+        $this->member($gym, ['name' => 'Linus Torvalds', 'grace_period_ends_at' => now()->addDays(10)]);
+        $this->member($gym, ['name' => 'Barbara Liskov']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/users')
+            ->assertOk()
+            ->assertSee('Access Source')
+            ->assertSeeInOrder(['Barbara Liskov', 'None'])
+            ->assertSeeInOrder(['Linus Torvalds', 'Complimentary'])
+            ->assertSeeInOrder(['Grace Hopper', 'Sponsored'])
+            ->assertSeeInOrder(['Ada Lovelace', 'Trial']);
+    }
+
+    public function test_the_access_filter_narrows_the_list(): void
+    {
+        $gym = Partner::factory()->create();
+        $ada = $this->member($gym, ['name' => 'Ada Lovelace']);
+        Subscription::factory()->create(['user_id' => $ada->id]);
+        $grace = $this->member($gym, ['name' => 'Grace Hopper']);
+        Subscription::factory()->expired()->create(['user_id' => $grace->id]);
+        $this->member($gym, ['name' => 'Linus Torvalds', 'grace_period_ends_at' => now()->addDays(10)]);
+
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/users?access=none')
+            ->assertOk()
+            ->assertSee('Grace Hopper')
+            ->assertDontSee('Ada Lovelace')
+            ->assertDontSee('Linus Torvalds');
+
+        $this->actingAs($admin)
+            ->get('/admin/users?access=subscribed')
+            ->assertOk()
+            ->assertSee('Ada Lovelace')
+            ->assertDontSee('Grace Hopper')
+            ->assertDontSee('Linus Torvalds');
+    }
+
+    public function test_the_access_filter_combines_with_activity_and_survives_pagination(): void
+    {
+        $gym = Partner::factory()->create();
+        foreach (range(1, 30) as $i) {
+            $this->member($gym, ['name' => "Free Member {$i}"], completedDaysAgo: [2]);
+        }
+        $this->member($gym, ['name' => 'Comped Carl', 'grace_period_ends_at' => now()->addDays(10)], completedDaysAgo: [2]);
+        $this->member($gym, ['name' => 'Idle Ivy'], completedDaysAgo: [10]);
+
+        $admin = $this->userWithRole('admin');
+
+        $first = $this->actingAs($admin)->get('/admin/users?access=none&activity=active')->assertOk();
+        $paginator = $first->viewData('users');
+        $this->assertSame(30, $paginator->total());
+        $this->assertStringContainsString('access=none', $paginator->nextPageUrl());
+
+        $this->actingAs($admin)->get($paginator->nextPageUrl())
+            ->assertOk()
+            ->assertDontSee('Comped Carl')
+            ->assertDontSee('Idle Ivy');
+    }
+
+    public function test_an_unknown_access_source_is_ignored_and_the_form_keeps_a_known_one(): void
+    {
+        $this->member(Partner::factory()->create(), ['name' => 'Ada Lovelace']);
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/users?access=bogus')
+            ->assertOk()
+            ->assertSee('Ada Lovelace');
+
+        $this->actingAs($admin)
+            ->get('/admin/users?access=billing_issue')
+            ->assertOk()
+            ->assertSee('value="billing_issue" selected', false);
     }
 
     public function test_partner_admins_and_plain_users_get_403(): void

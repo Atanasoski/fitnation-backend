@@ -9,8 +9,8 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Prefactor commit: shared Weekly Summary constraint; existing Weekly Summary tests green.
-- [ ] `planned_vs_actual`, `nudges` and `who` keys tested per Seam 1: 47 h counts and 49 h does not; steps are split; the Weekly Summary off-count respects default-on; "Not set" rows; age-band edges.
-- [ ] Cards render; the Training tab now matches prototype Insights A.
+- [x] Prefactor commit: shared Weekly Summary constraint; existing Weekly Summary tests green.
+- [x] `planned_vs_actual`, `nudges` and `who` keys tested per Seam 1: 47 h counts and 49 h does not; steps are split; the Weekly Summary off-count respects default-on; "Not set" rows; age-band edges.
+- [x] Cards render; the Training tab now matches prototype Insights A.

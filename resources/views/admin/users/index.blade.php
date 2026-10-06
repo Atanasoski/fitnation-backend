@@ -8,7 +8,6 @@
     @php
         $select = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
         $filtered = collect($filters)->except('sort')->contains(fn ($value) => $value !== null && $value !== false);
-        $label = fn (string $value) => \Illuminate\Support\Str::of($value)->replace('_', ' ')->ucfirst();
     @endphp
 
     <form method="GET" action="{{ route('admin.users.index') }}" class="mb-4 space-y-2 text-sm">
@@ -43,13 +42,13 @@
             <select name="goal" class="{{ $select }}" onchange="this.form.submit()" aria-label="Fitness goal">
                 <option value="">Any goal</option>
                 @foreach (\App\Enums\FitnessGoal::cases() as $goal)
-                    <option value="{{ $goal->value }}" @selected($filters['goal'] === $goal)>{{ $label($goal->value) }}</option>
+                    <option value="{{ $goal->value }}" @selected($filters['goal'] === $goal)>{{ $goal->label() }}</option>
                 @endforeach
             </select>
             <select name="experience" class="{{ $select }}" onchange="this.form.submit()" aria-label="Training experience">
                 <option value="">Any experience</option>
                 @foreach (\App\Enums\TrainingExperience::cases() as $experience)
-                    <option value="{{ $experience->value }}" @selected($filters['experience'] === $experience)>{{ $label($experience->value) }}</option>
+                    <option value="{{ $experience->value }}" @selected($filters['experience'] === $experience)>{{ $experience->label() }}</option>
                 @endforeach
             </select>
             <select name="platform" class="{{ $select }}" onchange="this.form.submit()" aria-label="Device platform">

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\PartnerOverrideController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\WeeklySummaryUnsubscribeController;
 use App\Http\Controllers\WorkoutPreviewController;
 use App\Http\Controllers\WorkoutSplitController;
 use App\Models\Plan;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -57,6 +59,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/system/failed-jobs/{id}', [SystemController::class, 'forgetJob'])->name('admin.system.failed-jobs.destroy');
         Route::post('/system/webhooks/replay', [SystemController::class, 'replayAllWebhooks'])->name('admin.system.webhooks.replay-all');
         Route::post('/system/webhooks/{id}/replay', [SystemController::class, 'replayWebhook'])->whereNumber('id')->name('admin.system.webhooks.replay');
+        Route::post('/system/admins', [AdminController::class, 'store'])->name('admin.system.admins.store');
+        Route::delete('/system/admins/{user}/{role}', [AdminController::class, 'destroy'])->whereNumber('user')->whereIn('role', User::STAFF_ROLES)->name('admin.system.admins.destroy');
 
         // Content: exercise library, workout splits and the generator preview
         Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');

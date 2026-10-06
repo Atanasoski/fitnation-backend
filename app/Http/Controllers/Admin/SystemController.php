@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Partner;
+use App\Services\Admin\Admins;
 use App\Services\System\FailedJobs;
 use App\Services\System\Fleet;
 use App\Webhooks\RevenueCat\FailedWebhookCalls;
@@ -20,6 +22,8 @@ class SystemController extends Controller
             'failedJobCount' => $this->failedJobs->count(),
             'failedWebhooks' => FailedWebhookCalls::query()->latest('id')->paginate(25, ['*'], 'webhooks_page'),
             'fleet' => Fleet::summary(),
+            'admins' => Admins::list(),
+            'partners' => Partner::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

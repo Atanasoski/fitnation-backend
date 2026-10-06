@@ -10,6 +10,13 @@
             <p class="text-sm text-success-800 dark:text-success-200">{{ session('success') }}</p>
         </div>
     @endif
+    @if ($errors->any())
+        <div class="mb-6 rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+            @foreach ($errors->all() as $error)
+                <p class="text-sm text-error-700 dark:text-error-300">{{ $error }}</p>
+            @endforeach
+        </div>
+    @endif
 
     <div class="space-y-6">
         {{-- Failed jobs and webhooks, one row each; their tables are at the bottom --}}
@@ -30,7 +37,7 @@
 
         @include('admin.system._devices-and-push', ['fleet' => $fleet])
 
-        {{-- Admins (spec 024 ticket 06) go here, between Devices and push and the failure tables. --}}
+        @include('admin.system._admins', ['admins' => $admins, 'partners' => $partners])
 
         {{-- Failed queue jobs --}}
         <section id="failed-jobs" class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

@@ -8,7 +8,6 @@
     @php
         $select = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
         $filtered = collect($filters)->except('sort')->contains(fn ($value) => $value !== null && $value !== false);
-        $label = fn (string $value) => \Illuminate\Support\Str::of($value)->replace('_', ' ')->ucfirst();
     @endphp
 
     <form method="GET" action="{{ route('admin.users.index') }}" class="mb-4 space-y-2 text-sm">
@@ -43,13 +42,13 @@
             <select name="goal" class="{{ $select }}" onchange="this.form.submit()" aria-label="Fitness goal">
                 <option value="">Any goal</option>
                 @foreach (\App\Enums\FitnessGoal::cases() as $goal)
-                    <option value="{{ $goal->value }}" @selected($filters['goal'] === $goal)>{{ $label($goal->value) }}</option>
+                    <option value="{{ $goal->value }}" @selected($filters['goal'] === $goal)>{{ $goal->label() }}</option>
                 @endforeach
             </select>
             <select name="experience" class="{{ $select }}" onchange="this.form.submit()" aria-label="Training experience">
                 <option value="">Any experience</option>
                 @foreach (\App\Enums\TrainingExperience::cases() as $experience)
-                    <option value="{{ $experience->value }}" @selected($filters['experience'] === $experience)>{{ $label($experience->value) }}</option>
+                    <option value="{{ $experience->value }}" @selected($filters['experience'] === $experience)>{{ $experience->label() }}</option>
                 @endforeach
             </select>
             <select name="platform" class="{{ $select }}" onchange="this.form.submit()" aria-label="Device platform">
@@ -75,6 +74,10 @@
             @if ($filters['signed_up_days'])
                 <input type="hidden" name="signed_up_days" value="{{ $filters['signed_up_days'] }}" />
                 <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-theme-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">Signed up in the last {{ $filters['signed_up_days'] }} days</span>
+            @endif
+            @if ($filters['old_build'])
+                <input type="hidden" name="old_build" value="1" />
+                <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-theme-xs font-medium text-orange-700 dark:bg-orange-500/15 dark:text-orange-400">On an Old Build</span>
             @endif
             <button type="submit" class="rounded-lg bg-brand-500 px-3 py-1.5 text-theme-xs font-medium text-white hover:bg-brand-600">Filter</button>
             @if ($filtered)

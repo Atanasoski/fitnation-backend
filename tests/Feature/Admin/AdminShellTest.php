@@ -81,17 +81,50 @@ class AdminShellTest extends TestCase
             'workout splits' => ['/admin/workout-splits', 'Workout Splits', true],
             'generator preview' => ['/admin/workout-preview', 'Generator Preview', true],
             'insights' => ['/admin/insights', 'Insights', false],
+            'insights revenue' => ['/admin/insights/revenue', 'Insights', false],
             'system' => ['/admin/system', 'System', false],
         ];
     }
 
-    public function test_insights_is_a_coming_soon_placeholder(): void
+    #[DataProvider('insightsRanges')]
+    public function test_the_insights_training_tab_renders_its_cards_at_each_range(string $query, int $days): void
+    {
+        $html = $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/insights'.$query)
+            ->assertOk()
+            ->assertSeeInOrder(['Training', 'Revenue'])
+            ->assertSee('Do people keep training?')
+            ->assertSee('How fast do they start?')
+            ->assertDontSee('Coming soon')
+            ->getContent();
+
+        // The range control marks the range in use, and only that one.
+        preg_match_all('#aria-current="true"[^>]*>\s*(\d+) days#', $html, $current);
+        $this->assertSame([(string) $days], $current[1]);
+    }
+
+    /**
+     * @return array<string, array{string, int}>
+     */
+    public static function insightsRanges(): array
+    {
+        return [
+            'default' => ['', 30],
+            '7 days' => ['?range=7', 7],
+            '30 days' => ['?range=30', 30],
+            '90 days' => ['?range=90', 90],
+            'invalid falls back to 30' => ['?range=365', 30],
+            'not a number falls back to 30' => ['?range=abc', 30],
+        ];
+    }
+
+    public function test_the_insights_revenue_tab_renders_for_an_admin(): void
     {
         $this->actingAs($this->userWithRole('admin'))
-            ->get('/admin/insights')
+            ->get('/admin/insights/revenue')
             ->assertOk()
-            ->assertSee('Insights')
-            ->assertSee('Coming soon');
+            ->assertSeeInOrder(['Training', 'Revenue'])
+            ->assertDontSee('Do people keep training?');
     }
 
     public function test_the_system_and_users_pages_render_for_an_admin(): void
@@ -118,6 +151,8 @@ class AdminShellTest extends TestCase
             'overview' => ['/admin'],
             'users' => ['/admin/users'],
             'insights' => ['/admin/insights'],
+            'insights at a range' => ['/admin/insights?range=90'],
+            'insights revenue' => ['/admin/insights/revenue'],
             'system' => ['/admin/system'],
         ];
     }

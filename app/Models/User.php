@@ -94,6 +94,23 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Users whose Notification Setting $key is on — the query twin of
+     * notificationSetting(): a missing key, or a null column, reads as
+     * $default. The one place that rule is written for queries.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeNotificationSettingOn(Builder $query, string $key, bool $default): Builder
+    {
+        $column = 'users.notification_settings';
+
+        return $query->where(fn (Builder $q) => $default
+            ? $q->whereNull($column)->orWhereNull("{$column}->{$key}")->orWhere("{$column}->{$key}", true)
+            : $q->where("{$column}->{$key}", true));
+    }
+
+    /**
      * Record one Notification Setting, keeping the others.
      */
     public function setNotificationSetting(string $key, bool $value): void
@@ -158,11 +175,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the roles that belong to the user.
+     * Get the roles that belong to the user. The role_user timestamps say
+     * since when (Admins::list()).
      */
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'role_user');
+        return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
     }
 
     /**

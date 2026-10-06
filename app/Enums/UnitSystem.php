@@ -4,6 +4,8 @@ namespace App\Enums;
 
 enum UnitSystem: string
 {
+    use HasValueLabel;
+
     case Metric = 'metric';
     case Imperial = 'imperial';
 

@@ -207,6 +207,16 @@ gone.
 
 _Avoid_: installation, push subscription, client.
 
+### Old Build
+
+A [Device](#device) running a production build of the app that is older than
+the two newest production versions any Device reports. Preview and
+development builds are never Old Builds, and neither is a Device that has not
+reported its version. A user is on an Old Build when their most recently seen
+Device is.
+
+_Avoid_: outdated app, legacy version.
+
 ### Push Token
 
 The address a [Device](#device) can be reached at, issued by the push relay and
@@ -354,6 +364,17 @@ help someone stuck or to let a person in early.
 
 _Avoid_: grace period — a cancelled subscription still running to its end is
 not this, and is not called grace either.
+
+### Expected Monthly Revenue
+
+What the paying subscriptions are expected to bring in per month, in **USD**:
+each monthly subscription's price, plus each yearly subscription's price ÷ 12.
+"Paying" means a subscription that still grants access and is not in a trial,
+so a cancelled one still running to its paid-until date counts and a trial
+counts nothing. Production subscriptions only. The price is RevenueCat's USD
+figure for the last transaction, not the amount in the currency the user paid.
+
+_Avoid_: MRR (it implies accounting rules this does not follow), revenue (alone).
 
 ## Admin
 

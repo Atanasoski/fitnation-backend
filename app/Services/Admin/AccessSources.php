@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Enums\AccessSource;
 use App\Enums\AdminChangeKind;
+use App\Enums\SubscriptionPeriod;
 use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStatus;
 use App\Models\AdminChange;
@@ -169,7 +170,7 @@ final class AccessSources
                 },
                 until: $subscription->expires_at,
                 productId: $subscription->product_id,
-                period: self::period($subscription->product_id),
+                period: SubscriptionPeriod::fromProductId($subscription->product_id)?->label(),
                 store: $subscription->store,
                 cancelledAt: $subscription->cancelled_at,
             );
@@ -184,18 +185,5 @@ final class AccessSources
         }
 
         return new Access(AccessSource::None);
-    }
-
-    /**
-     * Products are named for their period (config/entitlements.php):
-     * `…premium.yearly`, `…premium.monthly:monthly`.
-     */
-    private static function period(string $productId): ?string
-    {
-        return match (true) {
-            str_contains($productId, 'yearly') => 'Yearly',
-            str_contains($productId, 'monthly') => 'Monthly',
-            default => null,
-        };
     }
 }

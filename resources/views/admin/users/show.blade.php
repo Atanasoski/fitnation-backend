@@ -4,7 +4,6 @@
 
 @section('content')
     @php
-        $label = fn (?\BackedEnum $value) => $value ? \Illuminate\Support\Str::of($value->value)->replace('_', ' ')->ucfirst() : '—';
         $card = 'rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]';
         $heading = 'font-display text-base font-semibold text-gray-800 dark:text-white/90';
         $empty = 'mt-3 text-sm text-gray-400';
@@ -66,15 +65,15 @@
                 <h2 class="{{ $heading }}">Profile</h2>
                 @if ($profile = $user->profile)
                     <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                        <dt class="text-gray-500 dark:text-gray-400">Goal</dt><dd class="text-gray-800 dark:text-white/90">{{ $label($profile->fitness_goal) }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Experience</dt><dd class="text-gray-800 dark:text-white/90">{{ $label($profile->training_experience) }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Gender</dt><dd class="text-gray-800 dark:text-white/90">{{ $label($profile->gender) }}</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">Goal</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->fitness_goal?->label() ?? '—' }}</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">Experience</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->training_experience?->label() ?? '—' }}</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">Gender</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->gender?->label() ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Age</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->age ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Height</dt><dd class="text-gray-800 dark:text-white/90">{{ $height ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Weight</dt><dd class="text-gray-800 dark:text-white/90">{{ $weight ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Training days</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->training_days_per_week ? $profile->training_days_per_week.' per week' : '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Workout duration</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->workout_duration_minutes ? $profile->workout_duration_minutes.' min' : '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Unit System</dt><dd class="text-gray-800 dark:text-white/90">{{ $label($user->unitSystem()) }}</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">Unit System</dt><dd class="text-gray-800 dark:text-white/90">{{ $user->unitSystem()->label() }}</dd>
                     </dl>
                 @else
                     <p class="{{ $empty }}">No profile yet.</p>
@@ -137,7 +136,7 @@
                                         <td class="py-2 pr-3">
                                             <a href="{{ \App\Services\Plan\PlanOutline::url($userPlan) }}" class="font-medium text-brand-600 hover:underline dark:text-brand-400">{{ $userPlan->name }}</a>
                                         </td>
-                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $label($userPlan->type) }}</td>
+                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $userPlan->type?->label() ?? '—' }}</td>
                                         <td class="whitespace-nowrap pr-3">
                                             @if ($userPlan->is_active)
                                                 <span class="inline-block rounded-full bg-success-50 px-2 py-0.5 text-theme-xs font-medium text-success-700 dark:bg-success-500/15 dark:text-success-400">Active</span>

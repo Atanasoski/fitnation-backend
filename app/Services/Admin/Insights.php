@@ -139,9 +139,7 @@ final class Insights
      */
     private static function generator(CarbonImmutable $from, CarbonImmutable $now): array
     {
-        $sessions = WorkoutSession::query()
-            ->whereIn('workout_sessions.user_id', User::query()->appUsers()->select('users.id'))
-            ->whereBetween('workout_sessions.created_at', [$from, $now]);
+        $sessions = self::appUserSessions()->whereBetween('workout_sessions.created_at', [$from, $now]);
 
         $cancelled = $sessions->clone()->where('workout_sessions.status', WorkoutSessionStatus::Cancelled);
         $swapped = $cancelled->clone()->whereExists(fn ($replacement) => $replacement
@@ -176,17 +174,26 @@ final class Insights
     }
 
     /**
+     * Sessions of app users: staff training never counts.
+     *
+     * @return Builder<WorkoutSession>
+     */
+    private static function appUserSessions(): Builder
+    {
+        return WorkoutSession::query()->whereIn('workout_sessions.user_id', User::query()->appUsers()->select('users.id'));
+    }
+
+    /**
      * @return list<array{exercise_id: int, name: string, included: int, skipped: int, rate: int}>
      */
     private static function skipped(CarbonImmutable $from, CarbonImmutable $now): array
     {
-        $sessions = WorkoutSession::query()
+        $sessions = self::appUserSessions()
             ->completed()
-            ->whereIn('workout_sessions.user_id', User::query()->appUsers()->select('users.id'))
             ->whereBetween('workout_sessions.completed_at', [$from, $now])
             ->select('workout_sessions.id');
 
-        $unlogged = SetOwnership::constrainToOuterRow(SetLog::query()->toBase()->selectRaw('1'))->toSql();
+        $owned = SetOwnership::constrainToOuterRow(SetLog::query()->toBase()->selectRaw('1'));
 
         $rows = WorkoutSessionExercise::query()
             ->toBase()
@@ -194,7 +201,7 @@ final class Insights
             ->groupBy('workout_session_exercises.exercise_id')
             ->havingRaw('count(*) >= ?', [self::SKIPPED_MIN_INCLUDED])
             ->selectRaw('workout_session_exercises.exercise_id, count(*) as included')
-            ->selectRaw("sum(case when not exists ({$unlogged}) then 1 else 0 end) as skipped")
+            ->selectRaw("sum(case when not exists ({$owned->toSql()}) then 1 else 0 end) as skipped", $owned->getBindings())
             ->orderByRaw('skipped / included desc')
             ->orderBy('workout_session_exercises.exercise_id')
             ->limit(self::SKIPPED_TOP)

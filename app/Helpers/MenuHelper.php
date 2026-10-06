@@ -41,7 +41,7 @@ class MenuHelper
                 self::item(null, 'Workout Splits', '/admin/workout-splits', ['admin/workout-splits', 'admin/workout-splits/*']),
                 self::item(null, 'Generator Preview', '/admin/workout-preview', ['admin/workout-preview', 'admin/workout-preview/*']),
             ]),
-            self::item('charts', 'Insights', '/admin/insights'),
+            self::item('charts', 'Insights', '/admin/insights', ['admin/insights', 'admin/insights/*']),
             self::item('system', 'System', '/admin/system', ['admin/system', 'admin/system/*']),
         ];
     }

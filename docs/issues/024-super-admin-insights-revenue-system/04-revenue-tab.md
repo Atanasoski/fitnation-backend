@@ -14,8 +14,8 @@
 
 **Blocked by:** 01 (tab strip and route)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Prefactor commit: shared plan mapping; existing AccessSource tests green.
-- [ ] `Revenue::summary` tested per Seam 2: yearly ÷ 12, a trial contributes 0, a null price is counted but earns nothing, sandbox excluded, expired not paying, billing-issue parity with the Users filter, conversion fixtures, Play `product:base_plan` ids.
-- [ ] Tab renders for a super admin; 403 for others.
+- [x] Prefactor commit: shared plan mapping; existing AccessSource tests green.
+- [x] `Revenue::summary` tested per Seam 2: yearly ÷ 12, a trial contributes 0, a null price is counted but earns nothing, sandbox excluded, expired not paying, billing-issue parity with the Users filter, conversion fixtures, Play `product:base_plan` ids.
+- [x] Tab renders for a super admin; 403 for others.

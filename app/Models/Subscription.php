@@ -12,6 +12,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 
+/**
+ * A user's RevenueCat subscription, latest state only.
+ *
+ * `price` is RevenueCat's **USD** price of the last transaction (their webhook
+ * field `price`). It is not in `currency`, which is the currency the user
+ * paid in; the amount in that currency is not stored. Never format `price`
+ * in `currency`.
+ */
 class Subscription extends Model
 {
     use HasFactory;

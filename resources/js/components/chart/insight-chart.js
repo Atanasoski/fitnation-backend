@@ -8,6 +8,7 @@ import ApexCharts from 'apexcharts';
  *   series       [{ name, data }]; a null value draws no bar
  *   colors       swatch names per series (or per bar when distributed);
  *                defaults to s1, s2, s3
+ *   prefix       put before value labels and the value axis ('$')
  *   suffix       appended to value labels and the value axis ('%')
  *   max          value-axis maximum
  *   horizontal, stacked, distributed
@@ -45,8 +46,9 @@ function swatch(name) {
 
 function options(spec) {
     const dark = document.documentElement.classList.contains('dark');
+    const prefix = spec.prefix ?? '';
     const suffix = spec.suffix ?? '';
-    const format = (v) => (v === null || v === undefined ? '' : `${Number(v).toLocaleString()}${suffix}`);
+    const format = (v) => (v === null || v === undefined ? '' : `${prefix}${Number(v).toLocaleString()}${suffix}`);
     const horizontal = Boolean(spec.horizontal);
     const many = spec.series.length > 1;
     const valueAxis = { max: spec.max, labels: { formatter: format } };
@@ -78,7 +80,8 @@ function options(spec) {
         },
         dataLabels: {
             enabled: true,
-            formatter: format,
+            // An empty stacked segment would still print its 0.
+            formatter: (v) => (spec.stacked && !v ? '' : format(v)),
             offsetX: horizontal && !spec.stacked ? 28 : 0,
             offsetY: horizontal || spec.stacked ? 0 : -20,
             style: { colors: [swatch('label')], fontWeight: 500, fontSize: '12px' },

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Admin\Insights;
+use App\Services\Admin\Revenue;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -20,8 +21,11 @@ class InsightsController extends Controller
         return view('admin.insights.training', ['days' => $days, 'insights' => Insights::summary($days)]);
     }
 
+    /**
+     * The Revenue tab: current state of production subscriptions, no range.
+     */
     public function revenue(): View
     {
-        return view('admin.insights.revenue');
+        return view('admin.insights.revenue', ['revenue' => Revenue::summary()]);
     }
 }

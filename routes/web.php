@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\InsightsController;
 use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\PartnerOverrideController;
@@ -51,7 +52,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/partners/{partner}', [AdminPartnerController::class, 'show'])->name('admin.partners.show');
         Route::patch('/partners/{partner}/active', [AdminPartnerController::class, 'updateActive'])->name('admin.partners.active.update');
         Route::get('/search', SearchController::class)->name('admin.search');
-        Route::view('/insights', 'admin.insights')->name('admin.insights');
+        Route::get('/insights', [InsightsController::class, 'training'])->name('admin.insights');
+        Route::get('/insights/revenue', [InsightsController::class, 'revenue'])->name('admin.insights.revenue');
         Route::get('/system', [SystemController::class, 'index'])->name('admin.system');
         Route::post('/system/failed-jobs/{id}/retry', [SystemController::class, 'retryJob'])->name('admin.system.failed-jobs.retry');
         Route::delete('/system/failed-jobs/{id}', [SystemController::class, 'forgetJob'])->name('admin.system.failed-jobs.destroy');

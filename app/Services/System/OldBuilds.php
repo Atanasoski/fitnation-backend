@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
  * development builds are never Old Builds, and neither is a Device with no
  * reported version.
  *
- * A user is on an Old Build when their most recently seen Device is (latest
- * last_seen_at, highest id breaking ties — as LocalHour reads it). The System
+ * A user is on an Old Build when their most recently seen Device is
+ * (Device::mostRecentlySeenPerUser(), as LocalHour reads it). The System
  * page's count and the Users list's `old_build=1` filter both go through
  * constrain(), so they cannot disagree.
  *
@@ -75,13 +75,7 @@ final class OldBuilds
             return $query->whereRaw('1 = 0');
         }
 
-        $latest = Device::query()->selectRaw(
-            'user_id, app_version, build_profile, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY last_seen_at DESC, id DESC) AS rank_in_user'
-        );
-
-        return $query->whereIn('users.id', Device::query()
-            ->fromSub($latest, 'latest')
-            ->where('rank_in_user', 1)
+        return $query->whereIn('users.id', Device::mostRecentlySeenPerUser()
             ->where('build_profile', self::PRODUCTION)
             ->whereIn('app_version', $old->all())
             ->select('user_id'));

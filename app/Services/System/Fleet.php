@@ -80,7 +80,7 @@ final class Fleet
             ->toBase()
             ->get()
             ->map(function (object $row) use ($old, $latest) {
-                $production = $row->build_profile === OldBuilds::PRODUCTION;
+                $production = $row->build_profile === OldBuilds::PRODUCTION && $row->app_version !== null;
 
                 return [
                     'version' => $row->app_version,
@@ -88,8 +88,8 @@ final class Fleet
                     'ios' => (int) $row->ios,
                     'android' => (int) $row->android,
                     'devices' => (int) $row->devices,
-                    'latest' => $production && $row->app_version !== null && $row->app_version === $latest,
-                    'old' => $production && $old->contains($row->app_version),
+                    'latest' => $production && $row->app_version === $latest,
+                    'old' => $production && $old->containsStrict($row->app_version),
                 ];
             })
             ->sort(fn (array $a, array $b) => match (true) {

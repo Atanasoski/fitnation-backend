@@ -51,6 +51,22 @@ class FleetTest extends TestCase
         ], $versions);
     }
 
+    public function test_versions_are_compared_semantically_not_as_strings(): void
+    {
+        $this->device('1.10.0', 'production', 'ios');
+        $this->device('1.9.0', 'production', 'ios');
+        $this->device('1.8.0', 'production', 'ios');
+
+        $versions = collect(Fleet::summary()['versions'])->map(fn (array $row) => Arr::only($row, ['version', 'latest', 'old']))->all();
+
+        $this->assertSame([
+            ['version' => '1.10.0', 'latest' => true, 'old' => false],
+            ['version' => '1.9.0', 'latest' => false, 'old' => false],
+            ['version' => '1.8.0', 'latest' => false, 'old' => true],
+        ], $versions);
+        $this->assertSame(1, Fleet::summary()['old_build_users']);
+    }
+
     public function test_a_preview_build_on_an_old_number_is_not_old_and_a_null_version_never_is(): void
     {
         $this->device('2.0.0', 'production', 'ios');

@@ -54,6 +54,23 @@ class Device extends Model
         return $query;
     }
 
+    /**
+     * Each user's most recently seen Device — latest last_seen_at, highest id
+     * breaking ties — one row per user. The ranking happens in the database,
+     * so a user with an older Device matching a condition and a newer one not
+     * matching it is never mistaken for matching; add conditions after this.
+     *
+     * @return Builder<Device>
+     */
+    public static function mostRecentlySeenPerUser(): Builder
+    {
+        $ranked = self::query()->selectRaw(
+            'devices.*, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY last_seen_at DESC, id DESC) AS rank_in_user'
+        );
+
+        return self::query()->fromSub($ranked, 'devices')->where('rank_in_user', 1);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

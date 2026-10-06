@@ -175,11 +175,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the roles that belong to the user.
+     * Get the roles that belong to the user. The role_user timestamps say
+     * since when (Admins::list()).
      */
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'role_user');
+        return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
     }
 
     /**

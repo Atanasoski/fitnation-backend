@@ -20,8 +20,8 @@ The rest of the work:
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Characterization commit first.
-- [ ] `Fleet` and the Old Build constraint tested per Seam 3. The count equals the `old_build=1` Users list result.
-- [ ] System renders the new sections for a super admin; 403 for others; retry and forget still work.
+- [x] Characterization commit first.
+- [x] `Fleet` and the Old Build constraint tested per Seam 3. The count equals the `old_build=1` Users list result.
+- [x] System renders the new sections for a super admin; 403 for others; retry and forget still work.

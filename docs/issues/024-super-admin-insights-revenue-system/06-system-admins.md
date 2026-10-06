@@ -15,7 +15,7 @@
 
 **Blocked by:** 05 (same page)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] HTTP tests per Seam 4 (`AdminsTest`): grant either role; an unknown email gives a validation error; revoke; self-revoke and last-super-admin are refused; the granted user leaves `User::appUsers()`; a partner admin cannot reach the endpoints.
-- [ ] Section renders on System and matches prototype System A.
+- [x] HTTP tests per Seam 4 (`AdminsTest`): grant either role; an unknown email gives a validation error; revoke; self-revoke and last-super-admin are refused; the granted user leaves `User::appUsers()`; a partner admin cannot reach the endpoints.
+- [x] Section renders on System and matches prototype System A.

@@ -17,6 +17,7 @@ use App\Services\Admin\ActivePlan;
 use App\Services\Admin\ActivityStatuses;
 use App\Services\Admin\UserChanges;
 use App\Services\FitnessMetrics\CompletedSessions;
+use App\Services\System\OldBuilds;
 use App\Services\WorkoutSession\BestSets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ use Illuminate\View\View;
  * straight to a filtered list, and they ride along on every page link:
  * `partner`, `activity`, `access`, `goal`, `experience`, `platform` (has a
  * Device on it), `signin` (social / password), `stuck` (has a Stuck Session),
- * `deleted` (only deleted users), `signed_up_days` (joined in the last N
+ * `deleted` (only deleted users), `old_build` (on an Old Build), `signed_up_days` (joined in the last N
  * days), `q` (name or email contains) and `sort`
  * (`signup` / `last_session`, a leading `-` for descending; `-signup` by
  * default). Unknown values are ignored.
@@ -88,6 +89,10 @@ class UserController extends Controller
 
         if ($filters['access'] !== null) {
             AccessSources::constrain($query, $filters['access']);
+        }
+
+        if ($filters['old_build']) {
+            OldBuilds::constrain($query);
         }
 
         $this->sort($query, $filters['sort']);
@@ -190,7 +195,7 @@ class UserController extends Controller
     }
 
     /**
-     * @return array{partner: ?int, activity: ?ActivityStatus, access: ?AccessSource, goal: ?FitnessGoal, experience: ?TrainingExperience, platform: ?string, signin: ?string, stuck: bool, deleted: bool, q: ?string, sort: string}
+     * @return array{partner: ?int, activity: ?ActivityStatus, access: ?AccessSource, goal: ?FitnessGoal, experience: ?TrainingExperience, platform: ?string, signin: ?string, stuck: bool, deleted: bool, old_build: bool, signed_up_days: ?int, q: ?string, sort: string}
      */
     private function filters(Request $request): array
     {
@@ -207,6 +212,7 @@ class UserController extends Controller
             'signin' => $oneOf('signin', self::SIGNIN_METHODS),
             'stuck' => $request->boolean('stuck'),
             'deleted' => $request->boolean('deleted'),
+            'old_build' => $request->boolean('old_build'),
             'signed_up_days' => ($days = $request->integer('signed_up_days')) > 0 ? min($days, 3650) : null,
             'q' => $string('q') !== '' ? $string('q') : null,
             'sort' => $oneOf('sort', self::SORTS) ?? self::DEFAULT_SORT,

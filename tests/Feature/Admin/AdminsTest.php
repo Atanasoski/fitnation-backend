@@ -56,6 +56,31 @@ class AdminsTest extends TestCase
         $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
     }
 
+    public function test_partner_admin_needs_an_active_partner(): void
+    {
+        $closed = Partner::factory()->inactive()->create();
+        $coach = User::factory()->create(['email' => 'coach@example.com']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin', 'partner_id' => $closed->id])
+            ->assertSessionHasErrors('partner_id');
+
+        $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
+        $this->assertNotSame($closed->id, $coach->fresh()->partner_id);
+    }
+
+    public function test_the_grant_forms_partner_picker_lists_only_active_partners(): void
+    {
+        Partner::factory()->create(['name' => 'Open Gym']);
+        Partner::factory()->inactive()->create(['name' => 'Closed Gym']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee('Open Gym')
+            ->assertDontSee('Closed Gym');
+    }
+
     public function test_an_unknown_or_deactivated_email_is_a_validation_error(): void
     {
         User::factory()->create(['email' => 'gone@example.com'])->delete();

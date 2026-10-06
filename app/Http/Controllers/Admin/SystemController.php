@@ -23,7 +23,7 @@ class SystemController extends Controller
             'failedWebhooks' => FailedWebhookCalls::query()->latest('id')->paginate(25, ['*'], 'webhooks_page'),
             'fleet' => Fleet::summary(),
             'admins' => Admins::list(),
-            'partners' => Partner::query()->orderBy('name')->get(['id', 'name']),
+            'partners' => Partner::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

@@ -19,17 +19,18 @@ class AdminController extends Controller
 {
     /**
      * Grant a role to an existing, non-deleted user found by exact email. A
-     * partner admin needs a partner.
+     * partner admin needs an active partner.
      */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'email' => ['required', 'email', Rule::exists('users', 'email')->whereNull('deleted_at')],
             'role' => ['required', Rule::in(array_keys(Admins::ROLES))],
-            'partner_id' => ['nullable', 'required_if:role,'.Admins::PARTNER_ADMIN, 'integer', Rule::exists('partners', 'id')],
+            'partner_id' => ['nullable', 'required_if:role,'.Admins::PARTNER_ADMIN, 'integer', Rule::exists('partners', 'id')->where('is_active', true)],
         ], [
             'email.exists' => 'No user has that email address.',
             'partner_id.required_if' => 'Choose the partner this partner admin manages.',
+            'partner_id.exists' => 'Choose an active partner.',
         ]);
 
         $user = User::query()->where('email', $data['email'])->firstOrFail();

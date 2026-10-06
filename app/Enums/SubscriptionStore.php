@@ -6,4 +6,12 @@ enum SubscriptionStore: string
 {
     case AppStore = 'app_store';
     case PlayStore = 'play_store';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::AppStore => 'App Store',
+            self::PlayStore => 'Google Play',
+        };
+    }
 }

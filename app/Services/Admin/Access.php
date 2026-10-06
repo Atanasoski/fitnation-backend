@@ -34,11 +34,7 @@ final class Access
     public function detail(): string
     {
         $date = fn (?CarbonInterface $at) => $at?->format('j M Y');
-        $store = match ($this->store) {
-            SubscriptionStore::AppStore => 'App Store',
-            SubscriptionStore::PlayStore => 'Google Play',
-            null => null,
-        };
+        $store = $this->store?->label();
         $line = fn (?string ...$parts) => implode(' · ', array_filter($parts));
 
         return match ($this->source) {

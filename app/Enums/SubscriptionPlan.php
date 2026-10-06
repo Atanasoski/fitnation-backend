@@ -10,6 +10,8 @@ namespace App\Enums;
  */
 enum SubscriptionPlan: string
 {
+    use HasValueLabel;
+
     case Monthly = 'monthly';
     case Yearly = 'yearly';
 
@@ -20,10 +22,5 @@ enum SubscriptionPlan: string
             str_contains($productId, 'monthly') => self::Monthly,
             default => null,
         };
-    }
-
-    public function label(): string
-    {
-        return ucfirst($this->value);
     }
 }

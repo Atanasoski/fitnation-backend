@@ -4,13 +4,10 @@ namespace App\Enums;
 
 enum UnitSystem: string
 {
+    use HasValueLabel;
+
     case Metric = 'metric';
     case Imperial = 'imperial';
-
-    public function label(): string
-    {
-        return ucfirst($this->value);
-    }
 
     /**
      * The label a weight carries when shown in this system.

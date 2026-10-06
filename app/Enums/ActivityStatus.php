@@ -8,15 +8,12 @@ namespace App\Enums;
  */
 enum ActivityStatus: string
 {
+    use HasValueLabel;
+
     case Unfinished = 'unfinished';
     case New = 'new';
     case Active = 'active';
     case Slipping = 'slipping';
     case Inactive = 'inactive';
     case Deleted = 'deleted';
-
-    public function label(): string
-    {
-        return ucfirst($this->value);
-    }
 }

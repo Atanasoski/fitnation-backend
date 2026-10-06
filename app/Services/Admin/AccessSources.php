@@ -4,8 +4,8 @@ namespace App\Services\Admin;
 
 use App\Enums\AccessSource;
 use App\Enums\AdminChangeKind;
+use App\Enums\SubscriptionPeriod;
 use App\Enums\SubscriptionPeriodType;
-use App\Enums\SubscriptionPlan;
 use App\Enums\SubscriptionStatus;
 use App\Models\AdminChange;
 use App\Models\Partner;
@@ -170,7 +170,7 @@ final class AccessSources
                 },
                 until: $subscription->expires_at,
                 productId: $subscription->product_id,
-                period: SubscriptionPlan::fromProductId($subscription->product_id)?->label(),
+                period: SubscriptionPeriod::fromProductId($subscription->product_id)?->label(),
                 store: $subscription->store,
                 cancelledAt: $subscription->cancelled_at,
             );

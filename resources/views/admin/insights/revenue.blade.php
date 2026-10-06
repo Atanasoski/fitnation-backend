@@ -2,15 +2,15 @@
 
 @php
     $usd = fn (float $amount) => '$'.number_format($amount, 2);
-    $plans = \App\Enums\SubscriptionPlan::cases();
+    $periods = \App\Enums\SubscriptionPeriod::cases();
     $stores = \App\Enums\SubscriptionStore::cases();
 
     $sourcesChart = [
         'categories' => array_map(fn ($store) => $store->label(), $stores),
-        'series' => array_map(fn ($plan) => [
-            'name' => $plan === \App\Enums\SubscriptionPlan::Yearly ? 'Yearly ÷ 12' : $plan->label(),
-            'data' => array_map(fn ($store) => $revenue['by_store_and_plan'][$store->value][$plan->value]['usd'], $stores),
-        ], $plans),
+        'series' => array_map(fn ($period) => [
+            'name' => $period === \App\Enums\SubscriptionPeriod::Yearly ? 'Yearly ÷ 12' : $period->label(),
+            'data' => array_map(fn ($store) => $revenue['by_store_and_plan'][$store->value][$period->value]['usd'], $stores),
+        ], $periods),
         'horizontal' => true,
         'stacked' => true,
         'prefix' => '$',
@@ -71,11 +71,11 @@
             <section class="{{ $card }}">
                 <h2 class="font-display text-base font-semibold text-gray-800 dark:text-white/90">Trial → paid</h2>
                 <div class="flex-1">
-                    @foreach ($plans as $plan)
-                        @php($conversion = $revenue['conversion'][$plan->value])
+                    @foreach ($periods as $period)
+                        @php($conversion = $revenue['conversion'][$period->value])
                         <div class="mt-3">
                             <div class="flex justify-between text-sm">
-                                <span class="text-gray-700 dark:text-gray-300">{{ $plan->label() }}</span>
+                                <span class="text-gray-700 dark:text-gray-300">{{ $period->label() }}</span>
                                 <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ $conversion['rate'] !== null ? $conversion['rate'].'%' : '—' }}</span>
                             </div>
                             <x-admin.share-bar class="mt-1" :percent="$conversion['rate'] ?? 0" />

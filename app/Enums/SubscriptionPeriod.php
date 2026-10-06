@@ -8,7 +8,7 @@ namespace App\Enums;
  * (`…premium.yearly`), Google Play `<product id>:<base plan id>`
  * (`…premium.monthly:monthly`). This is the one place that reads it.
  */
-enum SubscriptionPlan: string
+enum SubscriptionPeriod: string
 {
     use HasValueLabel;
 

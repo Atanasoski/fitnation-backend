@@ -3,7 +3,6 @@
 namespace App\Services\Admin;
 
 use App\Models\User;
-use App\Models\WorkoutSession;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Cache;
  *
  * - retention — app users who signed up in the range, and the share of them
  *   with a Completed Session in week 1, 2, 4 and 8 after signup (week N is
- *   days 7(N−1) to 7N−1). Only signups whose week N has fully passed count
+ *   days 7(N−1) to 7N−1, SignupWeeks). Only signups whose week N has fully passed count
  *   in that week's denominator (`eligible`), so recent signups don't drag
  *   week 8 to zero; `reached` says whether any signup was old enough.
  * - first_workout — the median hours from signup to the first Completed
@@ -158,9 +157,6 @@ final class Insights
     }
 
     /**
-     * Week N's bounds differ per signup, so the cohort's Completed Sessions
-     * are read once and placed into weeks here rather than in SQL.
-     *
      * @return array{signups: int, weeks: array<int, array{share: int, retained: int, eligible: int, reached: bool}>}
      */
     private static function retention(CarbonImmutable $from, CarbonImmutable $now): array
@@ -170,36 +166,16 @@ final class Insights
             ->pluck('users.created_at', 'users.id')
             ->map(fn ($createdAt) => CarbonImmutable::parse($createdAt));
 
-        $sessions = WorkoutSession::query()
-            ->completed()
-            ->whereIn('user_id', $signups->keys()->all())
-            ->get(['user_id', 'completed_at'])
-            ->groupBy('user_id');
-
         $weeks = [];
         foreach (self::RETENTION_WEEKS as $week) {
-            $eligible = 0;
-            $retained = 0;
-
-            foreach ($signups as $userId => $signedUpAt) {
-                $start = $signedUpAt->addDays(7 * ($week - 1));
-                $end = $signedUpAt->addDays(7 * $week);
-
-                if ($end > $now) {
-                    continue;
-                }
-
-                $eligible++;
-                $trained = ($sessions[$userId] ?? collect())
-                    ->contains(fn (WorkoutSession $session) => $session->completed_at >= $start && $session->completed_at < $end);
-                $retained += $trained ? 1 : 0;
-            }
+            $eligible = $signups->filter(fn (CarbonImmutable $signedUpAt) => SignupWeeks::bounds($signedUpAt, $week)[1] <= $now);
+            $retained = SignupWeeks::trainedIn($eligible, $week)->count();
 
             $weeks[$week] = [
-                'share' => $eligible > 0 ? (int) round($retained / $eligible * 100) : 0,
+                'share' => $eligible->isNotEmpty() ? (int) round($retained / $eligible->count() * 100) : 0,
                 'retained' => $retained,
-                'eligible' => $eligible,
-                'reached' => $eligible > 0,
+                'eligible' => $eligible->count(),
+                'reached' => $eligible->isNotEmpty(),
             ];
         }
 

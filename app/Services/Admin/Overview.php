@@ -100,22 +100,9 @@ final class Overview
     {
         $cohort = fn () => User::query()->appUsers()->where('users.created_at', '>=', $since);
 
-        // Week two is days 7–13 after signup; its bounds differ per user, so
-        // it is read off the cohort's Completed Sessions rather than in SQL.
-        $signups = $cohort()->pluck('users.created_at', 'users.id');
-        $trainedInWeekTwo = WorkoutSession::query()
-            ->completed()
-            ->whereIn('user_id', $signups->keys()->all())
-            ->get(['user_id', 'completed_at'])
-            ->filter(function (WorkoutSession $session) use ($signups) {
-                $signedUpAt = CarbonImmutable::parse($signups[$session->user_id]);
-
-                return $session->completed_at >= $signedUpAt->addDays(7)
-                    && $session->completed_at < $signedUpAt->addDays(14);
-            })
-            ->pluck('user_id')
-            ->unique()
-            ->count();
+        // Week two is days 7–13 after signup (SignupWeeks).
+        $signups = $cohort()->pluck('users.created_at', 'users.id')->map(fn ($createdAt) => CarbonImmutable::parse($createdAt));
+        $trainedInWeekTwo = SignupWeeks::trainedIn($signups, 2)->count();
 
         return [
             'signed_up' => $signups->count(),

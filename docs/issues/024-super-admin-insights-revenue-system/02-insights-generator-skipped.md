@@ -8,7 +8,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `generator` and `skipped` keys in `Insights::summary`, tested per Seam 1: swapped vs cancelled, generated vs other, cancelled sessions not counted as skipped, below-minimum excluded.
-- [ ] Cards render with the shared chart setup; the skipped list is a ranked bar list, not a chart.
+- [x] `generator` and `skipped` keys in `Insights::summary`, tested per Seam 1: swapped vs cancelled, generated vs other, cancelled sessions not counted as skipped, below-minimum excluded.
+- [x] Cards render with the shared chart setup; the skipped list is a ranked bar list, not a chart.

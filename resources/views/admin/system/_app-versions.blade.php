@@ -41,13 +41,8 @@
                             <td class="px-3 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{{ number_format($row['ios']) }}</td>
                             <td class="px-3 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{{ number_format($row['android']) }}</td>
                             <td class="px-5 py-2.5 sm:px-6">
-                                <div class="h-2 rounded bg-gray-100 dark:bg-gray-800" title="{{ number_format($row['devices']) }} {{ Str::plural('Device', $row['devices']) }}">
-                                    <div @class([
-                                        'h-2 rounded',
-                                        'bg-orange-500 dark:bg-orange-600' => $row['old'],
-                                        'bg-brand-500 dark:bg-brand-600' => ! $row['old'],
-                                    ]) style="width: {{ round($row['devices'] / $totalDevices * 100, 1) }}%"></div>
-                                </div>
+                                <x-admin.share-bar :percent="round($row['devices'] / $totalDevices * 100, 1)" :tone="$row['old'] ? 'orange' : 'brand'"
+                                    title="{{ number_format($row['devices']) }} {{ Str::plural('Device', $row['devices']) }}" />
                             </td>
                         </tr>
                     @endforeach

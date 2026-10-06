@@ -14,10 +14,7 @@
         <div class="p-5 sm:px-6">
             <div class="text-theme-xs text-gray-500 dark:text-gray-400">Platform</div>
             @if ($devices > 0)
-                <div class="mt-2 flex h-3 overflow-hidden rounded">
-                    <div class="bg-brand-500 dark:bg-brand-600" style="width: {{ $iosShare }}%"></div>
-                    <div class="flex-1 bg-blue-light-700 dark:bg-blue-light-600"></div>
-                </div>
+                <x-admin.share-bar class="mt-2" :percent="$iosShare" :height="3" rest="blue-light" />
                 <div class="mt-2 flex justify-between text-sm text-gray-700 dark:text-gray-300">
                     <span>iOS {{ number_format($fleet['platform']['ios']) }}</span>
                     <span>Android {{ number_format($fleet['platform']['android']) }}</span>

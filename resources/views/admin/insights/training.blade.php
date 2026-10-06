@@ -126,9 +126,7 @@
                             <a href="{{ route('exercises.show', $exercise['exercise_id']) }}"
                                 class="w-36 shrink-0 truncate font-medium text-gray-700 hover:text-brand-600 sm:w-44 dark:text-gray-300 dark:hover:text-brand-400"
                                 title="{{ $exercise['name'] }}">{{ $exercise['name'] }}</a>
-                            <div class="h-3 min-w-0 flex-1 rounded-sm bg-gray-100 dark:bg-gray-800">
-                                <div class="h-3 rounded-sm bg-orange-500 dark:bg-orange-600" style="width: {{ $exercise['rate'] }}%"></div>
-                            </div>
+                            <x-admin.share-bar class="min-w-0 flex-1" :percent="$exercise['rate']" tone="orange" :height="3" />
                             <span class="w-28 shrink-0 text-right text-theme-xs tabular-nums text-gray-600 dark:text-gray-400">
                                 {{ $exercise['rate'] }}% · {{ number_format($exercise['skipped']) }} of {{ number_format($exercise['included']) }}
                             </span>
@@ -179,13 +177,8 @@
                             @foreach ($rows as $row)
                                 <li class="flex items-center gap-2 text-sm">
                                     <span class="w-32 shrink-0 truncate text-gray-700 dark:text-gray-300">{{ $row['label'] }}</span>
-                                    <div class="h-3 min-w-0 flex-1 rounded-sm bg-gray-100 dark:bg-gray-800">
-                                        <div @class([
-                                            'h-3 rounded-sm',
-                                            'bg-brand-500 dark:bg-brand-600' => $row['label'] !== \App\Services\Admin\Insights::NOT_SET,
-                                            'bg-gray-300 dark:bg-gray-700' => $row['label'] === \App\Services\Admin\Insights::NOT_SET,
-                                        ]) style="width: {{ $row['share'] }}%"></div>
-                                    </div>
+                                    <x-admin.share-bar class="min-w-0 flex-1" :percent="$row['share']" :height="3"
+                                        :tone="$row['label'] === \App\Services\Admin\Insights::NOT_SET ? 'gray' : 'brand'" />
                                     <span class="w-24 shrink-0 text-right text-theme-xs tabular-nums text-gray-600 dark:text-gray-400">{{ $row['share'] }}% · {{ number_format($row['users']) }}</span>
                                 </li>
                             @endforeach

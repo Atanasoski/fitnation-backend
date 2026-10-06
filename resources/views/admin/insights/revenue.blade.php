@@ -78,9 +78,7 @@
                                 <span class="text-gray-700 dark:text-gray-300">{{ $plan->label() }}</span>
                                 <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ $conversion['rate'] !== null ? $conversion['rate'].'%' : '—' }}</span>
                             </div>
-                            <div class="mt-1 h-2 rounded bg-gray-100 dark:bg-gray-800">
-                                <div class="h-2 rounded bg-brand-500 dark:bg-brand-600" style="width: {{ $conversion['rate'] ?? 0 }}%"></div>
-                            </div>
+                            <x-admin.share-bar class="mt-1" :percent="$conversion['rate'] ?? 0" />
                             <div class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
                                 {{ number_format($conversion['converted']) }} of {{ number_format($conversion['converted'] + $conversion['lapsed_trial']) }} finished trials
                                 · {{ number_format($conversion['still_in_trial']) }} still in trial

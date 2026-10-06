@@ -150,6 +150,49 @@ class SystemTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_each_failed_job_row_offers_retry_and_delete_and_the_header_shows_the_count(): void
+    {
+        $first = $this->failJob('notifications', 'Expo said no');
+        $second = $this->failJob('default', 'Boom');
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee(route('admin.system.failed-jobs.retry', $first))
+            ->assertSee(route('admin.system.failed-jobs.destroy', $first))
+            ->assertSee(route('admin.system.failed-jobs.retry', $second))
+            ->assertSee(route('admin.system.failed-jobs.destroy', $second))
+            ->assertDontSee('No failed jobs');
+    }
+
+    public function test_the_failed_jobs_table_shows_the_newest_fifty_and_says_how_many_there_are(): void
+    {
+        foreach (range(1, 51) as $n) {
+            $this->failJob('default', "Boom {$n}");
+        }
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee('Showing the newest 50 of 51.');
+    }
+
+    public function test_each_failed_webhook_row_offers_replay_and_replay_all_names_the_total(): void
+    {
+        $first = $this->failedWebhook('INITIAL_PURCHASE', 'No user');
+        $second = $this->failedWebhook('RENEWAL', 'No user');
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee(route('admin.system.webhooks.replay', $first->id))
+            ->assertSee(route('admin.system.webhooks.replay', $second->id))
+            ->assertSee(route('admin.system.webhooks.replay-all'))
+            ->assertSee('Replay all (2)')
+            ->assertSeeInOrder(['#'.$second->id, '#'.$first->id])
+            ->assertDontSee('No failed webhooks');
+    }
+
     /**
      * @return array<string, array{string, string}>
      */

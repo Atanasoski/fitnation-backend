@@ -320,3 +320,16 @@ Concurrent agents: give each worktree its own DB (`phpunit.xml` pins one schema)
 - Insights numbers are cached for 10 minutes per range, with the same cost profile as the Overview. If a query is slow on production-size data, add an index in the ticket that needs it. Do not pre-aggregate.
 - The skipped-exercises minimum (100), the nudge window (48 h) and the retention weeks (1, 2, 4, 8) are constants on `Insights`, documented where they are declared.
 - The prototype route and views live only on `prototype/admin-panel-insights`. Do not bring them over.
+
+## Tickets
+
+Work the frontier: any ticket whose blockers are done. Start: 01 and 05.
+
+| # | Ticket | Blocked by |
+|---|---|---|
+| [01](024-super-admin-insights-revenue-system/01-insights-page-retention-first-workout.md) | Insights page: Training tab, range, retention and time to first workout | — |
+| [02](024-super-admin-insights-revenue-system/02-insights-generator-skipped.md) | Insights: generator quality and most-skipped exercises | 01 |
+| [03](024-super-admin-insights-revenue-system/03-insights-planned-nudges-who.md) | Insights: planned vs actual, nudges, who our users are | 01 |
+| [04](024-super-admin-insights-revenue-system/04-revenue-tab.md) | Revenue tab | 01 |
+| [05](024-super-admin-insights-revenue-system/05-system-fleet-old-build.md) | System: restructure, app versions, devices and push, Old Build | — |
+| [06](024-super-admin-insights-revenue-system/06-system-admins.md) | System: Admins list, grant and revoke | 05 |

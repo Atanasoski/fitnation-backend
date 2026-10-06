@@ -2,7 +2,7 @@
 
 **Area:** back-end / admin panel (Blade + Alpine + ApexCharts, TailAdmin shell)
 **Severity:** feature
-**Status:** ready-for-agent. Decisions settled in the prototype session of 2026-10-05/06.
+**Status:** done on `feat/super-admin-insights` (tickets 01–06); PR pending. Decisions settled in the prototype session of 2026-10-05/06.
 **Builds on:** [022](022-super-admin-panel.md) (PR #58) and [023](023-super-admin-panel-v2.md) (PR #59), both in `dev`. Branch off `dev`, PR into `dev`.
 **Prototype:** branch `prototype/admin-panel-insights`, route `/admin/prototype/insights?area=insights|revenue|system&variant=A|B|C` (local only, admin login). Winners: **Insights A, Revenue B, System A**. The verdict and rejected variants are in commit `92818fc`. Use it as the primary source for layout and copy. Do not merge it or copy its code. Its numbers are fake.
 **Vocabulary:** [Completed Session](../../CONTEXT.md#completed-session), [Activity Status](../../CONTEXT.md#activity-status), [Access Source](../../CONTEXT.md#access-source), [Sponsoring Partner](../../CONTEXT.md#sponsoring-partner), [Inactivity Nudge](../../CONTEXT.md#inactivity-nudge), [Sent Record](../../CONTEXT.md#sent-record), [Weekly Summary](../../CONTEXT.md#weekly-summary), [Notification Setting](../../CONTEXT.md#notification-setting), [Device](../../CONTEXT.md#device), [Push Switch](../../CONTEXT.md#push-switch), [Expected Monthly Revenue](../../CONTEXT.md#expected-monthly-revenue) (new), [Old Build](../../CONTEXT.md#old-build) (new). Use these words in code and UI.
@@ -323,13 +323,13 @@ Concurrent agents: give each worktree its own DB (`phpunit.xml` pins one schema)
 
 ## Tickets
 
-Work the frontier: any ticket whose blockers are done. Start: 01 and 05.
+All six tickets are done on `feat/super-admin-insights`.
 
-| # | Ticket | Blocked by |
-|---|---|---|
-| [01](024-super-admin-insights-revenue-system/01-insights-page-retention-first-workout.md) | Insights page: Training tab, range, retention and time to first workout | — |
-| [02](024-super-admin-insights-revenue-system/02-insights-generator-skipped.md) | Insights: generator quality and most-skipped exercises | 01 |
-| [03](024-super-admin-insights-revenue-system/03-insights-planned-nudges-who.md) | Insights: planned vs actual, nudges, who our users are | 01 |
-| [04](024-super-admin-insights-revenue-system/04-revenue-tab.md) | Revenue tab | 01 |
-| [05](024-super-admin-insights-revenue-system/05-system-fleet-old-build.md) | System: restructure, app versions, devices and push, Old Build | — |
-| [06](024-super-admin-insights-revenue-system/06-system-admins.md) | System: Admins list, grant and revoke | 05 |
+| # | Ticket | Blocked by | Status |
+|---|---|---|---|
+| [01](024-super-admin-insights-revenue-system/01-insights-page-retention-first-workout.md) | Insights page: Training tab, range, retention and time to first workout | — | done |
+| [02](024-super-admin-insights-revenue-system/02-insights-generator-skipped.md) | Insights: generator quality and most-skipped exercises | 01 | done |
+| [03](024-super-admin-insights-revenue-system/03-insights-planned-nudges-who.md) | Insights: planned vs actual, nudges, who our users are | 01 | done |
+| [04](024-super-admin-insights-revenue-system/04-revenue-tab.md) | Revenue tab | 01 | done |
+| [05](024-super-admin-insights-revenue-system/05-system-fleet-old-build.md) | System: restructure, app versions, devices and push, Old Build | — | done |
+| [06](024-super-admin-insights-revenue-system/06-system-admins.md) | System: Admins list, grant and revoke | 05 | done |

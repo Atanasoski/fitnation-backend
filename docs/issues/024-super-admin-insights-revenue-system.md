@@ -220,6 +220,7 @@ Never write a second definition of an existing rule.
   - `platform`: iOS and Android Device counts.
   - `push`: app users with ≥ 1 Device, split by `push_enabled`.
   - `old_build_users`: the count of app users whose most recently seen Device is an Old Build.
+  - `versions` and `platform` count only app users' Devices (`User::appUsers()`): staff test phones are deliberately left out.
 - **Old Build**:
   - Only a Device on `build_profile = production` can be an Old Build.
   - A production version is an Old Build when it is older, by semantic version compare, than the **two newest production versions any Device reports**.

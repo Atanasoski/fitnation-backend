@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\FitnessGoal;
+use App\Enums\Gender;
+use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\Plan;
@@ -13,9 +16,12 @@ use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
+use App\Notifications\InactivityNudge;
+use App\Notifications\WeeklySummary;
 use App\Services\Admin\Insights;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -214,6 +220,148 @@ class InsightsTest extends TestCase
             ['exercise_id' => $squat->id, 'name' => 'Back Squat', 'included' => 100, 'skipped' => 70, 'rate' => 70],
             ['exercise_id' => $lunge->id, 'name' => 'Walking Lunge', 'included' => 101, 'skipped' => 40, 'rate' => 40],
         ], Insights::summary(30)['skipped']);
+    }
+
+    public function test_planned_vs_actual_groups_by_planned_days_and_averages_completed_sessions_per_week(): void
+    {
+        // Range of 7 days: 30 Sep 12:00 → now. Onboarded before it, three planned days.
+        $ada = $this->planner(3, '2026-09-01 12:00:00');
+        foreach (['2026-10-01', '2026-10-03', '2026-10-05'] as $day) {
+            $this->workoutSession($ada, WorkoutSessionStatus::Completed, "{$day} 12:00:00");
+        }
+        $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-09-29 12:00:00'); // before the range
+        $this->workoutSession($ada, WorkoutSessionStatus::Cancelled, '2026-10-06 12:00:00');
+        $grace = $this->planner(3, '2026-08-01 12:00:00');
+        $this->workoutSession($grace, WorkoutSessionStatus::Completed, '2026-10-02 12:00:00');
+        // Five planned days, four done.
+        $linus = $this->planner(5, '2026-09-20 12:00:00');
+        foreach (['2026-10-01', '2026-10-02', '2026-10-04', '2026-10-06'] as $day) {
+            $this->workoutSession($linus, WorkoutSessionStatus::Completed, "{$day} 12:00:00");
+        }
+
+        // Left out: onboarded inside the range, no planned days, and staff.
+        $this->workoutSession($this->planner(4, '2026-10-01 12:00:00'), WorkoutSessionStatus::Completed, '2026-10-02 12:00:00');
+        $this->workoutSession($this->planner(null, '2026-09-01 12:00:00'), WorkoutSessionStatus::Completed, '2026-10-02 12:00:00');
+        $admin = $this->userWithRole('admin', ['onboarding_completed_at' => '2026-09-01 12:00:00']);
+        $admin->profile->update(['training_days_per_week' => 3]);
+
+        $this->assertSame([
+            'users' => 3,
+            'share' => 73, // 8 sessions a week of 11 planned days
+            'groups' => [
+                ['planned' => 3, 'users' => 2, 'per_week' => 2.0],
+                ['planned' => 5, 'users' => 1, 'per_week' => 4.0],
+            ],
+        ], Insights::summary(7)['planned_vs_actual']);
+    }
+
+    private function planner(?int $daysPerWeek, string $onboardedAt): User
+    {
+        $user = $this->member($onboardedAt);
+        $user->profile->update(['training_days_per_week' => $daysPerWeek]);
+
+        return $user;
+    }
+
+    public function test_nudges_count_sent_records_per_step_and_who_trained_within_48_hours(): void
+    {
+        // Range of 7 days: 30 Sep 12:00 → now.
+        $ada = $this->member('2026-08-01 12:00:00');
+        $this->nudged($ada, 3, '2026-10-01 10:00:00');
+        $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-10-03 09:00:00'); // 47 h later
+        $grace = $this->member('2026-08-01 12:00:00');
+        $this->nudged($grace, 3, '2026-10-01 10:00:00');
+        $this->workoutSession($grace, WorkoutSessionStatus::Completed, '2026-10-03 11:00:00'); // 49 h later
+        $linus = $this->member('2026-08-01 12:00:00');
+        $this->workoutSession($linus, WorkoutSessionStatus::Completed, '2026-10-02 09:00:00'); // before the nudge
+        $this->nudged($linus, 7, '2026-10-02 10:00:00');
+        $this->workoutSession($linus, WorkoutSessionStatus::Cancelled, '2026-10-02 12:00:00');
+        $margaret = $this->member('2026-08-01 12:00:00');
+        $this->nudged($margaret, 14, '2026-10-03 10:00:00');
+        $this->workoutSession($margaret, WorkoutSessionStatus::Completed, '2026-10-03 20:00:00');
+
+        // Left out: sent before the range, another kind of Sent Record, and staff.
+        $early = $this->member('2026-08-01 12:00:00');
+        $this->nudged($early, 3, '2026-09-29 10:00:00');
+        $this->workoutSession($early, WorkoutSessionStatus::Completed, '2026-09-30 13:00:00');
+        $this->recorded($ada, WeeklySummary::class, '2026-10-05 08:00:00', []);
+        $admin = $this->userWithRole('admin');
+        $this->nudged($admin, 3, '2026-10-01 10:00:00');
+        $this->workoutSession($admin, WorkoutSessionStatus::Completed, '2026-10-01 12:00:00');
+
+        $this->assertSame([
+            ['step' => 3, 'sent' => 2, 'trained' => 1, 'share' => 50],
+            ['step' => 7, 'sent' => 1, 'trained' => 0, 'share' => 0],
+            ['step' => 14, 'sent' => 1, 'trained' => 1, 'share' => 100],
+        ], Insights::summary(7)['nudges']['steps']);
+    }
+
+    public function test_the_weekly_summary_off_count_reads_a_missing_setting_as_on(): void
+    {
+        $this->member('2026-08-01 12:00:00');
+        $this->member('2026-08-01 12:00:00')->update(['notification_settings' => ['weekly_summary_email' => true]]);
+        $this->member('2026-08-01 12:00:00')->update(['notification_settings' => ['weekly_summary_email' => false]]);
+        $this->member('2026-08-01 12:00:00')->update(['notification_settings' => ['weekly_summary_email' => false]]);
+
+        // Could not get it: not onboarded, deleted, or staff.
+        User::factory()->create(['onboarding_completed_at' => null, 'notification_settings' => ['weekly_summary_email' => false]]);
+        $this->member('2026-08-01 12:00:00')->delete();
+        $this->userWithRole('admin', ['onboarding_completed_at' => '2026-08-01 12:00:00', 'notification_settings' => ['weekly_summary_email' => false]]);
+
+        $this->assertSame(['eligible' => 4, 'off' => 2], Insights::summary(30)['nudges']['weekly_summary']);
+    }
+
+    private function nudged(User $user, int $step, string $at): void
+    {
+        $this->recorded($user, InactivityNudge::class, $at, ['step' => $step]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function recorded(User $user, string $type, string $at, array $data): void
+    {
+        $now = Carbon::now();
+        $this->travelTo($at);
+        $user->notifications()->create(['id' => (string) Str::uuid(), 'type' => $type, 'data' => $data]);
+        $this->travelTo($now);
+    }
+
+    public function test_who_splits_onboarded_app_users_by_profile_with_not_set_rows_whatever_the_range(): void
+    {
+        $profiles = [
+            [FitnessGoal::FatLoss, TrainingExperience::Beginner, Gender::Male, 17],
+            [FitnessGoal::FatLoss, TrainingExperience::Intermediate, Gender::Female, 18],
+            [FitnessGoal::Strength, TrainingExperience::Advanced, Gender::Other, 24],
+            [null, null, null, 25],
+        ];
+        foreach ($profiles as [$goal, $experience, $gender, $age]) {
+            // Onboarded long before any range: this card describes everyone.
+            $this->member('2025-01-01 12:00:00')->profile->update([
+                'fitness_goal' => $goal, 'training_experience' => $experience, 'gender' => $gender, 'age' => $age,
+            ]);
+        }
+        $this->member('2025-01-01 12:00:00')->profile->delete();
+
+        // Left out: not onboarded, and staff.
+        User::factory()->create(['onboarding_completed_at' => null]);
+        $this->userWithRole('admin', ['onboarding_completed_at' => '2025-01-01 12:00:00']);
+
+        $who = Insights::summary(7)['who'];
+
+        $this->assertSame(5, $who['users']);
+        $this->assertSame([
+            ['label' => 'Fat loss', 'users' => 2, 'share' => 40],
+            ['label' => 'Muscle gain', 'users' => 0, 'share' => 0],
+            ['label' => 'Strength', 'users' => 1, 'share' => 20],
+            ['label' => 'General fitness', 'users' => 0, 'share' => 0],
+            ['label' => 'Not set', 'users' => 2, 'share' => 40],
+        ], $who['goal']);
+        $this->assertSame(['Beginner' => 1, 'Intermediate' => 1, 'Advanced' => 1, 'Not set' => 2], array_column($who['experience'], 'users', 'label'));
+        $this->assertSame(['Male' => 1, 'Female' => 1, 'Other' => 1, 'Not set' => 2], array_column($who['gender'], 'users', 'label'));
+        $this->assertSame([
+            'Under 18' => 1, '18–24' => 2, '25–34' => 1, '35–44' => 0, '45–54' => 0, '55+' => 0, 'Not set' => 1,
+        ], array_column($who['age'], 'users', 'label'));
     }
 
     private function member(string $signedUpAt): User

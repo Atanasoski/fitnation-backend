@@ -5,6 +5,7 @@ namespace App\Services\Notifications;
 use App\Models\User;
 use App\Support\StoredClock;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 
@@ -38,14 +39,26 @@ final class SentRecord
         }
 
         return new self(
-            DatabaseNotification::query()
-                ->where('notifiable_type', User::class)
+            self::query($type)
                 ->whereIn('notifiable_id', $userIds)
-                ->where('type', $type)
                 ->where('created_at', '>=', StoredClock::bind($earliest))
                 ->get(['notifiable_id', 'data', 'created_at'])
                 ->groupBy('notifiable_id')
         );
+    }
+
+    /**
+     * Every Sent Record of one kind sent to a user — the rows, to narrow
+     * further, for a read across all users rather than a batch.
+     *
+     * @param  class-string  $type  the notification class recorded
+     * @return Builder<DatabaseNotification>
+     */
+    public static function query(string $type): Builder
+    {
+        return DatabaseNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('type', $type);
     }
 
     /**

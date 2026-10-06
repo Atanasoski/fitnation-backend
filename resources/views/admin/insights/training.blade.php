@@ -40,6 +40,29 @@
 
     $skipped = $insights['skipped'];
     $minIncluded = number_format(\App\Services\Admin\Insights::SKIPPED_MIN_INCLUDED);
+
+    $planned = $insights['planned_vs_actual'];
+    $plannedChart = [
+        'categories' => array_map(fn (array $group) => [$group['planned'].' days', '('.number_format($group['users']).')'], $planned['groups']),
+        'series' => [
+            ['name' => 'Planned days / week', 'data' => array_column($planned['groups'], 'planned')],
+            ['name' => 'Completed Sessions / week', 'data' => array_column($planned['groups'], 'per_week')],
+        ],
+        'colors' => ['muted', 's1'],
+    ];
+
+    $nudgeWindow = \App\Services\Admin\Insights::NUDGE_WINDOW_HOURS;
+    $nudges = $insights['nudges'];
+    $firstStep = $nudges['steps'][0];
+    $weeklySummary = $nudges['weekly_summary'];
+    $nudgeChart = [
+        'categories' => array_map(fn (array $step) => ["Day {$step['step']}", number_format($step['sent']).' sent'], $nudges['steps']),
+        'series' => [['name' => "Trained within {$nudgeWindow} h", 'data' => array_map(fn (array $step) => $step['sent'] > 0 ? $step['share'] : null, $nudges['steps'])]],
+        'suffix' => '%',
+        'max' => 100,
+    ];
+
+    $who = $insights['who'];
 @endphp
 
 @section('tab')
@@ -113,6 +136,63 @@
                     @endforeach
                 </ol>
             @endif
+        </x-admin.insight-card>
+
+        <x-admin.insight-card
+            question="Do they train as often as they said?"
+            :headline="$planned['share'] !== null ? $planned['share'].'%' : '—'"
+            :sentence="$planned['share'] !== null
+                ? 'of planned days happen, on average'
+                : 'nobody who onboarded before the last '.$days.' days has planned training days'"
+            :footnote="'App users who onboarded before the last '.$days.' days, grouped by the training days per week they chose at onboarding (user count in brackets). Completed Sessions per week = Completed Sessions in the range ÷ '.$days.' × 7.'"
+        >
+            <div class="h-56" x-data="insightChart(@js($plannedChart))"></div>
+        </x-admin.insight-card>
+
+        <x-admin.insight-card
+            question="Do nudges work?"
+            :headline="$firstStep['sent'] > 0 ? $firstStep['share'].'%' : '—'"
+            :sentence="$firstStep['sent'] > 0
+                ? 'train within '.$nudgeWindow.' h of the day-'.$firstStep['step'].' Inactivity Nudge'
+                : 'no day-'.$firstStep['step'].' Inactivity Nudge was sent in the last '.$days.' days'"
+            :footnote="'From Sent Records in the last '.$days.' days: per step, the share whose user logged a Completed Session within '.$nudgeWindow.' h. The Weekly Summary line is a current total, not per range.'"
+        >
+            <div class="h-44" x-data="insightChart(@js($nudgeChart))"></div>
+            <div class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-white/5 dark:text-gray-400">
+                Weekly Summary: <b class="font-semibold text-gray-800 dark:text-white/90">{{ number_format($weeklySummary['off']) }} of {{ number_format($weeklySummary['eligible']) }}</b>
+                onboarded app users have it turned off.
+            </div>
+        </x-admin.insight-card>
+
+        <x-admin.insight-card
+            class="lg:col-span-2"
+            question="Who are our users?"
+            :headline="number_format($who['users'])"
+            sentence="onboarded app users"
+            footnote="All app users who finished onboarding, whatever the range. Age band from the age given at onboarding; “Not set” = no answer."
+        >
+            <div class="grid gap-5 sm:grid-cols-2">
+                @foreach (['Goal' => $who['goal'], 'Experience' => $who['experience'], 'Gender' => $who['gender'], 'Age' => $who['age']] as $title => $rows)
+                    <div>
+                        <h3 class="mb-1.5 text-theme-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $title }}</h3>
+                        <ul class="space-y-1">
+                            @foreach ($rows as $row)
+                                <li class="flex items-center gap-2 text-sm">
+                                    <span class="w-32 shrink-0 truncate text-gray-700 dark:text-gray-300">{{ $row['label'] }}</span>
+                                    <div class="h-3 min-w-0 flex-1 rounded-sm bg-gray-100 dark:bg-gray-800">
+                                        <div @class([
+                                            'h-3 rounded-sm',
+                                            'bg-brand-500 dark:bg-brand-600' => $row['label'] !== \App\Services\Admin\Insights::NOT_SET,
+                                            'bg-gray-300 dark:bg-gray-700' => $row['label'] === \App\Services\Admin\Insights::NOT_SET,
+                                        ]) style="width: {{ $row['share'] }}%"></div>
+                                    </div>
+                                    <span class="w-24 shrink-0 text-right text-theme-xs tabular-nums text-gray-600 dark:text-gray-400">{{ $row['share'] }}% · {{ number_format($row['users']) }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endforeach
+            </div>
         </x-admin.insight-card>
     </div>
 @endsection

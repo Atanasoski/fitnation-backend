@@ -2,15 +2,22 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\FitnessGoal;
+use App\Enums\Gender;
+use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
+use App\Notifications\InactivityNudge;
+use App\Notifications\WeeklySummary;
+use App\Services\Notifications\SentRecord;
 use App\Services\WorkoutSession\SetOwnership;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -39,6 +46,19 @@ use Illuminate\Support\Facades\Cache;
  *   no set log (SetOwnership decides which sets a row owns). Exercises
  *   included fewer than SKIPPED_MIN_INCLUDED times are left out; the top
  *   SKIPPED_TOP by rate are returned.
+ * - planned_vs_actual — app users with training_days_per_week set who
+ *   onboarded before the range started, grouped by that value: per group the
+ *   users and their average Completed Sessions per week in the range
+ *   (count ÷ days × 7); `share` is Σ actual ÷ Σ planned, in %.
+ * - nudges — per Inactivity Nudge step (the configured ladder), the Sent
+ *   Records created in the range and how many of their users logged a
+ *   Completed Session within NUDGE_WINDOW_HOURS after it. `weekly_summary` is
+ *   a current total, not per range: onboarded app users who could get the
+ *   Weekly Summary, and how many turned it off (a missing setting is on —
+ *   User::scopeNotificationSettingOn).
+ * - who — onboarded app users by goal, experience and gender (enum labels)
+ *   and AGE_BANDS, each with a NOT_SET row (no value, or no profile) so the
+ *   shares add up. Ignores the range: it describes everyone.
  *
  * Every people count is of app users (User::appUsers()): staff never count.
  * Training is read through WorkoutSession::completed(), never a second
@@ -85,6 +105,25 @@ final class Insights
     public const SKIPPED_TOP = 10;
 
     /**
+     * Hours after an Inactivity Nudge's Sent Record within which a Completed
+     * Session counts as the user coming back.
+     */
+    public const NUDGE_WINDOW_HOURS = 48;
+
+    /** Age bands for "who are our users": label => upper bound in years (exclusive). */
+    public const AGE_BANDS = [
+        'Under 18' => 18,
+        '18–24' => 25,
+        '25–34' => 35,
+        '35–44' => 45,
+        '45–54' => 55,
+        '55+' => PHP_INT_MAX,
+    ];
+
+    /** The row for a profile value nobody gave, so the shares add up. */
+    public const NOT_SET = 'Not set';
+
+    /**
      * The range a request asked for, or DEFAULT_RANGE when it is missing or
      * not one of RANGES.
      */
@@ -113,6 +152,18 @@ final class Insights
      *         other: array{sessions: int, completed: int, swapped: int, cancelled: int},
      *     },
      *     skipped: list<array{exercise_id: int, name: string, included: int, skipped: int, rate: int}>,
+     *     planned_vs_actual: array{users: int, share: int|null, groups: list<array{planned: int, users: int, per_week: float}>},
+     *     nudges: array{
+     *         steps: list<array{step: int, sent: int, trained: int, share: int}>,
+     *         weekly_summary: array{eligible: int, off: int},
+     *     },
+     *     who: array{
+     *         users: int,
+     *         goal: list<array{label: string, users: int, share: int}>,
+     *         experience: list<array{label: string, users: int, share: int}>,
+     *         gender: list<array{label: string, users: int, share: int}>,
+     *         age: list<array{label: string, users: int, share: int}>,
+     *     },
      * }
      */
     public static function summary(int $days): array
@@ -131,6 +182,150 @@ final class Insights
             'first_workout' => self::firstWorkout($from, $now, $days),
             'generator' => self::generator($from, $now),
             'skipped' => self::skipped($from, $now),
+            'planned_vs_actual' => self::plannedVsActual($from, $now, $days),
+            'nudges' => [
+                'steps' => self::nudgeSteps($from, $now),
+                'weekly_summary' => self::weeklySummary(),
+            ],
+            'who' => self::who(),
+        ];
+    }
+
+    /**
+     * @return array{users: int, goal: list<array{label: string, users: int, share: int}>, experience: list<array{label: string, users: int, share: int}>, gender: list<array{label: string, users: int, share: int}>, age: list<array{label: string, users: int, share: int}>}
+     */
+    private static function who(): array
+    {
+        $onboarded = User::query()->appUsers()
+            ->whereNotNull('users.onboarding_completed_at')
+            ->leftJoin('user_profiles', 'user_profiles.user_id', '=', 'users.id');
+
+        $users = $onboarded->clone()->count();
+
+        // Users per stored value of one profile column; null (or no profile) keyed ''.
+        $counts = fn (string $column) => $onboarded->clone()
+            ->toBase()
+            ->groupBy("user_profiles.{$column}")
+            ->selectRaw("user_profiles.{$column} as value, count(*) as users")
+            ->pluck('users', 'value')
+            ->map(fn ($n) => (int) $n);
+
+        $rows = fn (array $labelled) => array_map(fn (string $label, int $n) => [
+            'label' => $label,
+            'users' => $n,
+            'share' => self::percent($n, $users),
+        ], array_keys($labelled), $labelled);
+
+        $byEnum = function (string $column, string $enum) use ($counts, $rows) {
+            $n = $counts($column);
+            $labelled = [];
+            foreach ($enum::cases() as $case) {
+                $labelled[$case->label()] = $n->get($case->value, 0);
+            }
+            $labelled[self::NOT_SET] = $n->get('', 0);
+
+            return $rows($labelled);
+        };
+
+        $ages = array_fill_keys([...array_keys(self::AGE_BANDS), self::NOT_SET], 0);
+        foreach ($counts('age') as $age => $n) {
+            $label = $age === ''
+                ? self::NOT_SET
+                : array_key_first(array_filter(self::AGE_BANDS, fn (int $below) => (int) $age < $below));
+            $ages[$label] += $n;
+        }
+
+        return [
+            'users' => $users,
+            'goal' => $byEnum('fitness_goal', FitnessGoal::class),
+            'experience' => $byEnum('training_experience', TrainingExperience::class),
+            'gender' => $byEnum('gender', Gender::class),
+            'age' => $rows($ages),
+        ];
+    }
+
+    /**
+     * @return list<array{step: int, sent: int, trained: int, share: int}>
+     */
+    private static function nudgeSteps(CarbonImmutable $from, CarbonImmutable $now): array
+    {
+        $sentInRange = SentRecord::query(InactivityNudge::class)
+            ->whereIn('notifiable_id', User::query()->appUsers()->select('users.id'))
+            ->whereBetween('created_at', [$from, $now]);
+        $records = $sentInRange->clone()->get(['notifiable_id', 'data', 'created_at']);
+
+        $completedAt = WorkoutSession::query()
+            ->completed()
+            ->whereIn('user_id', $sentInRange->clone()->select('notifiable_id'))
+            ->whereBetween('completed_at', [$from, $now->addHours(self::NUDGE_WINDOW_HOURS)])
+            ->get(['user_id', 'completed_at'])
+            ->groupBy('user_id');
+
+        $trained = fn (DatabaseNotification $record) => $completedAt->get($record->notifiable_id, collect())->contains(
+            fn (WorkoutSession $session) => $session->completed_at->greaterThan($record->created_at)
+                && $session->completed_at->lessThanOrEqualTo($record->created_at->copy()->addHours(self::NUDGE_WINDOW_HOURS))
+        );
+
+        return array_map(function (int $step) use ($records, $trained) {
+            $sent = $records->filter(fn (DatabaseNotification $record) => (int) ($record->data['step'] ?? 0) === $step);
+            $back = $sent->filter($trained)->count();
+
+            return [
+                'step' => $step,
+                'sent' => $sent->count(),
+                'trained' => $back,
+                'share' => self::percent($back, $sent->count()),
+            ];
+        }, config('notifications.inactivity.ladder'));
+    }
+
+    /**
+     * @return array{eligible: int, off: int}
+     */
+    private static function weeklySummary(): array
+    {
+        $eligible = User::query()->appUsers()->whereNotNull('users.onboarding_completed_at');
+
+        return [
+            'eligible' => $eligible->clone()->count(),
+            'off' => $eligible->clone()->whereNot(fn (Builder $users) => $users->notificationSettingOn(WeeklySummary::SETTING, WeeklySummary::DEFAULT))->count(),
+        ];
+    }
+
+    /**
+     * @return array{users: int, share: int|null, groups: list<array{planned: int, users: int, per_week: float}>}
+     */
+    private static function plannedVsActual(CarbonImmutable $from, CarbonImmutable $now, int $days): array
+    {
+        $users = User::query()->appUsers()
+            ->join('user_profiles', 'user_profiles.user_id', '=', 'users.id')
+            ->whereNotNull('user_profiles.training_days_per_week')
+            ->where('users.onboarding_completed_at', '<', $from)
+            ->select(['users.id', 'user_profiles.training_days_per_week as planned'])
+            ->withCount(['workoutSessions as sessions' => fn (Builder $sessions) => $sessions
+                ->completed()
+                ->whereBetween('completed_at', [$from, $now])])
+            ->get();
+
+        $perWeek = fn (int $sessions) => $sessions / $days * 7;
+
+        $groups = $users
+            ->groupBy('planned')
+            ->sortKeys()
+            ->map(fn (Collection $group, int|string $planned) => [
+                'planned' => (int) $planned,
+                'users' => $group->count(),
+                'per_week' => round($perWeek($group->sum('sessions')) / $group->count(), 1),
+            ])
+            ->values()
+            ->all();
+
+        $planned = $users->sum('planned');
+
+        return [
+            'users' => $users->count(),
+            'share' => $planned > 0 ? (int) round($perWeek($users->sum('sessions')) / $planned * 100) : null,
+            'groups' => $groups,
         ];
     }
 
@@ -160,7 +355,7 @@ final class Insights
 
         $group = function (int $generated) use ($all, $done, $swaps, $cancels) {
             $total = $all->get($generated, 0);
-            $share = fn (int $n) => $total > 0 ? (int) round($n / $total * 100) : 0;
+            $share = fn (int $n) => self::percent($n, $total);
 
             return [
                 'sessions' => $total,
@@ -214,7 +409,7 @@ final class Insights
             'name' => (string) $names->get($row->exercise_id),
             'included' => (int) $row->included,
             'skipped' => (int) $row->skipped,
-            'rate' => (int) round($row->skipped / $row->included * 100),
+            'rate' => self::percent((int) $row->skipped, (int) $row->included),
         ])->all();
     }
 
@@ -263,6 +458,14 @@ final class Insights
     }
 
     /**
+     * $part of $whole as a whole percentage; 0 when there is no whole.
+     */
+    private static function percent(int $part, int $whole): int
+    {
+        return $whole > 0 ? (int) round($part / $whole * 100) : 0;
+    }
+
+    /**
      * @param  Collection<int, float>  $values
      */
     private static function median(Collection $values): ?float
@@ -290,7 +493,7 @@ final class Insights
             $retained = SignupWeeks::trainedIn($eligible, $week)->count();
 
             $weeks[$week] = [
-                'share' => $eligible->isNotEmpty() ? (int) round($retained / $eligible->count() * 100) : 0,
+                'share' => self::percent($retained, $eligible->count()),
                 'retained' => $retained,
                 'eligible' => $eligible->count(),
                 'reached' => $eligible->isNotEmpty(),

@@ -37,7 +37,7 @@ class UserResource extends JsonResource
             'onboarding_completed_at' => $this->onboarding_completed_at,
             'push_enabled' => $this->push_enabled,
             'notification_settings' => [
-                WeeklySummary::SETTING => $this->notificationSetting(WeeklySummary::SETTING, true),
+                WeeklySummary::SETTING => $this->notificationSetting(WeeklySummary::SETTING, WeeklySummary::DEFAULT),
             ],
             'email_verified_at' => $this->email_verified_at,
             'entitlements' => $this->entitlements()->map(fn ($e) => $e->value)->all(),

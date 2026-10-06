@@ -27,6 +27,9 @@ class WeeklySummary extends Notification implements ShouldQueue
      */
     public const SETTING = 'weekly_summary_email';
 
+    /** What SETTING reads as when the user has never changed it. */
+    public const DEFAULT = true;
+
     private ?WeeklySummaryMail $mail = null;
 
     /**

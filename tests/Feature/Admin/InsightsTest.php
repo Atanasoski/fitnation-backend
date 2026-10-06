@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Enums\WorkoutSessionStatus;
+use App\Models\Exercise;
 use App\Models\Plan;
 use App\Models\Role;
+use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
 use App\Services\Admin\Insights;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -124,6 +127,95 @@ class InsightsTest extends TestCase
         ], $firstWorkout);
     }
 
+    public function test_generator_quality_splits_generated_from_other_sessions_and_swaps_from_cancels(): void
+    {
+        $ada = $this->member('2026-08-01 12:00:00');
+        $created = fn (string $at, bool $generated, WorkoutSessionStatus $status, ?WorkoutSession $replaces = null) => tap(
+            $this->workoutSession($ada, $status, $at),
+            fn (WorkoutSession $session) => $session->forceFill([
+                'created_at' => $at,
+                'is_auto_generated' => $generated,
+                'replaced_session_id' => $replaces?->id,
+            ])->save(),
+        );
+
+        // Generated, created in the last 30 days: a draft regenerated into a
+        // new one (swapped), the replacement completed, one plain cancel, one
+        // completed, one still a draft (total only).
+        $regenerated = $created('2026-09-20 12:00:00', true, WorkoutSessionStatus::Cancelled);
+        $created('2026-09-20 12:05:00', true, WorkoutSessionStatus::Completed, $regenerated);
+        $created('2026-09-25 12:00:00', true, WorkoutSessionStatus::Cancelled);
+        $created('2026-09-28 12:00:00', true, WorkoutSessionStatus::Completed);
+        $created('2026-10-05 12:00:00', true, WorkoutSessionStatus::Draft);
+
+        // Other sessions: three completed, one active (total only).
+        $created('2026-09-10 12:00:00', false, WorkoutSessionStatus::Completed);
+        $created('2026-09-12 12:00:00', false, WorkoutSessionStatus::Completed);
+        $created('2026-09-14 12:00:00', false, WorkoutSessionStatus::Completed);
+        $created('2026-10-06 12:00:00', false, WorkoutSessionStatus::Active);
+
+        // Outside the range: created 40 days ago.
+        $created('2026-08-28 12:00:00', true, WorkoutSessionStatus::Cancelled);
+
+        // Staff sessions never count.
+        $admin = $this->userWithRole('admin');
+        WorkoutSession::factory()->create([
+            'user_id' => $admin->id,
+            'workout_template_id' => WorkoutTemplate::factory()->state(['plan_id' => Plan::factory()->state(['user_id' => $admin->id])]),
+            'status' => WorkoutSessionStatus::Cancelled,
+            'is_auto_generated' => true,
+            'created_at' => '2026-10-01 12:00:00',
+        ]);
+
+        $this->assertSame([
+            'generated' => ['sessions' => 5, 'completed' => 40, 'swapped' => 20, 'cancelled' => 20],
+            'other' => ['sessions' => 4, 'completed' => 75, 'swapped' => 0, 'cancelled' => 0],
+        ], Insights::summary(30)['generator']);
+    }
+
+    public function test_skipped_exercises_rank_by_share_of_inclusions_with_no_set_log(): void
+    {
+        $ada = $this->member('2026-08-01 12:00:00');
+        $squat = Exercise::factory()->create(['name' => 'Back Squat']);
+        $lunge = Exercise::factory()->create(['name' => 'Walking Lunge']);
+        $curl = Exercise::factory()->create(['name' => 'Cable Curl']);
+
+        // Ten Completed Sessions in the last 30 days, each with ten Back
+        // Squat rows (30 logged) and ten Walking Lunge rows (60 logged): 100
+        // inclusions each. Cable Curl is in only 99 rows, so it never ranks.
+        foreach (range(1, 10) as $i) {
+            $session = $this->workoutSession($ada, WorkoutSessionStatus::Completed, sprintf('2026-09-%02d 18:00:00', $i));
+            $session->forceFill(['completed_at' => '2026-09-'.(10 + $i).' 18:00:00'])->save();
+            foreach (range(1, 10) as $row) {
+                $this->included($session, $squat, logged: $row <= 3);
+                $this->included($session, $lunge, logged: $row <= 6);
+                if ($i < 10 || $row < 10) {
+                    $this->included($session, $curl, logged: false);
+                }
+            }
+        }
+
+        // A set from before sets pointed at their row (no row id) still counts
+        // as logged for the sole row of its exercise.
+        $legacy = $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-09-29 12:00:00');
+        $this->included($legacy, $lunge, logged: true, legacy: true);
+
+        // A cancelled session: its unlogged rows are not skips.
+        $cancelled = $this->workoutSession($ada, WorkoutSessionStatus::Cancelled, '2026-09-30 12:00:00');
+        foreach (range(1, 50) as $row) {
+            $this->included($cancelled, $squat, logged: false);
+        }
+
+        // A Completed Session outside the range does not count either.
+        $old = $this->workoutSession($ada, WorkoutSessionStatus::Completed, '2026-08-20 12:00:00');
+        $this->included($old, $lunge, logged: false);
+
+        $this->assertSame([
+            ['exercise_id' => $squat->id, 'name' => 'Back Squat', 'included' => 100, 'skipped' => 70, 'rate' => 70],
+            ['exercise_id' => $lunge->id, 'name' => 'Walking Lunge', 'included' => 101, 'skipped' => 40, 'rate' => 40],
+        ], Insights::summary(30)['skipped']);
+    }
+
     private function member(string $signedUpAt): User
     {
         return User::factory()->create([
@@ -146,6 +238,25 @@ class InsightsTest extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      */
+    private function included(WorkoutSession $session, Exercise $exercise, bool $logged, bool $legacy = false): void
+    {
+        $row = WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $exercise->id,
+        ]);
+
+        if ($logged) {
+            SetLog::create([
+                'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $legacy ? null : $row->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => 1,
+                'weight' => 60,
+                'reps' => 8,
+            ]);
+        }
+    }
+
     private function userWithRole(string $slug, array $attributes = []): User
     {
         $user = User::factory()->create($attributes);

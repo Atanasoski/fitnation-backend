@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Enums\WorkoutSessionStatus;
+use App\Models\Exercise;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -56,14 +58,45 @@ class InsightsPageTest extends TestCase
             ->assertSee('no signup in the last 7 days has trained yet');
     }
 
+    public function test_the_generator_and_skipped_cards_lead_with_their_answers(): void
+    {
+        $ada = $this->member('2026-08-01 12:00:00');
+        $this->workoutSession($ada, '2026-09-20 12:00:00', generated: true);
+        $this->workoutSession($ada, '2026-09-21 12:00:00', generated: false);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/insights')
+            ->assertOk()
+            ->assertSeeInOrder(['Are generated workouts any good?', '100%', 'of generated sessions get completed', '100% for the rest'])
+            ->assertSeeInOrder(['Which exercises get skipped?', 'No exercise was included 100 times in Completed Sessions in the last 30 days']);
+    }
+
+    public function test_the_skipped_list_links_each_exercise_to_its_catalogue_entry(): void
+    {
+        $session = $this->workoutSession($this->member('2026-08-01 12:00:00'), '2026-09-20 12:00:00');
+        $plank = Exercise::factory()->create(['name' => 'Side Plank']);
+        foreach (range(1, 100) as $row) {
+            WorkoutSessionExercise::create(['workout_session_id' => $session->id, 'exercise_id' => $plank->id]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get('/admin/insights')
+            ->assertOk()
+            ->assertSeeInOrder(['Which exercises get skipped?', '100%', 'of Side Plank entries have no logged set'])
+            ->assertSee(route('exercises.show', $plank->id))
+            ->assertSee('100% · 100 of 100');
+    }
+
     private function member(string $signedUpAt): User
     {
         return User::factory()->create(['created_at' => $signedUpAt, 'onboarding_completed_at' => $signedUpAt]);
     }
 
-    private function workoutSession(User $user, string $completedAt): void
+    private function workoutSession(User $user, string $completedAt, bool $generated = false): WorkoutSession
     {
-        WorkoutSession::factory()->create([
+        return WorkoutSession::factory()->create([
+            'is_auto_generated' => $generated,
+            'created_at' => $completedAt,
             'user_id' => $user->id,
             'workout_template_id' => WorkoutTemplate::factory()->state(['plan_id' => Plan::factory()->state(['user_id' => $user->id])]),
             'status' => WorkoutSessionStatus::Completed,

@@ -24,6 +24,22 @@
         // "Not yet" is the last bucket: recessive, the rest in the series colour.
         'colors' => [...array_fill(0, count($firstWorkout['buckets']) - 1, 's1'), 'muted'],
     ];
+
+    $generator = $insights['generator'];
+    $generated = $generator['generated'];
+    $other = $generator['other'];
+    $generatorChart = [
+        'categories' => ['Completed', 'Swapped', 'Cancelled'],
+        'series' => [
+            ['name' => 'Generated ('.number_format($generated['sessions']).')', 'data' => [$generated['completed'], $generated['swapped'], $generated['cancelled']]],
+            ['name' => 'Other ('.number_format($other['sessions']).')', 'data' => [$other['completed'], $other['swapped'], $other['cancelled']]],
+        ],
+        'suffix' => '%',
+        'max' => 100,
+    ];
+
+    $skipped = $insights['skipped'];
+    $minIncluded = number_format(\App\Services\Admin\Insights::SKIPPED_MIN_INCLUDED);
 @endphp
 
 @section('tab')
@@ -59,6 +75,44 @@
             </x-slot:comparison>
 
             <div class="h-56" x-data="insightChart(@js($firstWorkoutChart))"></div>
+        </x-admin.insight-card>
+
+        <x-admin.insight-card
+            question="Are generated workouts any good?"
+            :headline="$generated['sessions'] > 0 ? $generated['completed'].'%' : '—'"
+            :sentence="$generated['sessions'] > 0
+                ? 'of generated sessions get completed'.($other['sessions'] > 0 ? ' — '.$other['completed'].'% for the rest' : '')
+                : 'no generated session was created in the last '.$days.' days'"
+            :footnote="'Sessions created in the last '.$days.' days (count in brackets). Generated = made by the workout generator. Swapped = regenerated into another session; Cancelled = cancelled without a replacement. Drafts and sessions in progress count in the total only.'"
+        >
+            <div class="h-56" x-data="insightChart(@js($generatorChart))"></div>
+        </x-admin.insight-card>
+
+        <x-admin.insight-card
+            question="Which exercises get skipped?"
+            :headline="$skipped ? $skipped[0]['rate'].'%' : '—'"
+            :sentence="$skipped
+                ? 'of '.$skipped[0]['name'].' entries have no logged set'
+                : 'No exercise was included '.$minIncluded.' times in Completed Sessions in the last '.$days.' days'"
+            :footnote="'Per exercise, the share of its entries in Completed Sessions completed in the last '.$days.' days with no logged set (skipped of included). Only exercises included at least '.$minIncluded.' times; top '.\App\Services\Admin\Insights::SKIPPED_TOP.' by rate.'"
+        >
+            @if ($skipped)
+                <ol class="space-y-2.5">
+                    @foreach ($skipped as $exercise)
+                        <li class="flex items-center gap-3 text-sm">
+                            <a href="{{ route('exercises.show', $exercise['exercise_id']) }}"
+                                class="w-36 shrink-0 truncate font-medium text-gray-700 hover:text-brand-600 sm:w-44 dark:text-gray-300 dark:hover:text-brand-400"
+                                title="{{ $exercise['name'] }}">{{ $exercise['name'] }}</a>
+                            <div class="h-3 min-w-0 flex-1 rounded-sm bg-gray-100 dark:bg-gray-800">
+                                <div class="h-3 rounded-sm bg-orange-500 dark:bg-orange-600" style="width: {{ $exercise['rate'] }}%"></div>
+                            </div>
+                            <span class="w-28 shrink-0 text-right text-theme-xs tabular-nums text-gray-600 dark:text-gray-400">
+                                {{ $exercise['rate'] }}% · {{ number_format($exercise['skipped']) }} of {{ number_format($exercise['included']) }}
+                            </span>
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
         </x-admin.insight-card>
     </div>
 @endsection

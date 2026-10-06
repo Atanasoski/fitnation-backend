@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PlanType;
+use App\Enums\UnitSystem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -88,6 +89,44 @@ class Plan extends Model
     public function isPartnerProvided(): bool
     {
         return $this->partner_id !== null && $this->user_id === null;
+    }
+
+    /**
+     * The partner this plan belongs to: its own for a library plan, its
+     * owner's for a user's plan. Its catalogue is what the plan draws from.
+     */
+    public function ownerPartnerId(): ?int
+    {
+        return $this->user_id === null ? $this->partner_id : $this->user?->partner_id;
+    }
+
+    /**
+     * The Unit System staff enter this plan's weights in: its owner's, so they
+     * prescribe what the owner will see (ADR-0001). A library plan has no
+     * owner and stays metric.
+     */
+    public function ownerUnitSystem(): UnitSystem
+    {
+        return $this->user?->unitSystem() ?? UnitSystem::Metric;
+    }
+
+    /**
+     * The exercises a row of this plan may be given: its partner's catalogue,
+     * less Archived Exercises. None when the plan has no partner.
+     *
+     * @return Builder<Exercise>
+     */
+    public function offeredExercises(): Builder
+    {
+        $partnerId = $this->ownerPartnerId();
+
+        return Exercise::query()
+            ->available()
+            ->when(
+                $partnerId === null,
+                fn (Builder $query) => $query->whereRaw('1 = 0'),
+                fn (Builder $query) => $query->whereHas('partners', fn (Builder $q) => $q->where('partners.id', $partnerId)),
+            );
     }
 
     /**

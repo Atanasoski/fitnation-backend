@@ -23,6 +23,17 @@ class UpdatePartnerExerciseRequest extends FormRequest
      */
     public function rules(): array
     {
+        return self::overrideRules();
+    }
+
+    /**
+     * What a Partner Override write accepts. The super admin's override route
+     * validates with the same rules.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function overrideRules(): array
+    {
         return [
             'description' => ['nullable', 'string', 'max:5000'],
             'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'],

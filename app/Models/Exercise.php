@@ -36,6 +36,7 @@ class Exercise extends Model
     {
         return [
             'difficulty' => ExerciseDifficulty::class,
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -146,6 +147,18 @@ class Exercise extends Model
         return $query->whereHas('partners', function ($q) use ($partner) {
             $q->where('partners.id', $partner->id);
         });
+    }
+
+    /**
+     * Scope: exercises that may be offered — searched, picked or generated.
+     * Leaves out Archived Exercises (see App\Services\Exercise\ExerciseArchive).
+     *
+     * Apply it where an exercise is offered, never on relations or reads by
+     * id: an archived exercise must still load wherever it was already used.
+     */
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->whereNull('workout_exercises.archived_at');
     }
 
     /**

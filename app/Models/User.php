@@ -21,6 +21,9 @@ class User extends Authenticatable implements MustVerifyEmail
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
+    /** The role slugs that make an account staff rather than an app user. */
+    public const STAFF_ROLES = ['admin', 'partner_admin'];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -248,6 +251,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Staff: an admin or partner-admin account, the complement of appUsers().
+     */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES);
+    }
+
+    /**
      * People using the app: everyone but staff (admin and partner-admin
      * accounts), who the super-admin lists and counts leave out.
      *
@@ -256,7 +267,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function scopeAppUsers(Builder $query): Builder
     {
-        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', ['admin', 'partner_admin']));
+        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', self::STAFF_ROLES));
     }
 
     /**

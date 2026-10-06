@@ -24,7 +24,7 @@ run agents inventing seven different module shapes.
 | [019](019-unfinished-account-nudges.md) | Unfinished Account nudges — email a user who never verified or onboarded, 1/3/7 days | feature | new mail + notification, shared local-hour helpers out of `Inactivity` |
 | [020](020-weekly-summary-email.md) | Weekly Summary email, Monday 08:00 local, with one-click unsubscribe | feature | `WeeklyProgress::for($asOf)`, `users.notification_settings`, unsubscribe route |
 | [021](021-equipment-supports-added-weight.md) | Equipment types say whether an exercise takes added weight | low | migration, `EquipmentTypeResource`, seeder |
-| [022](022-super-admin-panel.md) | Super-admin panel v1 — search, Users, user page, Overview, Partners, minimal System (ready-for-agent) | feature | admin web routes, Activity Status + Access Source modules, admin change record, House Partner |
+| [023](023-super-admin-panel-v2.md) | Super-admin panel v2 — partner edit (4 colours), exercise gallery + Archived Exercise + Partner Overrides, a user's plan outline replacing partner-admin plan pages (tickets 01–08 done on `feat/super-admin-panel-v2`; PR pending) | feature | `PartnerController` form, `workout_exercises.archived_at`, override-write module, `PlanPolicy`, `/users/{user}/plans` |
 
 ## Done
 
@@ -38,6 +38,7 @@ run agents inventing seven different module shapes.
 - [014](014-partner-exercise-presentation.md) — PR #42 — `PartnerExerciseView`
 - [015](015-measured-field-residue.md) — PR #43 — one home for the imperial step
 - [018](018-push-notifications-phase-one.md) — PRs #45–#48 — Devices, `ExpoChannel`, Inactivity Nudge; [ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md); mobile half in front-end PR #55
+- [022](022-super-admin-panel.md) — PR #58 — super-admin panel v1
 
 ## Suggested order
 

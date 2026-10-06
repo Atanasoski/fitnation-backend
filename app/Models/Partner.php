@@ -15,6 +15,8 @@ class Partner extends Model
 {
     use HasFactory;
 
+    public const HOUSE_CANNOT_BE_DEACTIVATED = 'The House Partner cannot be deactivated.';
+
     protected $fillable = [
         'name',
         'slug',
@@ -45,6 +47,16 @@ class Partner extends Model
     public function isHouse(): bool
     {
         return $this->getKey() === self::houseId();
+    }
+
+    /**
+     * Every signup without a gym lands on the House Partner; deactivating it
+     * would turn every one of them away. Both the Partners page and the edit
+     * form check this before writing is_active = false.
+     */
+    public function canBeDeactivated(): bool
+    {
+        return ! $this->isHouse();
     }
 
     /**
@@ -148,12 +160,12 @@ class Partner extends Model
     }
 
     /**
-     * Sync all exercises to this partner.
+     * Sync every available exercise to this partner (Archived Exercises are left out).
      * This creates pivot rows with null override values, which will fall back to exercise defaults.
      */
     public function syncDefaultExercises(): void
     {
-        $defaultExercises = Exercise::pluck('id');
+        $defaultExercises = Exercise::available()->pluck('id');
 
         $pivotData = $defaultExercises->mapWithKeys(function ($exerciseId) {
             return [$exerciseId => [

@@ -71,7 +71,7 @@ class PlanWebTest extends TestCase
             'is_active' => false,
         ]);
 
-        $response->assertRedirect(route('plans.show', Plan::where('name', 'User Program')->first()));
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => Plan::where('name', 'User Program')->first()]));
 
         $plan = Plan::where('name', 'User Program')->first();
         $this->assertNotNull($plan);
@@ -105,7 +105,7 @@ class PlanWebTest extends TestCase
         $this->assertEquals(0, $workout->order_index);
     }
 
-    public function test_workout_store_for_user_plan_redirects_to_plans_show(): void
+    public function test_workout_store_for_user_plan_opens_the_outline_on_it(): void
     {
         $partner = Partner::factory()->create();
         $admin = User::factory()->create([
@@ -125,10 +125,9 @@ class PlanWebTest extends TestCase
             'week_number' => 1,
         ]);
 
-        $response->assertRedirect(route('plans.show', $plan));
-
         $workout = WorkoutTemplate::where('name', 'User Plan Workout')->first();
         $this->assertNotNull($workout);
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan, 'workout' => $workout]));
         $this->assertEquals(1, $workout->week_number);
         $this->assertEquals(0, $workout->order_index);
     }
@@ -252,7 +251,7 @@ class PlanWebTest extends TestCase
             'cover_image' => $newFile,
         ]);
 
-        $response->assertRedirect(route('plans.index', $member));
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan]));
         $plan->refresh();
         $this->assertNotNull($plan->cover_image);
         $this->assertStringStartsWith('plans/cover-images/', $plan->cover_image);

@@ -53,7 +53,7 @@
             <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                 <div class="text-theme-xs text-gray-500 dark:text-gray-400">Active plan</div>
                 @if ($plan)
-                    <div class="mt-1 text-sm font-medium text-gray-800 dark:text-white/90">{{ $plan->plan->name }}</div>
+                    <a href="{{ \App\Services\Plan\PlanOutline::url($plan->plan) }}" class="mt-1 block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">{{ $plan->plan->name }}</a>
                     <div class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">{{ $plan->detail() }}</div>
                 @else
                     <div class="mt-1 text-sm text-gray-400">No active plan</div>
@@ -110,6 +110,43 @@
                                                 <span class="inline-block rounded-full px-2 py-0.5 text-theme-xs font-medium {{ $session->status_badge_classes }}">{{ $session->status_label }}</span>
                                             @endif
                                         </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </section>
+
+            <section class="{{ $card }} lg:col-span-2">
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="{{ $heading }}">Plans</h2>
+                    <a href="{{ route('plans.index', $user) }}" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">Open plan outline →</a>
+                </div>
+                @if ($plans->isEmpty())
+                    <p class="{{ $empty }}">No plans yet.</p>
+                @else
+                    <div class="mt-2 overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-left text-theme-xs text-gray-500 dark:text-gray-400">
+                                <tr><th class="py-1.5 pr-3 font-medium">Name</th><th class="pr-3 font-medium">Type</th><th class="pr-3 font-medium">Status</th><th class="pr-3 font-medium">Workouts</th><th class="font-medium">Updated</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($plans as $userPlan)
+                                    <tr class="border-t border-gray-100 dark:border-gray-800">
+                                        <td class="py-2 pr-3">
+                                            <a href="{{ \App\Services\Plan\PlanOutline::url($userPlan) }}" class="font-medium text-brand-600 hover:underline dark:text-brand-400">{{ $userPlan->name }}</a>
+                                        </td>
+                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $label($userPlan->type) }}</td>
+                                        <td class="whitespace-nowrap pr-3">
+                                            @if ($userPlan->is_active)
+                                                <span class="inline-block rounded-full bg-success-50 px-2 py-0.5 text-theme-xs font-medium text-success-700 dark:bg-success-500/15 dark:text-success-400">Active</span>
+                                            @else
+                                                <span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs font-medium text-gray-600 dark:bg-white/5 dark:text-gray-400">Inactive</span>
+                                            @endif
+                                        </td>
+                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $userPlan->workout_templates_count }}</td>
+                                        <td class="whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $userPlan->updated_at?->format('j M Y') ?? '—' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

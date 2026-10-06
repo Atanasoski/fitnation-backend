@@ -120,6 +120,12 @@ class UserController extends Controller
             'status' => ActivityStatuses::for($user),
             'access' => AccessSources::for($user),
             'plan' => ActivePlan::for($user),
+            'plans' => $user->plans()
+                ->withCount('workoutTemplates')
+                ->orderByDesc('is_active')
+                ->latest('updated_at')
+                ->latest('id')
+                ->get(),
             'height' => $this->height($user->profile?->height, $units),
             'weight' => $this->weight($user->profile?->weight, 'user_profiles', 'weight', $units),
             'sessions' => $user->workoutSessions()

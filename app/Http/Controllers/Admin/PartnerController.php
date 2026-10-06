@@ -69,10 +69,8 @@ class PartnerController extends Controller
     {
         $active = $request->validate(['active' => ['required', 'boolean']])['active'];
 
-        // Every signup without a gym lands on the House Partner; deactivating
-        // it would turn every one of them away.
-        if (! $active && $partner->isHouse()) {
-            return back()->withErrors(['active' => 'The House Partner cannot be deactivated.']);
+        if (! $active && ! $partner->canBeDeactivated()) {
+            return back()->withErrors(['active' => Partner::HOUSE_CANNOT_BE_DEACTIVATED]);
         }
 
         $partner->update(['is_active' => (bool) $active]);

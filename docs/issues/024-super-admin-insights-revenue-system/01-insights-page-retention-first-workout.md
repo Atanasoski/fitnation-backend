@@ -13,8 +13,8 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `Insights::summary` returns `retention` and `first_workout` as the spec defines them. Tested with frozen time and factory fixtures, covering the Seam 1 retention and first-workout cases. Staff never count. Range 7 vs 90 changes what's included.
-- [ ] Page renders both cards for a super admin at each range and at an invalid range. Partner admin and plain user get 403.
-- [ ] Sidebar Insights entry still active on both tabs. Dark mode readable.
+- [x] `Insights::summary` returns `retention` and `first_workout` as the spec defines them. Tested with frozen time and factory fixtures, covering the Seam 1 retention and first-workout cases. Staff never count. Range 7 vs 90 changes what's included.
+- [x] Page renders both cards for a super admin at each range and at an invalid range. Partner admin and plain user get 403.
+- [x] Sidebar Insights entry still active on both tabs. Dark mode readable.

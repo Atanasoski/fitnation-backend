@@ -76,6 +76,10 @@
                 <input type="hidden" name="signed_up_days" value="{{ $filters['signed_up_days'] }}" />
                 <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-theme-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">Signed up in the last {{ $filters['signed_up_days'] }} days</span>
             @endif
+            @if ($filters['old_build'])
+                <input type="hidden" name="old_build" value="1" />
+                <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-theme-xs font-medium text-orange-700 dark:bg-orange-500/15 dark:text-orange-400">On an Old Build</span>
+            @endif
             <button type="submit" class="rounded-lg bg-brand-500 px-3 py-1.5 text-theme-xs font-medium text-white hover:bg-brand-600">Filter</button>
             @if ($filtered)
                 <a href="{{ route('admin.users.index') }}" class="text-theme-xs text-brand-600 hover:underline dark:text-brand-400">Clear filters</a>

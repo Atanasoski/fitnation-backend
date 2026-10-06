@@ -12,8 +12,28 @@
     @endif
 
     <div class="space-y-6">
+        {{-- Failed jobs and webhooks, one row each; their tables are at the bottom --}}
+        <div class="grid gap-3 sm:grid-cols-2">
+            @foreach ([['Failed jobs', 'failed-jobs', $failedJobCount], ['Failed webhooks', 'failed-webhooks', $failedWebhooks->total()]] as [$label, $anchor, $count])
+                <a href="#{{ $anchor }}" class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:bg-white/5">
+                    <span class="text-gray-700 dark:text-gray-300">{{ $label }}</span>
+                    <span @class([
+                        'rounded-full px-2.5 py-0.5 text-theme-xs font-medium',
+                        'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' => $count > 0,
+                        'bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-300' => $count === 0,
+                    ])>{{ number_format($count) }}</span>
+                </a>
+            @endforeach
+        </div>
+
+        @include('admin.system._app-versions', ['fleet' => $fleet])
+
+        @include('admin.system._devices-and-push', ['fleet' => $fleet])
+
+        {{-- Admins (spec 024 ticket 06) go here, between Devices and push and the failure tables. --}}
+
         {{-- Failed queue jobs --}}
-        <section class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <section id="failed-jobs" class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <header class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:px-6">
                 <div>
                     <h2 class="font-display text-base font-semibold text-gray-800 dark:text-white/90">Failed jobs</h2>
@@ -81,7 +101,7 @@
         </section>
 
         {{-- Failed RevenueCat webhook calls --}}
-        <section class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <section id="failed-webhooks" class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <header class="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:px-6">
                 <div>
                     <h2 class="font-display text-base font-semibold text-gray-800 dark:text-white/90">Failed webhooks</h2>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Jobs\FetchExpoReceipts;
+use App\Models\Device;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
@@ -191,6 +192,27 @@ class SystemTest extends TestCase
             ->assertSee('Replay all (2)')
             ->assertSeeInOrder(['#'.$second->id, '#'.$first->id])
             ->assertDontSee('No failed webhooks');
+    }
+
+    public function test_the_page_leads_with_failure_summaries_then_app_versions_devices_and_push_then_the_tables(): void
+    {
+        $this->travelTo('2026-10-05 12:00:00');
+        $this->failJob('default', 'Boom');
+        foreach (['1.9.0', '1.8.3', '1.7.4'] as $version) {
+            Device::factory()->create(['app_version' => $version, 'build_profile' => 'production', 'platform' => 'ios']);
+        }
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSeeInOrder(['Failed jobs', 'Failed webhooks', 'App versions in use', 'Devices and push', 'Queue jobs that ran out of attempts', 'RevenueCat calls whose processing failed'])
+            ->assertSee('href="#failed-jobs"', false)
+            ->assertSee('href="#failed-webhooks"', false)
+            ->assertSee('1.9.0')
+            ->assertSee('latest')
+            ->assertSee('1 user is on an Old Build')
+            ->assertSee(e(route('admin.users.index', ['old_build' => 1])), false)
+            ->assertSee('Push Switch on');
     }
 
     /**

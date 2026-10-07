@@ -7,6 +7,8 @@ namespace Tests\Feature\Admin;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\WorkoutSession;
+use App\Models\WorkoutSplit;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,6 +64,41 @@ class AdminShellCharacterizationTest extends TestCase
                 $this->actingAs($user)->get($path)->assertForbidden();
             }
         }
+    }
+
+    public function test_every_workout_split_and_preview_route_is_forbidden_to_partner_admins_and_users(): void
+    {
+        $split = WorkoutSplit::query()->firstOrFail();
+
+        foreach ([$this->partnerAdmin(), $this->userWithRole('user')] as $user) {
+            $this->actingAs($user)->get('/admin/workout-splits/create')->assertForbidden();
+            $this->actingAs($user)->post('/admin/workout-splits', [])->assertForbidden();
+            $this->actingAs($user)->get("/admin/workout-splits/{$split->id}/edit")->assertForbidden();
+            $this->actingAs($user)->put("/admin/workout-splits/{$split->id}", [])->assertForbidden();
+            $this->actingAs($user)->delete("/admin/workout-splits/{$split->id}")->assertForbidden();
+            $this->actingAs($user)->post('/admin/workout-preview', [])->assertForbidden();
+        }
+
+        $this->assertModelExists($split);
+    }
+
+    public function test_partner_admin_dashboard_counts_and_lists_only_their_app_users(): void
+    {
+        $partner = Partner::factory()->create();
+        $partnerAdmin = $this->userWithRole('partner_admin', ['partner_id' => $partner->id]);
+        $this->userWithRole('admin', ['partner_id' => $partner->id]);
+        $active = User::factory()->create(['partner_id' => $partner->id]);
+        $idle = User::factory()->create(['partner_id' => $partner->id]);
+        User::factory()->create(['partner_id' => Partner::factory()->create()->id]);
+        WorkoutSession::factory()->create(['user_id' => $active->id, 'performed_at' => now()]);
+        WorkoutSession::factory()->create(['user_id' => $partnerAdmin->id, 'performed_at' => now()]);
+
+        $this->actingAs($partnerAdmin)->get('/dashboard')
+            ->assertOk()
+            ->assertViewHas('totalMembers', 2)
+            ->assertViewHas('activeMembersThisWeek', 1)
+            ->assertViewHas('topMembers', fn ($members) => $members->pluck('id')->all() === [$active->id])
+            ->assertViewHas('recentMembers', fn ($members) => $members->pluck('id')->sort()->values()->all() === collect([$active->id, $idle->id])->sort()->values()->all());
     }
 
     private function partnerAdmin(): User

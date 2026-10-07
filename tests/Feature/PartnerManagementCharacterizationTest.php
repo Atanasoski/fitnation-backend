@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\WorkoutSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -135,6 +136,23 @@ class PartnerManagementCharacterizationTest extends TestCase
         $this->actingAs($partnerAdmin)->get('/partners')->assertOk();
         $this->actingAs($partnerAdmin)->get('/partners/iron-temple')->assertOk()->assertSee('Iron Temple');
         $this->actingAs($partnerAdmin)->get('/partners/lift-club')->assertForbidden();
+    }
+
+    public function test_a_partner_admin_sees_member_counts_without_staff_on_their_partner_page(): void
+    {
+        $partner = Partner::factory()->create(['slug' => 'iron-temple']);
+        $partner->identity()->create(['primary_color' => '#112233', 'secondary_color' => '#445566']);
+        $partnerAdmin = $this->userWithRole('partner_admin', ['partner_id' => $partner->id]);
+        $active = User::factory()->create(['partner_id' => $partner->id]);
+        User::factory()->create(['partner_id' => $partner->id]);
+        WorkoutSession::factory()->create(['user_id' => $active->id, 'performed_at' => now()]);
+        WorkoutSession::factory()->create(['user_id' => $partnerAdmin->id, 'performed_at' => now()]);
+
+        $this->actingAs($partnerAdmin)->get('/partners/iron-temple')
+            ->assertOk()
+            ->assertViewHas('usersCount', 3)
+            ->assertViewHas('totalMembers', 2)
+            ->assertViewHas('activeMembersThisWeek', 1);
     }
 
     public function test_a_plain_user_cannot_see_partners(): void

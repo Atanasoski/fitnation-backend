@@ -77,7 +77,7 @@ class OldPlanPagesTest extends TestCase
      */
     public function test_a_library_plan_has_no_web_pages(): void
     {
-        [$plan, $workout, $row] = $this->tree(Plan::factory()->partnerLibrary($this->partner)->create(['name' => 'Library']));
+        [$plan, $workout, $row] = $this->tree(Plan::factory()->partnerLibrary($this->partner)->create(['name' => 'Library', 'is_active' => true]));
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id);
         $other = Exercise::factory()->create();

@@ -15,12 +15,12 @@
 
 **Blocked by:** 01
 
-**Status:** open
+**Status:** done
 
-- [ ] A data-driven test that every deleted route returns 404.
-- [ ] Partner-admin web login refused with the mobile-app message; super admin lands on Overview.
-- [ ] `/plans/{plan}` for a library plan returns 404; 01's API tests still pass unchanged.
-- [ ] Grant form refuses `partner_admin`; revoke of an existing partner admin works.
-- [ ] Tests for deleted code removed or narrowed deliberately (see parent's Testing Decisions); 01's tests pass unchanged, except redirects 01 recorded as moving to `admin.partners.index`.
-- [ ] `grep -rn "partner_admin\|partner\.programs\|users\.show\|partners\.index\|partners\.show" app resources routes` shows only the kept uses listed in the parent.
-- [ ] `npm run build` succeeds (JS entries removed); `composer test` green; `pint` on changed files.
+- [x] A data-driven test that every deleted route returns 404.
+- [x] Partner-admin web login refused with the mobile-app message; super admin lands on Overview.
+- [x] `/plans/{plan}` for a library plan returns 404; 01's API tests still pass unchanged.
+- [x] Grant form refuses `partner_admin`; revoke of an existing partner admin works.
+- [x] Tests for deleted code removed or narrowed deliberately (see parent's Testing Decisions); 01's tests pass unchanged, except redirects 01 recorded as moving to `admin.partners.index`.
+- [x] `grep -rn "partner_admin\|partner\.programs\|users\.show\|partners\.index\|partners\.show" app resources routes` shows only the kept uses listed in the parent.
+- [x] `npm run build` succeeds (JS entries removed); `composer test` green; `pint` on changed files.

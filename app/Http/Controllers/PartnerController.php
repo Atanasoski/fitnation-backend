@@ -7,33 +7,16 @@ use App\Http\Requests\StorePartnerRequest;
 use App\Http\Requests\UpdatePartnerRequest;
 use App\Models\Partner;
 use App\Models\PartnerIdentity;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
+/**
+ * Partner create and edit, for super admins. The partner list and page are
+ * Admin\PartnerController's.
+ */
 class PartnerController extends Controller
 {
-    /**
-     * Display a listing of the partners.
-     */
-    public function index(): View|RedirectResponse
-    {
-        // The super admin's list lives under /admin now.
-        if (auth()->user()->hasRole('admin')) {
-            return redirect()->route('admin.partners.index');
-        }
-
-        $this->authorize('viewAny', Partner::class);
-
-        $partners = Partner::with('identity')
-            ->withCount('users')
-            ->latest()
-            ->get();
-
-        return view('partners.index', compact('partners'));
-    }
-
     /**
      * Show the form for creating a new partner.
      */
@@ -72,53 +55,8 @@ class PartnerController extends Controller
         // Link all default exercises to this partner
         $partner->syncDefaultExercises();
 
-        return redirect()->route('partners.index')
+        return redirect()->route('admin.partners.index')
             ->with('success', 'Partner created successfully.');
-    }
-
-    /**
-     * Display the specified partner.
-     */
-    public function show(Partner $partner): View|RedirectResponse
-    {
-        // The super admin's partner page lives under /admin now.
-        if (auth()->user()->hasRole('admin')) {
-            return redirect()->route('admin.partners.show', $partner);
-        }
-
-        $this->authorize('view', $partner);
-
-        $partner->loadCount('users');
-        $partner->load('identity');
-
-        $membersQuery = $partner->users()->appUsers();
-
-        $totalMembers = (clone $membersQuery)->count();
-
-        $activeMembersThisWeek = (clone $membersQuery)
-            ->whereHas('workoutSessions', function ($query) {
-                $query->whereBetween('performed_at', [
-                    Carbon::now()->startOfWeek(),
-                    Carbon::now()->endOfWeek(),
-                ]);
-            })
-            ->count();
-
-        $colors = ColorHelper::processPartnerColors($partner->identity);
-        $colorPalette = ColorHelper::getColorPalette($partner->identity);
-        $darkColorPalette = ColorHelper::getDarkColorPalette($partner->identity);
-
-        $usersCount = $partner->users_count;
-
-        return view('partners.show', compact(
-            'partner',
-            'colors',
-            'colorPalette',
-            'darkColorPalette',
-            'usersCount',
-            'totalMembers',
-            'activeMembersThisWeek'
-        ));
     }
 
     /**
@@ -178,7 +116,7 @@ class PartnerController extends Controller
             $partner->identity()->create($identityData);
         }
 
-        return redirect()->route('partners.index')
+        return redirect()->route('admin.partners.index')
             ->with('success', 'Partner updated successfully.');
     }
 
@@ -191,7 +129,7 @@ class PartnerController extends Controller
 
         // Check if partner can be deleted
         if (! $partner->canBeDeleted()) {
-            return redirect()->route('partners.index')
+            return redirect()->route('admin.partners.index')
                 ->with('error', 'Cannot delete partner with existing users. Please remove all users first.');
         }
 
@@ -209,7 +147,7 @@ class PartnerController extends Controller
 
         $partner->delete();
 
-        return redirect()->route('partners.index')
+        return redirect()->route('admin.partners.index')
             ->with('success', 'Partner deleted successfully.');
     }
 

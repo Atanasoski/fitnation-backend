@@ -73,7 +73,7 @@ class PlanOutlineTest extends TestCase
         $this->actingAs($this->actor($who))->get(route('plans.index', $owner))->assertStatus($status);
     }
 
-    public function test_a_super_admin_sees_it_in_the_admin_shell_and_a_partner_admin_in_theirs(): void
+    public function test_a_super_admin_sees_it_in_the_admin_shell(): void
     {
         $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', $this->member))
@@ -82,13 +82,6 @@ class PlanOutlineTest extends TestCase
             ->assertSee(route('admin.users.show', $this->member), false)
             ->assertDontSee('href="/partner/programs"', false)
             ->assertSee('href="/admin/users" class="menu-item group menu-item-active', false);
-
-        $this->actingAs($this->actor('own_admin'))
-            ->get(route('plans.index', $this->member))
-            ->assertOk()
-            ->assertSee('href="/partner/programs"', false)
-            ->assertSee(route('users.show', $this->member), false)
-            ->assertDontSee('href="/admin/users"', false);
     }
 
     public function test_the_selected_plan_comes_from_the_url(): void

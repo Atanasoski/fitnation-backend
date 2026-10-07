@@ -22,7 +22,8 @@ use Tests\TestCase;
  * their own plan through the API.
  *
  * Since 023/07 a member plan's workout and row writes reopen the plan outline
- * on the node they touched; a library plan keeps its own pages.
+ * on the node they touched. Since spec 025 a library plan has no web writes
+ * (OldPlanPagesTest); its cases here were dropped.
  */
 class PlanWritesCharacterizationTest extends TestCase
 {
@@ -51,7 +52,8 @@ class PlanWritesCharacterizationTest extends TestCase
      */
     public static function plans(): array
     {
-        return ['a member plan' => ['member'], 'a library plan' => ['library']];
+        // A library plan has no web writes since spec 025 (OldPlanPagesTest).
+        return ['a member plan' => ['member']];
     }
 
     #[DataProvider('plans')]
@@ -61,7 +63,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->put(route('workouts.update', $workout), ['name' => 'Renamed'])
-            ->assertRedirect($kind === 'library' ? route('plans.show', $workout->plan_id) : PlanOutline::url($workout));
+            ->assertRedirect(PlanOutline::url($workout));
 
         $this->assertSame('Renamed', $workout->fresh()->name);
     }
@@ -74,7 +76,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->delete(route('workouts.destroy', $workout))
-            ->assertRedirect($kind === 'library' ? route('partner.programs.show', $plan) : PlanOutline::url($plan));
+            ->assertRedirect(PlanOutline::url($plan));
 
         $this->assertModelMissing($workout);
     }
@@ -91,7 +93,7 @@ class PlanWritesCharacterizationTest extends TestCase
             ->post(route('workout-exercises.store', $workout), ['exercise_id' => $exercise->id, 'target_sets' => 5]);
 
         $row = $workout->workoutTemplateExercises()->sole();
-        $response->assertRedirect($kind === 'library' ? route('workouts.show', $workout) : PlanOutline::url($row));
+        $response->assertRedirect(PlanOutline::url($row));
         $this->assertSame($exercise->id, $row->exercise_id);
         $this->assertSame(5, $row->target_sets);
     }
@@ -106,7 +108,7 @@ class PlanWritesCharacterizationTest extends TestCase
                 'target_sets' => 6, 'min_target_reps' => 3, 'max_target_reps' => 5,
                 'target_weight' => 80, 'rest_seconds' => 180,
             ])
-            ->assertRedirect($kind === 'library' ? route('workouts.show', $row->workout_template_id) : PlanOutline::url($row));
+            ->assertRedirect(PlanOutline::url($row));
 
         $this->assertSame(6, $row->fresh()->target_sets);
         $this->assertSame(180, $row->fresh()->rest_seconds);
@@ -118,12 +120,12 @@ class PlanWritesCharacterizationTest extends TestCase
      */
     public function test_a_partial_row_update_keeps_the_omitted_fields(): void
     {
-        $row = $this->row($this->plan('library'));
+        $row = $this->row($this->plan('member'));
         $row->update(['target_sets' => 5, 'min_target_reps' => 4, 'max_target_reps' => 6, 'target_weight' => 100, 'rest_seconds' => 200]);
 
         $this->actingAs($this->partnerAdmin)
             ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), ['target_sets' => 4])
-            ->assertRedirect(route('workouts.show', $row->workout_template_id));
+            ->assertRedirect(PlanOutline::url($row));
 
         $row->refresh();
         $this->assertSame(4, $row->target_sets);
@@ -158,7 +160,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
         $this->actingAs($this->partnerAdmin)
             ->delete(route('workout-exercises.destroy', [$row->workout_template_id, $row]))
-            ->assertRedirect($kind === 'library' ? route('workouts.show', $row->workout_template_id) : PlanOutline::url($row->workoutTemplate));
+            ->assertRedirect(PlanOutline::url($row->workoutTemplate));
 
         $this->assertModelMissing($row);
     }

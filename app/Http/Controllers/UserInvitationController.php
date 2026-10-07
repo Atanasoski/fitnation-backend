@@ -2,122 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PlanType;
-use App\Enums\WorkoutSessionStatus;
 use App\Http\Requests\InviteUserRequest;
 use App\Mail\UserInvitationMail;
 use App\Models\Partner;
-use App\Models\User;
 use App\Models\UserInvitation;
-use App\Services\FitnessMetrics\WeeklyProgress;
-use App\Services\FitnessMetricsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
-class UserController extends Controller
+/**
+ * The invitations pages, left from the old partner-admin UserController until
+ * spec 025 ticket 03 deletes invitations end to end.
+ */
+class UserInvitationController extends Controller
 {
-    /**
-     * Display a listing of users.
-     */
-    public function index(Request $request): View
-    {
-        $user = $request->user();
-        $partner = Partner::with('identity')->findOrFail($user->partner_id);
-
-        // Get all users of this partner with basic stats
-        $users = $partner->users()
-            ->with('profile')
-            ->withCount([
-                'workoutSessions as total_workouts',
-                'plans as total_plans',
-            ])
-            ->with(relations: 'activeProgram')
-            ->latest()
-            ->paginate(15);
-
-        return view('users.index', compact('partner', 'users'));
-    }
-
-    /**
-     * Display the specified user.
-     */
-    public function show(
-        Request $request,
-        User $user,
-        FitnessMetricsService $metrics,
-        WeeklyProgress $weeklyProgress,
-    ): View {
-        $currentUser = $request->user();
-
-        // Ensure the user belongs to the trainer's partner
-        if ($user->partner_id !== $currentUser->partner_id) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $partner = Partner::with('identity')->findOrFail($currentUser->partner_id);
-
-        // Load user with relationships
-        $user->load([
-            'profile',
-            'plans' => function ($query) {
-                $query->withCount('workoutTemplates')
-                    ->latest();
-            },
-        ]);
-
-        // Get additional stats
-        $totalWorkouts = $user->workoutSessions()->count();
-        $completedWorkouts = $user->workoutSessions()->where('status', WorkoutSessionStatus::Completed)->count();
-        $activePlan = $user->plans()->where('type', PlanType::Program)->where('is_active', true)->first();
-        $lastWorkout = $user->workoutSessions()->where('status', WorkoutSessionStatus::Completed)->latest('performed_at')->first();
-
-        // Get recent workout sessions for pagination
-        $recentWorkouts = $user->workoutSessions()
-            ->with('workoutTemplate')
-            ->where('status', WorkoutSessionStatus::Completed)
-            ->latest('performed_at')
-            ->paginate(7);
-
-        // Get fitness metrics for the user
-        $fitnessMetrics = $metrics->getMetrics($user);
-
-        // Weekly workout frequency for the chart. The metrics payload's own
-        // historical_weeks is fixed at 8 weeks and labels only, so the chart
-        // asks WeeklyProgress for its 12 directly rather than re-deriving them.
-        // Its `week` is the Y-m-d — the payload's key of the same name is a
-        // label. Only `label` and `count` are read, by user-progress.js.
-        $weeklyWorkoutData = array_map(fn (array $week) => [
-            'week' => $week['week_start'],
-            'label' => $week['label'],
-            'count' => $week['workouts'],
-        ], $weeklyProgress->historicalWeeks($user, 12));
-
-        $profile = $user->profile;
-        $completionRate = $totalWorkouts > 0 ? (int) round(($completedWorkouts / $totalWorkouts) * 100) : null;
-        $weeklyWorkouts = $fitnessMetrics['weekly_progress']['current_week_workouts'] ?? null;
-        $weeklyGoal = $profile?->training_days_per_week ?: null;
-        $latestPlans = $user->plans()->where('type', PlanType::Program)->withCount('workoutTemplates')->latest()->limit(3)->get();
-
-        return view('users.show', compact(
-            'partner',
-            'user',
-            'profile',
-            'totalWorkouts',
-            'completedWorkouts',
-            'completionRate',
-            'activePlan',
-            'lastWorkout',
-            'recentWorkouts',
-            'fitnessMetrics',
-            'weeklyWorkoutData',
-            'weeklyWorkouts',
-            'weeklyGoal',
-            'latestPlans',
-        ));
-    }
-
     /**
      * Display the user invitations management page.
      */

@@ -4,26 +4,12 @@ namespace App\Helpers;
 
 class MenuHelper
 {
+    /**
+     * The web panel is for super admins only; anyone else gets no menu.
+     */
     public static function getMainNavItems()
     {
-        $user = auth()->user();
-
-        if ($user && $user->hasRole('admin')) {
-            return self::superAdminNavItems();
-        }
-
-        $items = [];
-
-        // Dashboard - Always visible
-        $items[] = self::item('dashboard', 'Dashboard', '/dashboard');
-
-        if ($user && $user->hasRole('partner_admin')) {
-            $items[] = self::item('members', 'Users', '/users');
-            $items[] = self::item('task', 'Programs', '/partner/programs');
-            $items[] = self::item('task', 'Exercises', '/partner/exercises');
-        }
-
-        return $items;
+        return auth()->user()?->hasRole('admin') ? self::superAdminNavItems() : [];
     }
 
     /**
@@ -35,7 +21,7 @@ class MenuHelper
         return [
             self::item('dashboard', 'Overview', '/admin'),
             self::item('members', 'Users', '/admin/users', ['admin/users', 'admin/users/*', 'users/*/plans']),
-            self::item('user-profile', 'Partners', '/admin/partners', ['admin/partners', 'admin/partners/*', 'partners', 'partners/*']),
+            self::item('user-profile', 'Partners', '/admin/partners', ['admin/partners', 'admin/partners/*', 'partners/*']),
             self::group('task', 'Content', [
                 self::item(null, 'Exercises', '/admin/exercises', ['admin/exercises', 'admin/exercises/*']),
                 self::item(null, 'Workout Splits', '/admin/workout-splits', ['admin/workout-splits', 'admin/workout-splits/*']),

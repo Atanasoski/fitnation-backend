@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CategoryType;
-use App\Http\Requests\BulkLinkExerciseRequest;
 use App\Http\Requests\ExerciseRequest;
 use App\Http\Requests\StoreExerciseRequest;
 use App\Http\Requests\UpdateExerciseRequest;
-use App\Http\Requests\UpdatePartnerExerciseRequest;
 use App\Models\Angle;
 use App\Models\Category;
 use App\Models\EquipmentType;
@@ -21,13 +19,11 @@ use App\Services\Exercise\ArchiveOutcome;
 use App\Services\Exercise\ExerciseArchive;
 use App\Services\Exercise\ExerciseGallery;
 use App\Services\Exercise\PartnerExerciseView;
-use App\Services\Exercise\PartnerOverrides;
 use App\Services\MuscleGroupImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -82,47 +78,6 @@ class ExerciseController extends Controller
             ]),
             'unlinked' => Partner::whereKeyNot($linked->modelKeys())->orderBy('name')->get(['id', 'name']),
         ];
-    }
-
-    public function partnerIndex()
-    {
-        $user = auth()->user();
-
-        if (! $user->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can access this page.');
-        }
-
-        $partner = $user->partner;
-
-        if (! $partner) {
-            abort(403, 'You must be associated with a partner to view exercises.');
-        }
-
-        $categories = Category::where('type', CategoryType::Workout)
-            ->with(['exercises' => function ($query) use ($partner) {
-                $query->with(['partners' => function ($q) use ($partner) {
-                    $q->where('partners.id', $partner->id)
-                        ->withPivot(['description', 'image', 'video']);
-                }, 'muscleGroups'])
-                    ->available()
-                    ->orderBy('name');
-            }])
-            ->orderBy('display_order')
-            ->get();
-
-        // Add link status and prepare data for each exercise
-        $linkedExerciseIds = $partner->exercises()->get()->modelKeys();
-        foreach ($categories as $category) {
-            foreach ($category->exercises as $exercise) {
-                // Set link status
-                $exercise->is_linked = in_array($exercise->id, $linkedExerciseIds);
-
-                // How this partner sees the exercise: overrides applied, URLs resolved
-                $exercise->partnerView = PartnerExerciseView::of($exercise, $partner);
-            }
-        }
-
-        return view('exercises.partner.index', compact('categories', 'partner'));
     }
 
     public function store(StoreExerciseRequest $request): RedirectResponse
@@ -221,32 +176,6 @@ class ExerciseController extends Controller
 
         $exercise->muscleGroups()->sync($muscleGroups);
         $exercise->trainingStyles()->sync($request->training_style_ids ?? []);
-    }
-
-    /**
-     * A partner admin writes their own Partner Override (or links the
-     * exercise by writing one).
-     */
-    public function updatePartnerExercises(UpdatePartnerExerciseRequest $request, Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
-    {
-        try {
-            $overrides->write($request->user()->partner, $exercise, $request->validated());
-
-            $removedMedia = $request->boolean('remove_video');
-
-            return redirect()
-                ->route($removedMedia ? 'partner.exercises.edit' : 'partner.exercises.show', $exercise)
-                ->with('success', $removedMedia ? 'Custom video removed.' : 'Exercise customization updated successfully!');
-        } catch (\Throwable $e) {
-            Log::error('[ExerciseController] Failed to update partner exercise', [
-                'error' => $e->getMessage(),
-                'exercise_id' => $exercise->id,
-            ]);
-
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Failed to save changes. Please try again.');
-        }
     }
 
     /**
@@ -378,146 +307,5 @@ class ExerciseController extends Controller
             'message' => 'Muscle group image updated successfully!',
             'image_url' => Storage::url($imagePath),
         ]);
-    }
-
-    /**
-     * Link an exercise to the user's partner.
-     */
-    public function linkExercise(Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
-    {
-        $partner = auth()->user()->partner;
-
-        if (! $partner) {
-            abort(403, 'You must be associated with a partner to link exercises.');
-        }
-
-        $overrides->link($partner, $exercise);
-
-        return redirect()->back()
-            ->with('success', 'Exercise linked successfully!');
-    }
-
-    /**
-     * Unlink an exercise from the user's partner, deleting its override files.
-     */
-    public function unlinkExercise(Exercise $exercise, PartnerOverrides $overrides): RedirectResponse
-    {
-        $partner = auth()->user()->partner;
-
-        if (! $partner) {
-            abort(403, 'You must be associated with a partner to unlink exercises.');
-        }
-
-        $overrides->unlink($partner, $exercise);
-
-        return redirect()->route('partner.exercises.index')
-            ->with('success', 'Exercise unlinked successfully!');
-    }
-
-    /**
-     * Show exercise details for partner.
-     */
-    public function show(Exercise $exercise)
-    {
-        $user = auth()->user();
-
-        if (! $user->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can access this page.');
-        }
-
-        $partner = $user->partner;
-
-        if (! $partner) {
-            abort(403, 'You must be associated with a partner to view exercises.');
-        }
-
-        // Load exercise with partner pivot data
-        $exercise->load(['partners' => function ($q) use ($partner) {
-            $q->where('partners.id', $partner->id)
-                ->withPivot(['description', 'image', 'video']);
-        }, 'category']);
-
-        // How this partner sees the exercise: overrides applied, URLs resolved
-        $partnerView = PartnerExerciseView::of($exercise, $partner);
-
-        // Check if exercise is linked
-        $isLinked = $partner->exercises()->where('workout_exercises.id', $exercise->id)->exists();
-
-        return view('exercises.partner.show', compact('exercise', 'partner', 'partnerView', 'isLinked'));
-    }
-
-    /**
-     * Show edit form for partner exercise customization.
-     */
-    public function edit(Exercise $exercise)
-    {
-        $user = auth()->user();
-
-        if (! $user->hasRole('partner_admin')) {
-            abort(403, 'Only partner administrators can access this page.');
-        }
-
-        $partner = $user->partner;
-
-        if (! $partner) {
-            abort(403, 'You must be associated with a partner to customize exercises.');
-        }
-
-        // Load exercise with partner pivot data
-        $exercise->load(['partners' => function ($q) use ($partner) {
-            $q->where('partners.id', $partner->id)
-                ->withPivot(['description', 'image', 'video']);
-        }, 'category']);
-
-        // Get pivot data if available
-        $pivot = null;
-        if ($exercise->relationLoaded('partners') && $exercise->partners->isNotEmpty()) {
-            $pivot = $exercise->partners->first()->pivot;
-        }
-
-        // Prepare form data (pivot values or defaults)
-        $formDescription = $pivot?->description ?? '';
-        $formImage = $pivot?->image ?? null;
-        $formVideo = $pivot?->video ?? null;
-
-        return view('exercises.partner.edit', compact('exercise', 'partner', 'pivot', 'formDescription', 'formImage', 'formVideo'));
-    }
-
-    /**
-     * Bulk link exercises to partner.
-     */
-    public function bulkLink(BulkLinkExerciseRequest $request): RedirectResponse
-    {
-        $user = auth()->user();
-        $partner = $user->partner;
-
-        $exerciseIds = $request->validated()['exercise_ids'];
-
-        // Get currently linked exercise IDs
-        $alreadyLinkedIds = $partner->exercises()->whereIn('workout_exercises.id', $exerciseIds)->pluck('workout_exercises.id')->toArray();
-
-        // Prepare pivot data for all exercises (null values = use exercise defaults)
-        $pivotData = [];
-        foreach ($exerciseIds as $exerciseId) {
-            $pivotData[$exerciseId] = [
-                'description' => null,
-                'image' => null,
-                'video' => null,
-            ];
-        }
-
-        // Link all exercises (syncWithoutDetaching won't duplicate already linked ones)
-        $partner->exercises()->syncWithoutDetaching($pivotData);
-
-        // Count newly linked exercises
-        $newlyLinkedCount = count($exerciseIds) - count($alreadyLinkedIds);
-
-        if ($newlyLinkedCount > 0) {
-            return redirect()->route('partner.exercises.index')
-                ->with('success', "{$newlyLinkedCount} exercise(s) linked successfully!");
-        }
-
-        return redirect()->route('partner.exercises.index')
-            ->with('info', 'All selected exercises were already linked.');
     }
 }

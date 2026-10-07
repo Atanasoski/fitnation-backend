@@ -26,32 +26,6 @@ class PlanWebTest extends TestCase
         );
     }
 
-    public function test_library_plan_creation_sets_type_program_and_partner_id(): void
-    {
-        $partner = Partner::factory()->create();
-        $admin = User::factory()->create([
-            'partner_id' => $partner->id,
-        ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
-
-        $response = $this->actingAs($admin)->post(route('partner.programs.store'), [
-            'name' => 'Library Program',
-            'description' => 'A library program',
-            'type' => 'program',
-            'duration_weeks' => 6,
-        ]);
-
-        $response->assertRedirect(route('partner.programs.index'));
-
-        $plan = Plan::where('name', 'Library Program')->first();
-        $this->assertNotNull($plan);
-        $this->assertEquals(PlanType::Program, $plan->type);
-        $this->assertEquals($partner->id, $plan->partner_id);
-        $this->assertNull($plan->user_id);
-        $this->assertEquals(6, $plan->duration_weeks);
-        $this->assertTrue($plan->isPartnerLibraryPlan());
-    }
-
     public function test_user_plan_creation_sets_type_program_and_user_id(): void
     {
         $partner = Partner::factory()->create();
@@ -81,14 +55,15 @@ class PlanWebTest extends TestCase
         $this->assertEquals(4, $plan->duration_weeks);
     }
 
-    public function test_workout_store_sets_week_number_and_order_index_redirects_to_plan_show(): void
+    public function test_workout_store_sets_week_number_and_order_index(): void
     {
         $partner = Partner::factory()->create();
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
         $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
-        $plan = Plan::factory()->partnerLibrary($partner)->create();
+        $member = User::factory()->create(['partner_id' => $partner->id]);
+        $plan = Plan::factory()->program()->create(['user_id' => $member->id, 'partner_id' => null]);
 
         $response = $this->actingAs($admin)->post(route('workouts.store', $plan), [
             'plan_id' => $plan->id,
@@ -97,10 +72,9 @@ class PlanWebTest extends TestCase
             'week_number' => 2,
         ]);
 
-        $response->assertRedirect(route('partner.programs.show', $plan));
-
         $workout = WorkoutTemplate::where('name', 'Week 2 Workout')->first();
         $this->assertNotNull($workout);
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan, 'workout' => $workout]));
         $this->assertEquals(2, $workout->week_number);
         $this->assertEquals(0, $workout->order_index);
     }
@@ -139,7 +113,8 @@ class PlanWebTest extends TestCase
             'partner_id' => $partner->id,
         ]);
         $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
-        $plan = Plan::factory()->partnerLibrary($partner)->create();
+        $member = User::factory()->create(['partner_id' => $partner->id]);
+        $plan = Plan::factory()->program()->create(['user_id' => $member->id, 'partner_id' => null]);
 
         WorkoutTemplate::factory()->create([
             'plan_id' => $plan->id,
@@ -159,39 +134,11 @@ class PlanWebTest extends TestCase
             'week_number' => 3,
         ]);
 
-        $response->assertRedirect(route('partner.programs.show', $plan));
-
         $workout = WorkoutTemplate::where('name', 'Third in week 3')->first();
         $this->assertNotNull($workout);
+        $response->assertRedirect(route('plans.index', ['user' => $member, 'plan' => $plan, 'workout' => $workout]));
         $this->assertEquals(3, $workout->week_number);
         $this->assertEquals(2, $workout->order_index);
-    }
-
-    public function test_library_plan_creation_with_cover_image_stores_file(): void
-    {
-        Storage::fake();
-        $partner = Partner::factory()->create();
-        $admin = User::factory()->create([
-            'partner_id' => $partner->id,
-        ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
-
-        $file = UploadedFile::fake()->image('cover.jpg', 800, 600);
-
-        $response = $this->actingAs($admin)->post(route('partner.programs.store'), [
-            'name' => 'Program with Cover',
-            'description' => 'Has a cover image',
-            'type' => 'program',
-            'duration_weeks' => 4,
-            'cover_image' => $file,
-        ]);
-
-        $response->assertRedirect(route('partner.programs.index'));
-        $plan = Plan::where('name', 'Program with Cover')->first();
-        $this->assertNotNull($plan);
-        $this->assertNotNull($plan->cover_image);
-        $this->assertStringStartsWith("{$partner->slug}/plans/cover-images/", $plan->cover_image);
-        Storage::assertExists($plan->cover_image);
     }
 
     public function test_user_plan_creation_with_cover_image_stores_file(): void

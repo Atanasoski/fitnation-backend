@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Category;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\Plan;
-use App\Models\Role;
 use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
@@ -78,32 +76,6 @@ class ArchivedExerciseVisibilityTest extends TestCase
         $this->assertSame([$this->live->id], $partner->exercises()->pluck('workout_exercises.id')->all());
     }
 
-    public function test_the_library_workout_exercise_picker_leaves_out_archived_exercises(): void
-    {
-        // A user's plan picks in the outline (PlanOutlineWorkoutsTest).
-        $plan = Plan::factory()->partnerLibrary($this->partner)->create();
-        $workout = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
-
-        $this->actingAs($this->partnerAdmin())
-            ->get(route('workouts.show', $workout))
-            ->assertOk()
-            ->assertSee('Live Bench Press')
-            ->assertDontSee('Retired Bench Press');
-    }
-
-    public function test_the_partner_library_leaves_out_archived_exercises(): void
-    {
-        $category = Category::factory()->create(['type' => 'workout']);
-        $this->live->update(['category_id' => $category->id]);
-        $this->archived->update(['category_id' => $category->id]);
-
-        $this->actingAs($this->partnerAdmin())
-            ->get(route('partner.exercises.index'))
-            ->assertOk()
-            ->assertSee('Live Bench Press')
-            ->assertDontSee('Retired Bench Press');
-    }
-
     public function test_an_archived_exercise_can_still_be_read_by_id(): void
     {
         $this->actingAs($this->member(), 'sanctum')
@@ -161,13 +133,5 @@ class ArchivedExerciseVisibilityTest extends TestCase
     private function member(): User
     {
         return User::factory()->entitled()->create(['partner_id' => $this->partner->id]);
-    }
-
-    private function partnerAdmin(): User
-    {
-        $admin = User::factory()->create(['partner_id' => $this->partner->id]);
-        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'partner_admin'], ['name' => 'Partner Admin'])->id);
-
-        return $admin;
     }
 }

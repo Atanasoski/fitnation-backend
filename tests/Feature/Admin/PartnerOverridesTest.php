@@ -61,6 +61,37 @@ class PartnerOverridesTest extends TestCase
         Storage::assertExists($imagePath);
     }
 
+    /**
+     * Ported from PartnerOverrideCharacterizationTest (the partner admin's own
+     * override page, deleted in spec 025): the same PartnerOverrides write
+     * through the super admin's route.
+     */
+    public function test_an_absent_description_keeps_the_stored_one_and_an_empty_one_clears_it(): void
+    {
+        $this->partner->exercises()->attach($this->exercise->id, [
+            'description' => 'Kept', 'image' => 'iron-gym/old.jpg', 'video' => null,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), [])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(['description' => 'Kept', 'image' => 'iron-gym/old.jpg', 'video' => null], $this->pivot());
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), ['description' => ''])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(['description' => null, 'image' => 'iron-gym/old.jpg', 'video' => null], $this->pivot());
+    }
+
+    public function test_writing_an_override_for_an_unlinked_exercise_links_it(): void
+    {
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), ['description' => 'New'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['description' => 'New', 'image' => null, 'video' => null], $this->pivot());
+    }
+
     public function test_remove_image_and_remove_video_clear_just_those_files(): void
     {
         [$imagePath, $videoPath] = $this->fullOverride();
@@ -145,9 +176,10 @@ class PartnerOverridesTest extends TestCase
     }
 
     /**
-     * Locks the rules the override write validates with (today
-     * UpdatePartnerExerciseRequest::overrideRules()), so moving them keeps
-     * every limit as it is.
+     * Locks the rules the override write validates with
+     * (PartnerOverrides::rules(), moved from
+     * UpdatePartnerExerciseRequest::overrideRules() in spec 025), so every
+     * limit stays as it is.
      *
      * @return array<string, array{string, \Closure(): mixed}>
      */
@@ -244,6 +276,18 @@ class PartnerOverridesTest extends TestCase
         ]);
 
         return [$imagePath, $videoPath];
+    }
+
+    /**
+     * The partner's override row on the exercise, or null when not linked.
+     *
+     * @return array{description: ?string, image: ?string, video: ?string}|null
+     */
+    private function pivot(): ?array
+    {
+        $pivot = $this->partner->exercises()->whereKey($this->exercise->id)->first()?->pivot;
+
+        return $pivot ? ['description' => $pivot->description, 'image' => $pivot->image, 'video' => $pivot->video] : null;
     }
 
     private function isLinked(): bool

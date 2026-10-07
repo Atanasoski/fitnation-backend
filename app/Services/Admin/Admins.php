@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 /**
- * Who can sign in to the admin panels: super admins (role `admin`) and
- * partner admins (role `partner_admin`, scoped to their users.partner_id by
- * PartnerPolicy), and granting or revoking either role.
+ * The staff roles: super admins (role `admin`), who sign in to the web panel,
+ * and partner admins (role `partner_admin`), dormant since spec 025: no web
+ * login, kept so partner dashboard access can come back. Lists both and
+ * revokes either; grants super admin only.
  *
  * The role_user row's timestamps are the record of a grant: no Admin Change
  * is written (Admin Change stays two kinds, CONTEXT.md). Each grant and
@@ -21,8 +22,8 @@ use InvalidArgumentException;
  *
  * A granted user becomes staff, so User::appUsers() drops them from every
  * app-user count. Finding the user (an existing, non-deleted account by exact
- * email) and requiring a partner for a partner admin belong to the HTTP
- * request; this module applies a change it is given.
+ * email) belongs to the HTTP request; this module applies a change it is
+ * given.
  */
 final class Admins
 {
@@ -30,11 +31,14 @@ final class Admins
 
     public const PARTNER_ADMIN = 'partner_admin';
 
-    /** Role slug => label, in list order. */
+    /** Role slug => label, in list order: what the list shows and revoke accepts. */
     public const ROLES = [
         self::SUPER_ADMIN => 'Super admin',
         self::PARTNER_ADMIN => 'Partner admin',
     ];
+
+    /** The roles grant() accepts. */
+    public const GRANTABLE = [self::SUPER_ADMIN];
 
     /**
      * Every non-deleted super admin and partner admin, one row per role held:
@@ -78,33 +82,24 @@ final class Admins
     }
 
     /**
-     * Grant $role to $user. A partner admin needs $partner, and it becomes
-     * the user's partner. Returns false, changing nothing, when the user
-     * already has the role.
+     * Grant $role (one of GRANTABLE) to $user. Returns false, changing
+     * nothing, when the user already has the role.
      */
-    public static function grant(User $user, string $role, ?Partner $partner, User $by): bool
+    public static function grant(User $user, string $role, User $by): bool
     {
-        if ($role === self::PARTNER_ADMIN && $partner === null) {
-            throw new InvalidArgumentException('A partner admin needs a partner.');
+        if (! in_array($role, self::GRANTABLE, true)) {
+            throw new InvalidArgumentException("The {$role} role cannot be granted.");
         }
 
         if ($user->hasRole($role)) {
             return false;
         }
 
-        DB::transaction(function () use ($user, $role, $partner) {
-            if ($role === self::PARTNER_ADMIN) {
-                $user->forceFill(['partner_id' => $partner->getKey()])->save();
-                $user->unsetRelation('partner');
-            }
-
-            $user->roles()->attach(self::role($role)->getKey());
-        });
+        $user->roles()->attach(self::role($role)->getKey());
 
         Log::info('Admin role granted', [
             'role' => $role,
             'user_id' => $user->getKey(),
-            'partner_id' => $role === self::PARTNER_ADMIN ? $partner->getKey() : null,
             'by_user_id' => $by->getKey(),
         ]);
 

@@ -7,7 +7,7 @@
     <header class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:px-6">
         <div>
             <h2 class="font-display text-base font-semibold text-gray-800 dark:text-white/90">Admins</h2>
-            <p class="text-theme-xs text-gray-500 dark:text-gray-400">Who can sign in to this panel or a partner panel.</p>
+            <p class="text-theme-xs text-gray-500 dark:text-gray-400">Who holds a staff role. Only super admins sign in to this panel.</p>
         </div>
         <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-theme-xs font-medium text-gray-700 dark:bg-white/5 dark:text-gray-300">
             {{ count($admins) }}
@@ -56,28 +56,18 @@
         </table>
     </div>
 
-    <form method="POST" action="{{ route('admin.system.admins.store') }}" x-data="{ role: @js(old('role', Admins::SUPER_ADMIN)) }"
-        onsubmit="return confirm('Grant this role? The user leaves every app-user count.')"
+    <form method="POST" action="{{ route('admin.system.admins.store') }}"
+        onsubmit="return confirm('Grant super admin? The user leaves every app-user count.')"
         class="border-t border-gray-100 px-5 py-3 dark:border-gray-800 sm:px-6">
         @csrf
         <div class="flex flex-wrap gap-2">
             <input type="email" name="email" required value="{{ old('email') }}" placeholder="Email of an existing user" aria-label="Email"
                 class="{{ $input }} min-w-0 flex-1">
-            <select name="role" x-model="role" aria-label="Role" class="{{ $input }}">
-                @foreach (Admins::ROLES as $slug => $label)
-                    <option value="{{ $slug }}">{{ $label }}</option>
-                @endforeach
-            </select>
-            <select name="partner_id" x-show="role === @js(Admins::PARTNER_ADMIN)" x-cloak :disabled="role !== @js(Admins::PARTNER_ADMIN)" :required="role === @js(Admins::PARTNER_ADMIN)" aria-label="Partner" class="{{ $input }}">
-                <option value="">Choose a partner…</option>
-                @foreach ($partners as $partner)
-                    <option value="{{ $partner->id }}" @selected((int) old('partner_id') === $partner->id)>{{ $partner->name }}</option>
-                @endforeach
-            </select>
-            <button type="submit" class="h-9 rounded-lg bg-brand-500 px-3 text-sm font-medium text-white hover:bg-brand-600">Grant</button>
+            <input type="hidden" name="role" value="{{ Admins::SUPER_ADMIN }}">
+            <button type="submit" class="h-9 rounded-lg bg-brand-500 px-3 text-sm font-medium text-white hover:bg-brand-600">Grant super admin</button>
         </div>
         <p class="mt-2 text-theme-xs text-gray-500 dark:text-gray-400">
-            A granted user is staff: they leave every app-user count (Overview, Users, Insights). A partner admin is moved to the partner they manage.
+            A granted user is staff: they leave every app-user count (Overview, Users, Insights).
         </p>
     </form>
 </section>

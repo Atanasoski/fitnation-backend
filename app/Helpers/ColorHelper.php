@@ -34,29 +34,6 @@ class ColorHelper
     }
 
     /**
-     * Get light mode color palette array for display.
-     */
-    public static function getColorPalette(?PartnerIdentity $identity): array
-    {
-        $colors = self::processPartnerColors($identity);
-
-        return [
-            ['name' => 'Primary', 'value' => $colors['primary']],
-            ['name' => 'Secondary', 'value' => $colors['secondary']],
-            ['name' => 'Background', 'value' => $colors['background']],
-            ['name' => 'Card Background', 'value' => $colors['card_background']],
-            ['name' => 'Text Primary', 'value' => $colors['text_primary']],
-            ['name' => 'Text Secondary', 'value' => $colors['text_secondary']],
-            ['name' => 'Text On Primary', 'value' => $colors['text_on_primary']],
-            ['name' => 'Success', 'value' => $colors['success']],
-            ['name' => 'Warning', 'value' => $colors['warning']],
-            ['name' => 'Danger', 'value' => $colors['danger']],
-            ['name' => 'Accent', 'value' => $colors['accent']],
-            ['name' => 'Border', 'value' => $colors['border']],
-        ];
-    }
-
-    /**
      * Process partner identity dark-mode colors, keyed like processPartnerColors(),
      * with defaults from config.
      */

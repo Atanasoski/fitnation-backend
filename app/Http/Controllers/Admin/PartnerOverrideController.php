@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\UpdatePartnerExerciseRequest;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Services\Exercise\ExerciseGallery;
@@ -14,9 +13,8 @@ use Illuminate\Http\Request;
 /**
  * The super admin's hand on any partner's Partner Override, from the
  * exercise slide-over (spec 023, ticket 04): edit, clear, link and unlink.
- * Writes go through PartnerOverrides, the same module the partner admin's own
- * page uses. Every action returns to the gallery slice it came from (`back`)
- * with the exercise open again.
+ * Writes go through PartnerOverrides. Every action returns to the gallery
+ * slice it came from (`back`) with the exercise open again.
  */
 class PartnerOverrideController extends Controller
 {
@@ -24,9 +22,7 @@ class PartnerOverrideController extends Controller
 
     public function update(Request $request, Exercise $exercise, Partner $partner): RedirectResponse
     {
-        $changes = $request->validateWithBag('override', UpdatePartnerExerciseRequest::overrideRules() + [
-            'remove_image' => ['nullable', 'boolean'],
-        ]);
+        $changes = $request->validateWithBag('override', PartnerOverrides::rules());
 
         $this->overrides->write($partner, $exercise, $changes);
 

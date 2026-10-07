@@ -7,15 +7,15 @@ namespace Tests\Feature\Admin;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\WorkoutSession;
 use App\Models\WorkoutSplit;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Locks what the super-admin panel rebuild must not move: the partner admin's
- * dashboard and sidebar, and who can reach the existing /admin catalogue pages.
+ * Locks what the super-admin panel rebuild must not move: who can reach the
+ * existing /admin catalogue pages. (The partner admin's dashboard and sidebar
+ * went with spec 025.)
  */
 class AdminShellCharacterizationTest extends TestCase
 {
@@ -28,24 +28,11 @@ class AdminShellCharacterizationTest extends TestCase
         $this->seed(WorkoutSplitSeeder::class);
     }
 
-    public function test_partner_admin_dashboard_renders_their_partner_dashboard(): void
+    public function test_a_partner_admin_has_no_dashboard(): void
     {
         $this->actingAs($this->partnerAdmin())
             ->get('/dashboard')
-            ->assertOk()
-            ->assertViewIs('dashboard.partner');
-    }
-
-    public function test_partner_admin_sidebar_is_unchanged(): void
-    {
-        $html = $this->actingAs($this->partnerAdmin())->get('/dashboard')->getContent();
-
-        $this->assertSame([
-            ['Dashboard', '/dashboard'],
-            ['Users', '/users'],
-            ['Programs', '/partner/programs'],
-            ['Exercises', '/partner/exercises'],
-        ], $this->sidebarLinks($html));
+            ->assertForbidden();
     }
 
     public function test_existing_admin_catalogue_pages_render_for_an_admin(): void
@@ -82,25 +69,6 @@ class AdminShellCharacterizationTest extends TestCase
         $this->assertModelExists($split);
     }
 
-    public function test_partner_admin_dashboard_counts_and_lists_only_their_app_users(): void
-    {
-        $partner = Partner::factory()->create();
-        $partnerAdmin = $this->userWithRole('partner_admin', ['partner_id' => $partner->id]);
-        $this->userWithRole('admin', ['partner_id' => $partner->id]);
-        $active = User::factory()->create(['partner_id' => $partner->id]);
-        $idle = User::factory()->create(['partner_id' => $partner->id]);
-        User::factory()->create(['partner_id' => Partner::factory()->create()->id]);
-        WorkoutSession::factory()->create(['user_id' => $active->id, 'performed_at' => now()]);
-        WorkoutSession::factory()->create(['user_id' => $partnerAdmin->id, 'performed_at' => now()]);
-
-        $this->actingAs($partnerAdmin)->get('/dashboard')
-            ->assertOk()
-            ->assertViewHas('totalMembers', 2)
-            ->assertViewHas('activeMembersThisWeek', 1)
-            ->assertViewHas('topMembers', fn ($members) => $members->pluck('id')->all() === [$active->id])
-            ->assertViewHas('recentMembers', fn ($members) => $members->pluck('id')->sort()->values()->all() === collect([$active->id, $idle->id])->sort()->values()->all());
-    }
-
     private function partnerAdmin(): User
     {
         return $this->userWithRole('partner_admin', ['partner_id' => Partner::factory()->create()->id]);
@@ -115,21 +83,5 @@ class AdminShellCharacterizationTest extends TestCase
         $user->roles()->attach(Role::firstOrCreate(['slug' => $slug], ['name' => ucfirst($slug)])->id);
 
         return $user;
-    }
-
-    /**
-     * The sidebar's menu links as [label, href], top to bottom.
-     *
-     * @return list<array{0: string, 1: string}>
-     */
-    private function sidebarLinks(string $html): array
-    {
-        preg_match('#<aside id="sidebar".*?</aside>#s', $html, $aside);
-        preg_match_all('#<a href="([^"]*)" class="menu-(?:item|dropdown-item)[^"]*"[^>]*>(.*?)</a>#s', $aside[0] ?? '', $links, PREG_SET_ORDER);
-
-        return array_map(
-            fn (array $link) => [trim(preg_replace('/\s+/', ' ', strip_tags($link[2]))), $link[1]],
-            $links,
-        );
     }
 }

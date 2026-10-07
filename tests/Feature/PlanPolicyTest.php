@@ -120,18 +120,6 @@ class PlanPolicyTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_another_partners_admin_cannot_touch_a_library_programme(): void
-    {
-        $plan = Plan::factory()->partnerLibrary($this->gym)->create(['name' => 'Ours']);
-        $rival = $this->actor('rival_admin');
-
-        $this->actingAs($rival)->put(route('partner.programs.update', $plan), ['name' => 'Theirs', 'type' => 'program'])
-            ->assertForbidden();
-        $this->actingAs($rival)->delete(route('partner.programs.destroy', $plan))->assertForbidden();
-
-        $this->assertSame('Ours', $plan->fresh()->name);
-    }
-
     public function test_moving_a_workout_into_a_plan_the_actor_may_not_change_is_refused(): void
     {
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $this->memberPlan()->id]);

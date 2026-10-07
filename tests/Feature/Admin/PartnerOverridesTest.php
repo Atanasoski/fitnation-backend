@@ -11,6 +11,7 @@ use App\Services\PartnerExerciseFileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -125,6 +126,72 @@ class PartnerOverridesTest extends TestCase
 
         $this->assertFalse($this->isLinked());
         Storage::assertMissing([$imagePath, $videoPath]);
+    }
+
+    public function test_a_super_admin_uploads_a_partners_video(): void
+    {
+        $this->partner->exercises()->attach($this->exercise->id);
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), [
+                'video' => UploadedFile::fake()->create('own.mp4', 1024, 'video/mp4'),
+            ])
+            ->assertRedirect(route('exercises.index', ['edit' => $this->exercise->id]))
+            ->assertSessionHasNoErrors();
+
+        $videoPath = (new PartnerExerciseFileService)->getVideoPath($this->partner, $this->exercise, 'mp4');
+        $this->assertSame(Storage::url($videoPath), PartnerExerciseView::of($this->exercise->fresh(), $this->partner)->videoUrl);
+        Storage::assertExists($videoPath);
+    }
+
+    /**
+     * Locks the rules the override write validates with (today
+     * UpdatePartnerExerciseRequest::overrideRules()), so moving them keeps
+     * every limit as it is.
+     *
+     * @return array<string, array{string, \Closure(): mixed}>
+     */
+    public static function rejectedOverrides(): array
+    {
+        return [
+            'an image that is not an image' => ['image', fn () => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')],
+            'an image over 5 MB' => ['image', fn () => UploadedFile::fake()->image('huge.jpg')->size(5121)],
+            'a video of the wrong type' => ['video', fn () => UploadedFile::fake()->create('clip.mov', 10, 'video/quicktime')],
+            'a video over 50 MB' => ['video', fn () => UploadedFile::fake()->create('huge.mp4', 51201, 'video/mp4')],
+            'a description over 5000 characters' => ['description', fn () => str_repeat('a', 5001)],
+            'remove_video that is not a boolean' => ['remove_video', fn () => 'maybe'],
+            'remove_image that is not a boolean' => ['remove_image', fn () => 'maybe'],
+        ];
+    }
+
+    #[DataProvider('rejectedOverrides')]
+    public function test_an_override_outside_the_rules_is_refused_and_changes_nothing(string $field, \Closure $value): void
+    {
+        $this->partner->exercises()->attach($this->exercise->id);
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), [$field => $value()])
+            ->assertSessionHasErrors($field, null, 'override');
+
+        $view = PartnerExerciseView::of($this->exercise->fresh(), $this->partner);
+        $this->assertFalse($view->hasDescriptionOverride || $view->hasImageOverride || $view->hasVideoOverride);
+        $this->assertSame([], Storage::allFiles($this->partner->slug));
+    }
+
+    public function test_files_at_the_size_limits_are_accepted(): void
+    {
+        $this->partner->exercises()->attach($this->exercise->id);
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.partners.update', [$this->exercise, $this->partner]), [
+                'description' => str_repeat('a', 5000),
+                'image' => UploadedFile::fake()->image('max.webp')->size(5120),
+                'video' => UploadedFile::fake()->create('max.webm', 51200, 'video/webm'),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $view = PartnerExerciseView::of($this->exercise->fresh(), $this->partner);
+        $this->assertTrue($view->hasDescriptionOverride && $view->hasImageOverride && $view->hasVideoOverride);
     }
 
     public function test_the_slide_over_lists_linked_partners_and_offers_the_others(): void

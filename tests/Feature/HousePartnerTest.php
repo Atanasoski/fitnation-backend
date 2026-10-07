@@ -35,18 +35,6 @@ class HousePartnerTest extends TestCase
         $this->assertFalse(Partner::factory()->create()->isHouse());
     }
 
-    public function test_web_registration_without_an_invitation_lands_on_the_house_partner(): void
-    {
-        $this->post('/register', [
-            'name' => 'Web Person',
-            'email' => 'web@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ])->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertSame($this->house->id, User::where('email', 'web@example.com')->firstOrFail()->partner_id);
-    }
-
     public function test_social_sign_in_without_a_partner_lands_on_the_configured_house_partner(): void
     {
         $this->fakeGoogleKeys();

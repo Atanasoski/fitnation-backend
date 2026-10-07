@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Partner;
 use App\Models\User;
-use App\Models\UserInvitation;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -12,8 +11,8 @@ use Tests\TestCase;
 
 /**
  * Locks how a new account gets its partner today, before the House Partner
- * comes from config: social sign-in falls back to partner 1, web registration
- * takes the invitation's partner or none (now the House Partner, ticket 022/02).
+ * comes from config: social sign-in falls back to partner 1. (Web
+ * registration was deleted in spec 025 ticket 03.)
  */
 class HousePartnerCharacterizationTest extends TestCase
 {
@@ -88,41 +87,5 @@ class HousePartnerCharacterizationTest extends TestCase
         $gym = Partner::factory()->create();
 
         $this->assertSame($gym->id, $this->socialSignIn(['partner_id' => $gym->id])->partner_id);
-    }
-
-    public function test_web_registration_without_an_invitation_lands_on_partner_one(): void
-    {
-        Partner::factory()->create(['id' => 1]);
-
-        $this->post('/register', [
-            'name' => 'Web Person',
-            'email' => 'web@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ])->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertSame(1, User::where('email', 'web@example.com')->firstOrFail()->partner_id);
-    }
-
-    public function test_web_registration_with_an_invitation_takes_the_invitations_partner(): void
-    {
-        $gym = Partner::factory()->create();
-        $invitation = UserInvitation::create([
-            'partner_id' => $gym->id,
-            'invited_by' => User::factory()->create(['partner_id' => $gym->id])->id,
-            'email' => 'invited@example.com',
-            'token' => UserInvitation::generateToken(),
-            'expires_at' => now()->addWeek(),
-        ]);
-
-        $this->post('/register', [
-            'name' => 'Invited Person',
-            'email' => 'invited@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-            'invitation_token' => $invitation->token,
-        ])->assertRedirect(route('registration.success'));
-
-        $this->assertSame($gym->id, User::where('email', 'invited@example.com')->firstOrFail()->partner_id);
     }
 }

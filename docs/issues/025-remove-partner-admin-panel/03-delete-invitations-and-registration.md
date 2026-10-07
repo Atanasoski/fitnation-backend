@@ -16,11 +16,13 @@
 
 **Blocked by:** 02 (both touch the old `UserController` and `routes/web.php`)
 
-**Status:** open
+**Status:** back-end done; front-end PR and production-table confirmation pending
 
-- [ ] Every deleted route (web and API) is added to 02's 404 test.
-- [ ] The super-admin member page still renders for a user who was invited before (no Invitation section, no error).
-- [ ] `user_invitations` does not exist after `migrate`; `migrate:rollback` of the new migration recreates it.
-- [ ] Tests for deleted code removed or narrowed deliberately; 01's tests pass unchanged.
-- [ ] `grep -rni "invitation\|register" app resources routes config` shows nothing left over (excluding unrelated hits such as service-provider `register()`).
-- [ ] `composer test` green; `pint` on changed files.
+- [x] Every deleted route (web and API) is added to 02's 404 test.
+- [x] The super-admin member page still renders for a user who was invited before (no Invitation section, no error).
+- [x] `user_invitations` does not exist after `migrate`; `migrate:rollback` of the new migration recreates it.
+- [x] Tests for deleted code removed or narrowed deliberately; 01's tests pass unchanged.
+- [x] `grep -rni "invitation\|register" app resources routes config` shows nothing left over (excluding unrelated hits such as service-provider `register()`).
+- [x] `composer test` green; `pint` on changed files.
+- [ ] Front-end PR removes `validateInvitation` and its types from `packages/shared` (`front-end/packages/shared/src/api.ts` still calls `/invitations/{token}`, now 404).
+- [ ] User confirms the production `user_invitations` table holds nothing worth keeping.

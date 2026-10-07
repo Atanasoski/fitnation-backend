@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
-use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MuscleGroupController;
 use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\OnboardingController;
@@ -31,9 +30,6 @@ Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword
     ->middleware('throttle:6,1');
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
     ->middleware('throttle:6,1');
-
-// Public invitation validation
-Route::get('/invitations/{token}', [InvitationController::class, 'show']);
 
 Route::get('/partners', [PartnerController::class, 'activeList'])
     ->middleware('throttle:30,1');

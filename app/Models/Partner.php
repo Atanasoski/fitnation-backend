@@ -134,14 +134,6 @@ class Partner extends Model
     }
 
     /**
-     * Get the user invitations for the partner.
-     */
-    public function invitations(): HasMany
-    {
-        return $this->hasMany(UserInvitation::class);
-    }
-
-    /**
      * Get the plans for the partner (library plans).
      */
     public function plans(): HasMany

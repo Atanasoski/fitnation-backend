@@ -126,6 +126,32 @@ class PartnerManagementCharacterizationTest extends TestCase
         $this->assertTrue($partner->is_active);
     }
 
+    public function test_an_admin_deletes_a_partner_without_users_and_returns_to_the_partners_index(): void
+    {
+        $partner = Partner::factory()->create(['slug' => 'iron-temple']);
+        $partner->identity()->create(['primary_color' => '#112233', 'secondary_color' => '#445566']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->delete('/partners/iron-temple')
+            ->assertRedirect(route('partners.index'))
+            ->assertSessionHas('success', 'Partner deleted successfully.');
+
+        $this->assertModelMissing($partner);
+    }
+
+    public function test_an_admin_cannot_delete_a_partner_with_users(): void
+    {
+        $partner = Partner::factory()->create(['slug' => 'iron-temple']);
+        User::factory()->create(['partner_id' => $partner->id]);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->delete('/partners/iron-temple')
+            ->assertRedirect(route('partners.index'))
+            ->assertSessionHas('error', 'Cannot delete partner with existing users. Please remove all users first.');
+
+        $this->assertModelExists($partner);
+    }
+
     public function test_a_partner_admin_sees_their_own_partner_but_not_another(): void
     {
         $own = Partner::factory()->create(['name' => 'Iron Temple', 'slug' => 'iron-temple']);

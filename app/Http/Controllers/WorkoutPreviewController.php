@@ -28,8 +28,6 @@ class WorkoutPreviewController extends Controller
      */
     public function index(): View
     {
-        abort_unless(auth()->user()->hasRole('admin'), 403);
-
         $partners = Partner::orderBy('name')->get();
 
         return view('admin.workout-preview.index', compact('partners'));
@@ -40,8 +38,6 @@ class WorkoutPreviewController extends Controller
      */
     public function preview(Request $request): View
     {
-        abort_unless(auth()->user()->hasRole('admin'), 403);
-
         $validated = $request->validate([
             'fitness_goal' => ['required', 'string', 'in:fat_loss,muscle_gain,strength,general_fitness'],
             'training_experience' => ['required', 'string', 'in:beginner,intermediate,advanced'],

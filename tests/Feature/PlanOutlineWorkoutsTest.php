@@ -16,7 +16,8 @@ use Tests\TestCase;
 /**
  * The plan outline's workout and exercise-row editors (023/07): every write
  * goes through a resourceful route guarded by PlanPolicy and reopens the
- * outline on the node it touched.
+ * outline on the node it touched. Super admins only since 025/02 (the
+ * 'admin' gate); PlanPolicy's dormant partner-admin rules are in PlanPolicyTest.
  */
 class PlanOutlineWorkoutsTest extends TestCase
 {
@@ -36,8 +37,8 @@ class PlanOutlineWorkoutsTest extends TestCase
 
         $this->gym = Partner::factory()->create();
         $this->member = User::factory()->create(['partner_id' => $this->gym->id]);
-        $this->admin = User::factory()->create(['partner_id' => $this->gym->id]);
-        $this->admin->roles()->attach(Role::firstOrCreate(['slug' => 'partner_admin'], ['name' => 'Partner Admin'])->id);
+        $this->admin = User::factory()->create();
+        $this->admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id);
         $this->plan = Plan::factory()->program()->create(['user_id' => $this->member->id, 'partner_id' => null]);
     }
 

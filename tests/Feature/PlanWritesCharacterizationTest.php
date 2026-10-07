@@ -23,7 +23,9 @@ use Tests\TestCase;
  *
  * Since 023/07 a member plan's workout and row writes reopen the plan outline
  * on the node they touched. Since spec 025 a library plan has no web writes
- * (OldPlanPagesTest); its cases here were dropped.
+ * (OldPlanPagesTest); its cases here were dropped. The web writes are
+ * super-admin only since 025/02, so a super admin now does them; the partner
+ * admin's own-member rule is dormant and lives in PlanPolicyTest's matrix.
  */
 class PlanWritesCharacterizationTest extends TestCase
 {
@@ -31,7 +33,7 @@ class PlanWritesCharacterizationTest extends TestCase
 
     private Partner $partner;
 
-    private User $partnerAdmin;
+    private User $superAdmin;
 
     private User $member;
 
@@ -40,9 +42,9 @@ class PlanWritesCharacterizationTest extends TestCase
         parent::setUp();
 
         $this->partner = Partner::factory()->create();
-        $this->partnerAdmin = User::factory()->create(['partner_id' => $this->partner->id]);
-        $this->partnerAdmin->roles()->attach(
-            Role::firstOrCreate(['slug' => 'partner_admin'], ['name' => 'Partner Admin'])->id
+        $this->superAdmin = User::factory()->create();
+        $this->superAdmin->roles()->attach(
+            Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id
         );
         $this->member = User::factory()->entitled()->create(['partner_id' => $this->partner->id]);
     }
@@ -57,11 +59,11 @@ class PlanWritesCharacterizationTest extends TestCase
     }
 
     #[DataProvider('plans')]
-    public function test_own_partner_admin_updates_a_workout(string $kind): void
+    public function test_a_super_admin_updates_a_workout(string $kind): void
     {
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $this->plan($kind)->id, 'name' => 'Old']);
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->put(route('workouts.update', $workout), ['name' => 'Renamed'])
             ->assertRedirect(PlanOutline::url($workout));
 
@@ -69,12 +71,12 @@ class PlanWritesCharacterizationTest extends TestCase
     }
 
     #[DataProvider('plans')]
-    public function test_own_partner_admin_deletes_a_workout(string $kind): void
+    public function test_a_super_admin_deletes_a_workout(string $kind): void
     {
         $plan = $this->plan($kind);
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->delete(route('workouts.destroy', $workout))
             ->assertRedirect(PlanOutline::url($plan));
 
@@ -82,14 +84,14 @@ class PlanWritesCharacterizationTest extends TestCase
     }
 
     #[DataProvider('plans')]
-    public function test_own_partner_admin_adds_an_exercise_row(string $kind): void
+    public function test_a_super_admin_adds_an_exercise_row(string $kind): void
     {
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $this->plan($kind)->id]);
         // Since 023/07 the exercise must come from the partner's catalogue.
         $exercise = Exercise::factory()->create();
         $exercise->partners()->attach($this->partner);
 
-        $response = $this->actingAs($this->partnerAdmin)
+        $response = $this->actingAs($this->superAdmin)
             ->post(route('workout-exercises.store', $workout), ['exercise_id' => $exercise->id, 'target_sets' => 5]);
 
         $row = $workout->workoutTemplateExercises()->sole();
@@ -99,11 +101,11 @@ class PlanWritesCharacterizationTest extends TestCase
     }
 
     #[DataProvider('plans')]
-    public function test_own_partner_admin_updates_an_exercise_row(string $kind): void
+    public function test_a_super_admin_updates_an_exercise_row(string $kind): void
     {
         $row = $this->row($this->plan($kind));
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), [
                 'target_sets' => 6, 'min_target_reps' => 3, 'max_target_reps' => 5,
                 'target_weight' => 80, 'rest_seconds' => 180,
@@ -123,7 +125,7 @@ class PlanWritesCharacterizationTest extends TestCase
         $row = $this->row($this->plan('member'));
         $row->update(['target_sets' => 5, 'min_target_reps' => 4, 'max_target_reps' => 6, 'target_weight' => 100, 'rest_seconds' => 200]);
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), ['target_sets' => 4])
             ->assertRedirect(PlanOutline::url($row));
 
@@ -144,7 +146,7 @@ class PlanWritesCharacterizationTest extends TestCase
         $this->member->profile->update(['unit_system' => UnitSystem::Imperial]);
         $row = $this->row($this->plan('member'));
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->put(route('workout-exercises.update', [$row->workout_template_id, $row]), [
                 'target_sets' => 3, 'min_target_reps' => 8, 'max_target_reps' => 12,
                 'target_weight' => 100, 'rest_seconds' => 120,
@@ -154,11 +156,11 @@ class PlanWritesCharacterizationTest extends TestCase
     }
 
     #[DataProvider('plans')]
-    public function test_own_partner_admin_removes_an_exercise_row(string $kind): void
+    public function test_a_super_admin_removes_an_exercise_row(string $kind): void
     {
         $row = $this->row($this->plan($kind));
 
-        $this->actingAs($this->partnerAdmin)
+        $this->actingAs($this->superAdmin)
             ->delete(route('workout-exercises.destroy', [$row->workout_template_id, $row]))
             ->assertRedirect(PlanOutline::url($row->workoutTemplate));
 

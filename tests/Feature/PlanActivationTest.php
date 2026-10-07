@@ -87,14 +87,15 @@ class PlanActivationTest extends TestCase
         $this->assertFalse($routine->fresh()->is_active);
     }
 
-    public function test_a_partner_admin_activating_a_users_program_leaves_their_routine_alone(): void
+    /**
+     * Staff activation on the plan outline, which is super-admin only since
+     * 025/02 (it was a partner admin before).
+     */
+    public function test_a_super_admin_activating_a_users_program_leaves_their_routine_alone(): void
     {
         $partner = Partner::factory()->create();
-        $admin = User::factory()->entitled()->create(['partner_id' => $partner->id]);
-        $admin->roles()->attach(Role::firstOrCreate(
-            ['slug' => 'partner_admin'],
-            ['name' => 'Partner Admin', 'description' => 'Can manage partner organization']
-        ));
+        $admin = User::factory()->entitled()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']));
         $member = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $routine = Plan::factory()->create([

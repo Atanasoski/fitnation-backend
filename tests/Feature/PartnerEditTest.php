@@ -96,19 +96,43 @@ class PartnerEditTest extends TestCase
         $this->assertNull($identity->font_family);
     }
 
-    public function test_a_partner_admin_edits_only_their_own_partner(): void
+    /**
+     * Partner create/edit is super-admin only since 025/02: a partner admin
+     * who still holds a session is stopped by the 'admin' gate, even on their
+     * own partner.
+     */
+    public function test_a_partner_admin_cannot_edit_any_partner_on_the_web(): void
     {
-        $own = Partner::factory()->create(['slug' => 'iron-temple']);
-        Partner::factory()->create(['slug' => 'lift-club']);
+        $own = Partner::factory()->create(['slug' => 'iron-temple', 'name' => 'Iron Temple']);
         $partnerAdmin = $this->userWithRole('partner_admin', ['partner_id' => $own->id]);
 
-        $this->actingAs($partnerAdmin)->get('/partners/iron-temple/edit')->assertOk()->assertSee('name="primary_color_dark"', escape: false);
-        $this->actingAs($partnerAdmin)->put('/partners/iron-temple', $this->form(['name' => 'Iron Temple Gym']))->assertSessionHasNoErrors();
-        $this->assertSame('Iron Temple Gym', $own->refresh()->name);
-
-        $this->actingAs($partnerAdmin)->get('/partners/lift-club/edit')->assertForbidden();
-        $this->actingAs($partnerAdmin)->put('/partners/lift-club', $this->form(['slug' => 'lift-club']))->assertForbidden();
+        $this->actingAs($partnerAdmin)->get('/partners/iron-temple/edit')->assertForbidden();
+        $this->actingAs($partnerAdmin)->put('/partners/iron-temple', $this->form(['name' => 'Iron Temple Gym']))->assertForbidden();
+        $this->actingAs($partnerAdmin)->delete('/partners/iron-temple')->assertForbidden();
         $this->actingAs($partnerAdmin)->get('/partners/create')->assertForbidden();
+        $this->actingAs($partnerAdmin)->post('/partners', $this->form(['slug' => 'new-gym']))->assertForbidden();
+
+        $this->assertSame('Iron Temple', $own->refresh()->name);
+        $this->assertModelExists($own);
+        $this->assertFalse(Partner::where('slug', 'new-gym')->exists());
+    }
+
+    /**
+     * PartnerPolicy keeps its partner-admin rule (spec 025 "Kept"), dormant
+     * until a partner panel returns: their own partner only, never create.
+     */
+    public function test_the_partner_policy_still_scopes_a_partner_admin_to_their_own_partner(): void
+    {
+        $own = Partner::factory()->create(['slug' => 'iron-temple']);
+        $other = Partner::factory()->create(['slug' => 'lift-club']);
+        $partnerAdmin = $this->userWithRole('partner_admin', ['partner_id' => $own->id]);
+
+        $this->assertTrue($partnerAdmin->can('update', $own));
+        $this->assertTrue($partnerAdmin->can('view', $own));
+        $this->assertFalse($partnerAdmin->can('update', $other));
+        $this->assertFalse($partnerAdmin->can('view', $other));
+        $this->assertFalse($partnerAdmin->can('create', Partner::class));
+        $this->assertFalse($partnerAdmin->can('delete', $own));
     }
 
     public function test_a_plain_user_is_forbidden(): void

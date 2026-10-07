@@ -95,39 +95,45 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Partner create and edit (the list and page are /admin/partners).
-    Route::resource('partners', \App\Http\Controllers\PartnerController::class)->except(['index', 'show']);
+    // Partner create/edit and the plan outline are super-admin only (025/02):
+    // the 'admin' gate runs first, so a partner admin who still holds a
+    // session gets a 403 here. PartnerPolicy and PlanPolicy keep their
+    // partner-admin rules, dormant until a partner panel returns.
+    Route::middleware('admin')->group(function () {
+        // Partner create and edit (the list and page are /admin/partners).
+        Route::resource('partners', \App\Http\Controllers\PartnerController::class)->except(['index', 'show']);
 
-    // A user's plans: the plan outline (023/06). Every plan, workout and
-    // workout-exercise route is guarded by PlanPolicy. A library plan (no
-    // user) has no web pages: the routes that take a plan or workout 404 for
-    // it (EnsureUserPlan).
-    Route::get('/users/{user}/plans', [UserPlanController::class, 'index'])->can('manageFor', [Plan::class, 'user'])->name('plans.index');
-    Route::get('/users/{user}/plans/create', [UserPlanController::class, 'create'])->can('manageFor', [Plan::class, 'user'])->name('plans.create');
-    Route::post('/users/{user}/plans', [UserPlanController::class, 'store'])->can('manageFor', [Plan::class, 'user'])->name('plans.store');
-    Route::middleware('user-plan')->group(function () {
-        Route::get('/plans/{plan}', [UserPlanController::class, 'show'])->can('manage', 'plan')->name('plans.show');
-        Route::get('/plans/{plan}/edit', [UserPlanController::class, 'edit'])->can('manage', 'plan')->name('plans.edit');
-        Route::put('/plans/{plan}', [UserPlanController::class, 'update'])->can('manage', 'plan')->name('plans.update');
-        Route::post('/plans/{plan}/activate', [UserPlanController::class, 'activate'])->can('manage', 'plan')->name('plans.activate');
-        Route::delete('/plans/{plan}', [UserPlanController::class, 'destroy'])->can('manage', 'plan')->name('plans.destroy');
+        // A user's plans: the plan outline (023/06). Every plan, workout and
+        // workout-exercise route is guarded by PlanPolicy. A library plan (no
+        // user) has no web pages: the routes that take a plan or workout 404 for
+        // it (EnsureUserPlan).
+        Route::get('/users/{user}/plans', [UserPlanController::class, 'index'])->can('manageFor', [Plan::class, 'user'])->name('plans.index');
+        Route::get('/users/{user}/plans/create', [UserPlanController::class, 'create'])->can('manageFor', [Plan::class, 'user'])->name('plans.create');
+        Route::post('/users/{user}/plans', [UserPlanController::class, 'store'])->can('manageFor', [Plan::class, 'user'])->name('plans.store');
+        Route::middleware('user-plan')->group(function () {
+            Route::get('/plans/{plan}', [UserPlanController::class, 'show'])->can('manage', 'plan')->name('plans.show');
+            Route::get('/plans/{plan}/edit', [UserPlanController::class, 'edit'])->can('manage', 'plan')->name('plans.edit');
+            Route::put('/plans/{plan}', [UserPlanController::class, 'update'])->can('manage', 'plan')->name('plans.update');
+            Route::post('/plans/{plan}/activate', [UserPlanController::class, 'activate'])->can('manage', 'plan')->name('plans.activate');
+            Route::delete('/plans/{plan}', [UserPlanController::class, 'destroy'])->can('manage', 'plan')->name('plans.destroy');
 
-        // Workout Templates Management
-        Route::get('/plans/{plan}/workouts/create', [\App\Http\Controllers\WorkoutTemplateController::class, 'create'])->can('manage', 'plan')->name('workouts.create');
-        Route::post('/plans/{plan}/workouts', [\App\Http\Controllers\WorkoutTemplateController::class, 'store'])->can('manage', 'plan')->name('workouts.store');
-        Route::get('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'show'])->can('manage', 'workoutTemplate')->name('workouts.show');
-        Route::get('/workouts/{workoutTemplate}/edit', [\App\Http\Controllers\WorkoutTemplateController::class, 'edit'])->can('manage', 'workoutTemplate')->name('workouts.edit');
-        Route::put('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'update'])->can('manage', 'workoutTemplate')->name('workouts.update');
-        Route::delete('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'destroy'])->can('manage', 'workoutTemplate')->name('workouts.destroy');
+            // Workout Templates Management
+            Route::get('/plans/{plan}/workouts/create', [\App\Http\Controllers\WorkoutTemplateController::class, 'create'])->can('manage', 'plan')->name('workouts.create');
+            Route::post('/plans/{plan}/workouts', [\App\Http\Controllers\WorkoutTemplateController::class, 'store'])->can('manage', 'plan')->name('workouts.store');
+            Route::get('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'show'])->can('manage', 'workoutTemplate')->name('workouts.show');
+            Route::get('/workouts/{workoutTemplate}/edit', [\App\Http\Controllers\WorkoutTemplateController::class, 'edit'])->can('manage', 'workoutTemplate')->name('workouts.edit');
+            Route::put('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'update'])->can('manage', 'workoutTemplate')->name('workouts.update');
+            Route::delete('/workouts/{workoutTemplate}', [\App\Http\Controllers\WorkoutTemplateController::class, 'destroy'])->can('manage', 'workoutTemplate')->name('workouts.destroy');
 
-        // Workout Template Exercises Management
-        Route::get('/workouts/{workoutTemplate}/exercises/create', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'create'])->can('manage', 'workoutTemplate')->name('workout-exercises.create');
-        Route::post('/workouts/{workoutTemplate}/exercises', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'store'])->can('manage', 'workoutTemplate')->name('workout-exercises.store');
-        Route::get('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/edit', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'edit'])->can('manage', 'workoutTemplate')->name('workout-exercises.edit');
-        Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'update'])->can('manage', 'workoutTemplate')->name('workout-exercises.update');
-        Route::delete('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'destroy'])->can('manage', 'workoutTemplate')->name('workout-exercises.destroy');
-        Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/swap', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'swap'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.swap');
-        Route::post('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/move', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'move'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.move');
+            // Workout Template Exercises Management
+            Route::get('/workouts/{workoutTemplate}/exercises/create', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'create'])->can('manage', 'workoutTemplate')->name('workout-exercises.create');
+            Route::post('/workouts/{workoutTemplate}/exercises', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'store'])->can('manage', 'workoutTemplate')->name('workout-exercises.store');
+            Route::get('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/edit', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'edit'])->can('manage', 'workoutTemplate')->name('workout-exercises.edit');
+            Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'update'])->can('manage', 'workoutTemplate')->name('workout-exercises.update');
+            Route::delete('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'destroy'])->can('manage', 'workoutTemplate')->name('workout-exercises.destroy');
+            Route::put('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/swap', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'swap'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.swap');
+            Route::post('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/move', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'move'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.move');
+        });
     });
 
     // User Invitations Management

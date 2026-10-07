@@ -120,22 +120,48 @@ class PlanPolicyTest extends TestCase
         ])->assertForbidden();
     }
 
+    /**
+     * Over HTTP since 025/02 the actor is a super admin (the web writes are
+     * super-admin only); the plan they may not change is a staff account's.
+     * A partner admin's own-member scope is the matrix above.
+     */
     public function test_moving_a_workout_into_a_plan_the_actor_may_not_change_is_refused(): void
     {
         $workout = WorkoutTemplate::factory()->create(['plan_id' => $this->memberPlan()->id]);
-        $rivalMember = User::factory()->create(['partner_id' => $this->rival->id]);
-        $foreign = Plan::factory()->program()->create(['user_id' => $rivalMember->id, 'partner_id' => null]);
+        $staff = $this->withRole('partner_admin', ['partner_id' => $this->gym->id]);
+        $foreign = Plan::factory()->program()->create(['user_id' => $staff->id, 'partner_id' => null]);
         $sameMembersOther = $this->memberPlan();
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->put(route('workouts.update', $workout), ['plan_id' => $foreign->id, 'name' => 'Moved'])
             ->assertSessionHasErrors('plan_id');
         $this->assertSame($workout->plan_id, $workout->fresh()->plan_id);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->put(route('workouts.update', $workout), ['plan_id' => $sameMembersOther->id, 'name' => 'Moved'])
             ->assertSessionHasNoErrors();
         $this->assertSame($sameMembersOther->id, $workout->fresh()->plan_id);
+    }
+
+    /**
+     * The partner-admin rules are dormant on the web since 025/02: the
+     * 'admin' gate refuses a partner admin before PlanPolicy is asked, even
+     * for their own partner's member.
+     */
+    public function test_a_partner_admin_is_refused_by_the_admin_gate_even_for_their_own_member(): void
+    {
+        $plan = $this->memberPlan();
+        $workout = WorkoutTemplate::factory()->create(['plan_id' => $plan->id, 'name' => 'Theirs']);
+        $ownAdmin = $this->actor('own_admin');
+        $this->assertTrue($ownAdmin->can('manage', $plan));
+
+        $this->actingAs($ownAdmin)->get(route('plans.index', $this->member))->assertForbidden();
+        $this->actingAs($ownAdmin)->post(route('plans.store', $this->member), ['name' => 'X', 'type' => 'routine'])->assertForbidden();
+        $this->actingAs($ownAdmin)->get(route('plans.show', $plan))->assertForbidden();
+        $this->actingAs($ownAdmin)->put(route('workouts.update', $workout), ['name' => 'Mine'])->assertForbidden();
+
+        $this->assertSame('Theirs', $workout->fresh()->name);
+        $this->assertSame(1, $this->member->plans()->count());
     }
 
     /**

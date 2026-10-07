@@ -30,9 +30,10 @@ class UserPlanPagesCharacterizationTest extends TestCase
         parent::setUp();
 
         $partner = Partner::factory()->create();
-        $this->admin = User::factory()->create(['partner_id' => $partner->id]);
+        // Super-admin only since 025/02 (these pages were a partner admin's).
+        $this->admin = User::factory()->create();
         $this->admin->roles()->attach(
-            Role::firstOrCreate(['slug' => 'partner_admin'], ['name' => 'Partner Admin'])->id
+            Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id
         );
         $this->member = User::factory()->create(['partner_id' => $partner->id]);
     }

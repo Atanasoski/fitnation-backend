@@ -24,7 +24,7 @@ class OldPlanPagesTest extends TestCase
 
     private Partner $partner;
 
-    private User $partnerAdmin;
+    private User $superAdmin;
 
     private User $member;
 
@@ -33,9 +33,10 @@ class OldPlanPagesTest extends TestCase
         parent::setUp();
 
         $this->partner = Partner::factory()->create();
-        $this->partnerAdmin = User::factory()->create(['partner_id' => $this->partner->id]);
-        $this->partnerAdmin->roles()->attach(
-            Role::firstOrCreate(['slug' => 'partner_admin'], ['name' => 'Partner Admin'])->id
+        // The plan pages are super-admin only since 025/02.
+        $this->superAdmin = User::factory()->create();
+        $this->superAdmin->roles()->attach(
+            Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id
         );
         $this->member = User::factory()->entitled()->create(['partner_id' => $this->partner->id]);
     }
@@ -45,7 +46,7 @@ class OldPlanPagesTest extends TestCase
         [$plan, $workout, $row] = $this->tree(Plan::factory()->create(['user_id' => $this->member->id]));
         $outline = fn (array $query) => route('plans.index', ['user' => $this->member->id] + $query);
 
-        $this->actingAs($this->partnerAdmin);
+        $this->actingAs($this->superAdmin);
         $this->get(route('plans.create', $this->member))->assertRedirect($outline(['create' => 'program']));
         $this->get(route('plans.show', $plan))->assertRedirect($outline(['plan' => $plan->id]));
         $this->get(route('plans.edit', $plan))->assertRedirect($outline(['plan' => $plan->id]));

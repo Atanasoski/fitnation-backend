@@ -20,10 +20,8 @@ class PlanWebTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Role::firstOrCreate(
-            ['slug' => 'partner_admin'],
-            ['name' => 'Partner Admin', 'description' => 'Can manage partner organization']
-        );
+        // The plan outline is super-admin only since 025/02 (was a partner admin).
+        Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
     }
 
     public function test_user_plan_creation_sets_type_program_and_user_id(): void
@@ -32,7 +30,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
@@ -61,7 +59,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create(['partner_id' => $partner->id]);
         $plan = Plan::factory()->program()->create(['user_id' => $member->id, 'partner_id' => null]);
 
@@ -85,7 +83,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create(['partner_id' => $partner->id]);
         $plan = Plan::factory()->program()->create([
             'user_id' => $member->id,
@@ -112,7 +110,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create(['partner_id' => $partner->id]);
         $plan = Plan::factory()->program()->create(['user_id' => $member->id, 'partner_id' => null]);
 
@@ -148,7 +146,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create(['partner_id' => $partner->id]);
 
         $file = UploadedFile::fake()->image('plan-cover.png', 1200, 675);
@@ -177,7 +175,7 @@ class PlanWebTest extends TestCase
         $admin = User::factory()->create([
             'partner_id' => $partner->id,
         ]);
-        $admin->roles()->attach(Role::where('slug', 'partner_admin')->first());
+        $admin->roles()->attach(Role::where('slug', 'admin')->first());
         $member = User::factory()->create(['partner_id' => $partner->id]);
         $oldPath = 'plans/cover-images/old-cover.jpg';
         $plan = Plan::factory()->program()->create([

@@ -16,7 +16,7 @@
 
 **Branch:** `feat/remove-partner-admin-panel` (spec and tickets are committed here too).
 
-**Status:** open
+**Status:** done
 
-- [ ] Gaps found and listed in the PR description; each new test committed green against `dev`, in a test-only commit.
-- [ ] `composer test` green.
+- [x] Gaps found and listed in the PR description; each new test committed green against `dev`, in a test-only commit.
+- [x] `composer test` green.

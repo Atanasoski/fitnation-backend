@@ -206,19 +206,6 @@
                 @endif
             </section>
 
-            <section class="{{ $card }}">
-                <h2 class="{{ $heading }}">Invitation</h2>
-                @if ($invitation)
-                    <p class="mt-3 text-sm text-gray-800 dark:text-white/90">
-                        Invited by {{ $invitation->inviter?->name ?? 'a deleted account' }} ({{ $invitation->partner?->name ?? '—' }}) on {{ $invitation->created_at->format('j M Y') }}
-                    </p>
-                    <p class="text-theme-xs text-gray-500 dark:text-gray-400">
-                        {{ $invitation->accepted_at ? 'accepted '.$invitation->accepted_at->format('j M Y') : ($invitation->isExpired() ? 'expired, not accepted' : 'not accepted yet') }}
-                    </p>
-                @else
-                    <p class="{{ $empty }}">Joined without an invitation.</p>
-                @endif
-            </section>
             <section class="{{ $card }} lg:col-span-2">
                 <h2 class="{{ $heading }}">Grants &amp; partner changes</h2>
                 @forelse ($history as $change)

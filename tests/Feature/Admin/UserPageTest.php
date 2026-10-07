@@ -18,7 +18,6 @@ use App\Models\Role;
 use App\Models\SetLog;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Models\UserInvitation;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutTemplate;
 use App\Notifications\InactivityNudge;
@@ -309,33 +308,34 @@ class UserPageTest extends TestCase
             ]);
     }
 
-    public function test_the_invitation_shows_who_invited_when_and_whether_accepted(): void
+    /**
+     * Invitations are gone (spec 025 ticket 03): the page for a member a
+     * partner admin once invited renders, with no Invitation section.
+     */
+    public function test_the_page_of_a_member_who_was_invited_renders_without_an_invitation_section(): void
     {
         $gym = Partner::factory()->create(['name' => 'Iron Temple']);
-        $owner = $this->userWithRole('partner_admin', ['name' => 'Gym Owner', 'partner_id' => $gym->id]);
+        $this->userWithRole('partner_admin', ['name' => 'Gym Owner', 'partner_id' => $gym->id]);
         $member = $this->member($gym, ['email' => 'ada@example.com']);
-        $this->travelTo('2026-09-01 10:00:00');
-        UserInvitation::query()->create([
-            'partner_id' => $gym->id, 'invited_by' => $owner->id, 'email' => 'ada@example.com',
-            'token' => UserInvitation::generateToken(), 'expires_at' => now()->addDays(7),
-            'accepted_at' => Carbon::parse('2026-09-03 09:00:00'),
-        ]);
-        $this->travelTo(self::NOW);
 
         $this->actingAs($this->userWithRole('admin'))
             ->get("/admin/users/{$member->id}")
             ->assertOk()
-            ->assertSeeInOrder(['Invitation', 'Gym Owner', 'Iron Temple', '1 Sep 2026', 'accepted 3 Sep 2026']);
+            ->assertSee('ada@example.com')
+            ->assertDontSee('Invitation')
+            ->assertDontSee('Invited by');
     }
 
-    public function test_a_user_who_joined_without_an_invitation_says_so(): void
+    public function test_the_page_of_a_member_who_joined_on_their_own_renders_without_an_invitation_section(): void
     {
-        $member = $this->member(Partner::factory()->create());
+        $member = $this->member(Partner::factory()->create(), ['email' => 'solo@example.com']);
 
         $this->actingAs($this->userWithRole('admin'))
             ->get("/admin/users/{$member->id}")
             ->assertOk()
-            ->assertSeeInOrder(['Invitation', 'Joined without an invitation']);
+            ->assertSee('solo@example.com')
+            ->assertDontSee('Invitation')
+            ->assertDontSee('Joined without an invitation');
     }
 
     public function test_the_back_link_returns_to_the_filtered_list_the_user_was_opened_from(): void

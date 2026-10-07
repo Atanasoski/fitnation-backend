@@ -11,7 +11,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\Partner;
 use App\Models\User;
-use App\Models\UserInvitation;
 use App\Services\Admin\AccessSources;
 use App\Services\Admin\ActivePlan;
 use App\Services\Admin\ActivityStatuses;
@@ -145,12 +144,6 @@ class UserController extends Controller
             ]),
             'devices' => $user->devices()->latest('last_seen_at')->get(),
             'sent' => $user->notifications()->latest()->limit(self::RECENT_SENT_RECORDS)->get(),
-            'invitation' => UserInvitation::query()
-                ->where('email', $user->email)
-                ->with(['inviter:id,name', 'partner:id,name'])
-                ->orderByRaw('accepted_at IS NULL')
-                ->latest()
-                ->first(),
             'history' => UserChanges::history($user),
             'activePartners' => Partner::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'back' => $this->backToList($request),

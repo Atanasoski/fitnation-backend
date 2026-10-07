@@ -13,7 +13,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserInvitationController;
 use App\Http\Controllers\UserPlanController;
 use App\Http\Controllers\WeeklySummaryUnsubscribeController;
 use App\Http\Controllers\WorkoutPreviewController;
@@ -135,12 +134,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/workouts/{workoutTemplate}/exercises/{workoutTemplateExercise}/move', [\App\Http\Controllers\WorkoutTemplateExerciseController::class, 'move'])->can('manage', 'workoutTemplate')->scopeBindings()->name('workout-exercises.move');
         });
     });
-
-    // User Invitations Management
-    Route::get('/user-invitations', [UserInvitationController::class, 'invitationsIndex'])->name('user-invitations.index');
-    Route::post('/user-invitations/invite', [UserInvitationController::class, 'invitationsStore'])->name('user-invitations.invite');
-    Route::post('/user-invitations/{invitation}/resend', [UserInvitationController::class, 'invitationsResend'])->name('user-invitations.resend');
-    Route::delete('/user-invitations/{invitation}', [UserInvitationController::class, 'invitationsDestroy'])->name('user-invitations.destroy');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

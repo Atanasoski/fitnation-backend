@@ -96,59 +96,6 @@ interface PartnerListResource {
 
 ---
 
-### Validate Invitation Token
-```
-GET /api/invitations/{token}
-```
-*Public endpoint - No authentication required*
-
-Validates an invitation token and returns partner information if valid. This endpoint should be called when a user clicks the invitation link in their email to verify the token before showing the registration form.
-
-**URL Parameters:**
-- `token` (required) - The 64-character invitation token
-
-**Response (200 OK):**
-```typescript
-interface ValidateInvitationResponse {
-  message: "Valid invitation";
-  data: InvitationResource;
-}
-
-interface InvitationResource {
-  token: string;
-  email: string;
-  expires_at: string;  // ISO 8601
-  partner: {
-    id: number;
-    name: string;
-    slug: string;
-    visual_identity: PartnerVisualIdentityResource | null;
-  };
-}
-```
-
-**Error Responses:**
-
-**404 Not Found:**
-```typescript
-{
-  message: "Invalid invitation token"
-}
-```
-
-**422 Unprocessable Entity:**
-```typescript
-{
-  message: "This invitation has already been used"
-}
-// OR
-{
-  message: "This invitation has expired"
-}
-```
-
----
-
 ### Register User
 ```
 POST /api/register
@@ -3071,7 +3018,6 @@ interface ValidationError {
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/partners` | List active partners (for registration dropdown) |
-| GET | `/api/invitations/{token}` | Validate invitation token |
 | POST | `/api/register` | Register new user with partner_id |
 | POST | `/api/email/verification-notification` | Resend verification email (auth required) |
 | POST | `/api/login` | Login user |

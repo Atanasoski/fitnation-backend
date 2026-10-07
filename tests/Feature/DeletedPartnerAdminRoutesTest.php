@@ -16,9 +16,12 @@ use Tests\TestCase;
 
 /**
  * Spec 025 ticket 02 deleted the partner-admin pages, the library-programs UI
- * and the partner exercise endpoints. Every one of their routes is gone: a
- * stray route left behind fails here. Requests are made as a super admin with
- * real records behind every id, so only a missing route can answer 404.
+ * and the partner exercise endpoints; ticket 03 deleted invitations (web and
+ * API) and web registration. Every one of their routes is gone: a stray route
+ * left behind fails here. Requests are made as a super admin with real records
+ * behind every id, so only a missing route can answer 404. (The invitation
+ * table is dropped, so `{invitation}` and `{token}` are placeholders; a guest
+ * route such as `/register` would have redirected a signed-in user, not 404.)
  */
 class DeletedPartnerAdminRoutesTest extends TestCase
 {
@@ -57,6 +60,14 @@ class DeletedPartnerAdminRoutesTest extends TestCase
             'exercise unlink' => ['POST', '/exercises/{exercise}/unlink', 404],
             'partners list' => ['GET', '/partners', 405],
             'partner page' => ['GET', '/partners/{partner}', 405],
+            'invitations list' => ['GET', '/user-invitations', 404],
+            'invitation send' => ['POST', '/user-invitations/invite', 404],
+            'invitation resend' => ['POST', '/user-invitations/1/resend', 404],
+            'invitation cancel' => ['DELETE', '/user-invitations/1', 404],
+            'api invitation' => ['GET', '/api/invitations/'.str_repeat('a', 64), 404],
+            'registration form' => ['GET', '/register', 404],
+            'registration' => ['POST', '/register', 404],
+            'registration success' => ['GET', '/registration-success', 404],
         ];
     }
 

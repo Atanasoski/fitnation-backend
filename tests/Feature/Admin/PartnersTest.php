@@ -180,15 +180,6 @@ class PartnersTest extends TestCase
         $this->assertTrue($gym->refresh()->is_active);
     }
 
-    public function test_the_old_partner_pages_send_an_admin_to_the_new_ones(): void
-    {
-        $gym = Partner::factory()->create(['slug' => 'iron-temple']);
-        $admin = $this->userWithRole('admin');
-
-        $this->actingAs($admin)->get('/partners')->assertRedirect(route('admin.partners.index'));
-        $this->actingAs($admin)->get('/partners/iron-temple')->assertRedirect(route('admin.partners.show', $gym));
-    }
-
     #[DataProvider('nonAdmins')]
     public function test_non_admins_are_forbidden(string $role): void
     {

@@ -122,30 +122,6 @@ class SetOwnershipTest extends TestCase
         );
     }
 
-    /**
-     * The bug in issue 009: the staff-facing view defaulted its legacy-set flag
-     * to true and so showed an unattributable set under both rows.
-     */
-    public function test_the_web_view_agrees_with_the_api_on_which_sets_belong_where(): void
-    {
-        [$user, $session, $first, $second] = $this->sessionWithDuplicateExercise();
-
-        $this->attachedSet($first, 1, 100.0);
-        $this->legacySet($session, $first->exercise_id, 1);
-
-        $staff = User::factory()->create(['partner_id' => $user->partner_id]);
-
-        $rows = $this->actingAs($staff)
-            ->get("/users/{$user->id}/workout-sessions/{$session->id}")
-            ->assertOk()
-            ->viewData('exerciseRows');
-
-        $byRowId = $rows->keyBy(fn ($row) => $row->sessionExercise->id);
-
-        $this->assertCount(1, $byRowId[$first->id]->setsForExercise, 'The first row owns only its attached set.');
-        $this->assertCount(0, $byRowId[$second->id]->setsForExercise, 'The legacy set must not appear under the duplicate row.');
-    }
-
     // ---------------------------------------------------------------- helpers
 
     private function legacySet(WorkoutSession $session, int $exerciseId, int $setNumber): SetLog

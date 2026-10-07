@@ -19,7 +19,9 @@ use Tests\TestCase;
 
 /**
  * A user's plan outline (023/06): every Program and Routine in one tree, the
- * selected plan's editor beside it, used by super admins and partner admins.
+ * selected plan's editor beside it. Super admins only since 025/02: a
+ * partner admin gets the 'admin' gate's 403 before PlanPolicy is asked (the
+ * policy's partner-admin rules are dormant and covered in PlanPolicyTest).
  */
 class PlanOutlineTest extends TestCase
 {
@@ -42,7 +44,7 @@ class PlanOutlineTest extends TestCase
         Plan::factory()->program()->create(['user_id' => $this->member->id, 'name' => 'Strength Block']);
         Plan::factory()->create(['user_id' => $this->member->id, 'type' => PlanType::Routine, 'name' => 'Morning Mobility']);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', $this->member))
             ->assertOk()
             ->assertSee('Strength Block')
@@ -57,7 +59,7 @@ class PlanOutlineTest extends TestCase
         return [
             'super admin × an app user' => ['super_admin', 'member', 200],
             'super admin × a staff account' => ['super_admin', 'staff', 403],
-            'partner admin × own member' => ['own_admin', 'member', 200],
+            'partner admin × own member (super-admin only since 025/02)' => ['own_admin', 'member', 403],
             "partner admin × another partner's member" => ['rival_admin', 'member', 403],
             'plain user × a member of their partner' => ['plain', 'member', 403],
         ];
@@ -73,7 +75,7 @@ class PlanOutlineTest extends TestCase
         $this->actingAs($this->actor($who))->get(route('plans.index', $owner))->assertStatus($status);
     }
 
-    public function test_a_super_admin_sees_it_in_the_admin_shell_and_a_partner_admin_in_theirs(): void
+    public function test_a_super_admin_sees_it_in_the_admin_shell(): void
     {
         $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', $this->member))
@@ -82,13 +84,6 @@ class PlanOutlineTest extends TestCase
             ->assertSee(route('admin.users.show', $this->member), false)
             ->assertDontSee('href="/partner/programs"', false)
             ->assertSee('href="/admin/users" class="menu-item group menu-item-active', false);
-
-        $this->actingAs($this->actor('own_admin'))
-            ->get(route('plans.index', $this->member))
-            ->assertOk()
-            ->assertSee('href="/partner/programs"', false)
-            ->assertSee(route('users.show', $this->member), false)
-            ->assertDontSee('href="/admin/users"', false);
     }
 
     public function test_the_selected_plan_comes_from_the_url(): void
@@ -96,7 +91,7 @@ class PlanOutlineTest extends TestCase
         Plan::factory()->program()->create(['user_id' => $this->member->id, 'name' => 'First']);
         $second = Plan::factory()->create(['user_id' => $this->member->id, 'type' => PlanType::Routine, 'name' => 'Second', 'description' => 'Only in the editor']);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', ['user' => $this->member, 'plan' => $second->id]))
             ->assertOk()
             ->assertSee('Only in the editor')
@@ -116,7 +111,7 @@ class PlanOutlineTest extends TestCase
 
     public function test_the_create_form_opens_from_the_url(): void
     {
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', ['user' => $this->member, 'create' => 'routine']))
             ->assertOk()
             ->assertSee('Create routine')
@@ -150,7 +145,7 @@ class PlanOutlineTest extends TestCase
 
     public function test_a_program_needs_weeks(): void
     {
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->post(route('plans.store', $this->member), ['name' => 'No weeks', 'type' => 'program'])
             ->assertSessionHasErrors('duration_weeks');
 
@@ -162,7 +157,7 @@ class PlanOutlineTest extends TestCase
         $program = Plan::factory()->program()->create(['user_id' => $this->member->id, 'is_active' => true]);
         $routine = Plan::factory()->create(['user_id' => $this->member->id, 'type' => PlanType::Routine, 'is_active' => false]);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->post(route('plans.activate', $routine))
             ->assertRedirect(route('plans.index', ['user' => $this->member, 'plan' => $routine->id]));
 
@@ -190,7 +185,7 @@ class PlanOutlineTest extends TestCase
     {
         $plan = Plan::factory()->program()->create(['user_id' => $this->member->id, 'is_active' => false]);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->put(route('plans.update', $plan), [
                 'name' => 'Renamed', 'type' => 'program', 'duration_weeks' => 10, 'description' => 'New words',
             ])
@@ -208,7 +203,7 @@ class PlanOutlineTest extends TestCase
         $program = Plan::factory()->program()->create(['user_id' => $this->member->id, 'is_active' => true]);
         $routine = Plan::factory()->create(['user_id' => $this->member->id, 'type' => PlanType::Routine, 'is_active' => true]);
 
-        $this->actingAs($this->actor('own_admin'))->put(route('plans.update', $routine), [
+        $this->actingAs($this->actor('super_admin'))->put(route('plans.update', $routine), [
             'name' => $routine->name, 'type' => 'program', 'duration_weeks' => 4,
         ])->assertRedirect();
 
@@ -221,7 +216,7 @@ class PlanOutlineTest extends TestCase
     {
         $plan = Plan::factory()->program()->create(['user_id' => $this->member->id, 'duration_weeks' => 8]);
 
-        $this->actingAs($this->actor('own_admin'))->put(route('plans.update', $plan), [
+        $this->actingAs($this->actor('super_admin'))->put(route('plans.update', $plan), [
             'name' => $plan->name, 'type' => 'routine', 'duration_weeks' => 8,
         ]);
 
@@ -249,11 +244,11 @@ class PlanOutlineTest extends TestCase
             'set_number' => 1, 'weight' => 60, 'reps' => 8, 'rest_seconds' => 90,
         ]);
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->get(route('plans.index', ['user' => $this->member, 'plan' => $plan->id]))
             ->assertSee('logged sessions are kept');
 
-        $this->actingAs($this->actor('own_admin'))
+        $this->actingAs($this->actor('super_admin'))
             ->delete(route('plans.destroy', $plan))
             ->assertRedirect(route('plans.index', $this->member));
 

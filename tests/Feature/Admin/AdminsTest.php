@@ -30,57 +30,6 @@ class AdminsTest extends TestCase
         $this->assertTrue($colleague->fresh()->hasRole('admin'));
     }
 
-    public function test_granting_partner_admin_sets_the_users_partner(): void
-    {
-        $gym = Partner::factory()->create();
-        $coach = User::factory()->create(['email' => 'coach@example.com']);
-
-        $this->actingAs($this->userWithRole('admin'))
-            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin', 'partner_id' => $gym->id])
-            ->assertRedirect(route('admin.system'))
-            ->assertSessionHas('success');
-
-        $coach->refresh();
-        $this->assertTrue($coach->hasRole('partner_admin'));
-        $this->assertSame($gym->id, $coach->partner_id);
-    }
-
-    public function test_partner_admin_needs_a_partner(): void
-    {
-        $coach = User::factory()->create(['email' => 'coach@example.com']);
-
-        $this->actingAs($this->userWithRole('admin'))
-            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin'])
-            ->assertSessionHasErrors('partner_id');
-
-        $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
-    }
-
-    public function test_partner_admin_needs_an_active_partner(): void
-    {
-        $closed = Partner::factory()->inactive()->create();
-        $coach = User::factory()->create(['email' => 'coach@example.com']);
-
-        $this->actingAs($this->userWithRole('admin'))
-            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin', 'partner_id' => $closed->id])
-            ->assertSessionHasErrors('partner_id');
-
-        $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
-        $this->assertNotSame($closed->id, $coach->fresh()->partner_id);
-    }
-
-    public function test_the_grant_forms_partner_picker_lists_only_active_partners(): void
-    {
-        Partner::factory()->create(['name' => 'Open Gym']);
-        Partner::factory()->inactive()->create(['name' => 'Closed Gym']);
-
-        $this->actingAs($this->userWithRole('admin'))
-            ->get('/admin/system')
-            ->assertOk()
-            ->assertSee('Open Gym')
-            ->assertDontSee('Closed Gym');
-    }
-
     public function test_an_unknown_or_deactivated_email_is_a_validation_error(): void
     {
         User::factory()->create(['email' => 'gone@example.com'])->delete();
@@ -94,18 +43,51 @@ class AdminsTest extends TestCase
         $this->assertSame(2, User::query()->whereHas('roles', fn ($q) => $q->where('slug', 'admin'))->count());
     }
 
-    public function test_granting_a_role_the_user_already_has_changes_nothing(): void
+    public function test_the_grant_form_refuses_partner_admin(): void
     {
-        $first = $this->userWithRole('partner_admin', ['email' => 'coach@example.com']);
-        $partnerBefore = $first->partner_id;
-        $other = Partner::factory()->create();
+        $gym = Partner::factory()->create();
+        $coach = User::factory()->create(['email' => 'coach@example.com']);
+        $partnerBefore = $coach->partner_id;
 
         $this->actingAs($this->userWithRole('admin'))
-            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin', 'partner_id' => $other->id])
+            ->post('/admin/system/admins', ['email' => 'coach@example.com', 'role' => 'partner_admin', 'partner_id' => $gym->id])
+            ->assertSessionHasErrors('role');
+
+        $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
+        $this->assertSame($partnerBefore, $coach->fresh()->partner_id);
+    }
+
+    public function test_the_module_refuses_to_grant_partner_admin(): void
+    {
+        $coach = User::factory()->create();
+
+        try {
+            Admins::grant($coach, 'partner_admin', $this->userWithRole('admin'));
+            $this->fail('Granting partner admin was allowed.');
+        } catch (\InvalidArgumentException) {
+        }
+
+        $this->assertFalse($coach->fresh()->hasRole('partner_admin'));
+    }
+
+    public function test_the_grant_form_offers_super_admin_only(): void
+    {
+        $html = $this->actingAs($this->userWithRole('admin'))->get('/admin/system')->assertOk()->getContent();
+
+        $this->assertStringContainsString('name="role" value="admin"', $html);
+        $this->assertStringNotContainsString('value="partner_admin"', $html);
+        $this->assertStringNotContainsString('name="partner_id"', $html);
+    }
+
+    public function test_granting_a_role_the_user_already_has_changes_nothing(): void
+    {
+        $first = $this->userWithRole('admin', ['email' => 'boss@example.com']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->post('/admin/system/admins', ['email' => 'boss@example.com', 'role' => 'admin'])
             ->assertRedirect(route('admin.system'))
             ->assertSessionHas('success', fn (string $message) => str_contains($message, 'already'));
 
-        $this->assertSame($partnerBefore, $first->fresh()->partner_id);
         $this->assertSame(1, $first->roles()->count());
     }
 

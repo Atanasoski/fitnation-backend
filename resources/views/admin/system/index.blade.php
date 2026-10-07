@@ -37,7 +37,7 @@
 
         @include('admin.system._devices-and-push', ['fleet' => $fleet])
 
-        @include('admin.system._admins', ['admins' => $admins, 'partners' => $partners])
+        @include('admin.system._admins', ['admins' => $admins])
 
         {{-- Failed queue jobs --}}
         <section id="failed-jobs" class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

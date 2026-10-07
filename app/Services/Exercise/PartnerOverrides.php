@@ -12,11 +12,11 @@ use Illuminate\Http\UploadedFile;
  * on it: the description, image and video their members see instead of the
  * catalogue's. Reading what a partner sees is PartnerExerciseView's job.
  *
- * The partner admin (their own partner, /partner/exercises) and the super
- * admin (any partner, the exercise slide-over) both write through here, so
- * the two cannot drift. Override files go through PartnerExerciseFileService,
- * which names them deterministically per partner and exercise, so storing a
- * new image replaces the old one and removing one deletes the file.
+ * The super admin writes any partner's override from the exercise
+ * slide-over (Admin\PartnerOverrideController), validated by rules().
+ * Override files go through PartnerExerciseFileService, which names them
+ * deterministically per partner and exercise, so storing a new image
+ * replaces the old one and removing one deletes the file.
  *
  * A blank field is no override: PartnerExerciseView falls back to the
  * catalogue for it.
@@ -24,6 +24,22 @@ use Illuminate\Http\UploadedFile;
 final class PartnerOverrides
 {
     public function __construct(private PartnerExerciseFileService $files) {}
+
+    /**
+     * What a Partner Override write accepts.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function rules(): array
+    {
+        return [
+            'description' => ['nullable', 'string', 'max:5000'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'],
+            'video' => ['nullable', 'mimes:mp4,webm,ogg', 'max:51200'],
+            'remove_image' => ['nullable', 'boolean'],
+            'remove_video' => ['nullable', 'boolean'],
+        ];
+    }
 
     /**
      * Apply a change to the partner's override, linking the exercise first if

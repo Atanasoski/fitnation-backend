@@ -149,18 +149,13 @@ class GlobalSearchTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_pages_carry_the_search_button_and_palette_but_partner_admin_pages_do_not(): void
+    public function test_admin_pages_carry_the_search_button_and_palette(): void
     {
         $this->actingAs($this->userWithRole('admin'))
             ->get('/admin/users')
             ->assertOk()
             ->assertSee('data-global-search', false)
             ->assertSee(str_replace('/', '\\/', route('admin.search')), false);
-
-        $this->actingAs($this->userWithRole('partner_admin', ['partner_id' => $this->gym->id]))
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertDontSee('data-global-search', false);
     }
 
     private function search(string $q): \Illuminate\Testing\TestResponse

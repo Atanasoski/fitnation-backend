@@ -16,8 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * A user's plan outline (023/06, 023/07), shared by super admins and partner admins:
- * every route is guarded by PlanPolicy. Each write redirects back to the
+ * A user's plan outline (023/06, 023/07), for super admins: every route is
+ * guarded by PlanPolicy. Each write redirects back to the
  * outline with the plan it touched selected.
  */
 class UserPlanController extends Controller
@@ -42,10 +42,6 @@ class UserPlanController extends Controller
             default => null,
         };
 
-        $back = $request->user()->hasRole('admin')
-            ? route('admin.users.show', $user)
-            : route('users.show', $user);
-
         return view('plans.outline', [
             'outline' => $outline,
             'user' => $user,
@@ -60,13 +56,14 @@ class UserPlanController extends Controller
                 ? $this->units->toDisplay($outline->row->target_weight, MeasuredFields::kindFor('workout_template_exercises', 'target_weight'), $outline->plan->ownerUnitSystem())
                 : null,
             'units' => $user->unitSystem(),
-            'back' => $back,
+            'back' => route('admin.users.show', $user),
         ]);
     }
 
     /**
      * The old plan pages (create, show, edit) are the outline now; their
-     * links redirect to the matching node. A library plan keeps its pages.
+     * links redirect to the matching node. A library plan has no web pages:
+     * EnsureUserPlan 404s its routes.
      */
     public function create(User $user): RedirectResponse
     {
@@ -75,16 +72,12 @@ class UserPlanController extends Controller
 
     public function show(Plan $plan): RedirectResponse
     {
-        return $plan->user_id === null
-            ? redirect()->route('partner.programs.show', $plan)
-            : redirect(PlanOutline::url($plan));
+        return redirect(PlanOutline::url($plan));
     }
 
     public function edit(Plan $plan): RedirectResponse
     {
-        return $plan->user_id === null
-            ? redirect()->route('partner.programs.edit', $plan)
-            : redirect(PlanOutline::url($plan));
+        return redirect(PlanOutline::url($plan));
     }
 
     /**
@@ -108,8 +101,6 @@ class UserPlanController extends Controller
 
     public function update(UserPlanRequest $request, Plan $plan): RedirectResponse
     {
-        abort_if($plan->user_id === null, 404);
-
         $attributes = $request->planAttributes();
         if ($request->hasFile('cover_image')) {
             $this->planFileService->deleteCoverImage($plan->cover_image);
@@ -126,8 +117,6 @@ class UserPlanController extends Controller
 
     public function activate(Plan $plan): RedirectResponse
     {
-        abort_if($plan->user_id === null, 404);
-
         PlanActivation::activate($plan);
 
         return $this->toOutline($plan, "{$plan->name} is now the active ".$plan->type->value.'.');
@@ -139,8 +128,6 @@ class UserPlanController extends Controller
      */
     public function destroy(Plan $plan): RedirectResponse
     {
-        abort_if($plan->user_id === null, 404);
-
         $user = $plan->user;
         $plan->delete();
 

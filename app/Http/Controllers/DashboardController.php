@@ -34,17 +34,13 @@ class DashboardController extends Controller
             abort(403, 'No partner associated with your account.');
         }
 
-        // Gym stats - exclude admin and partner_admin users from user counts
+        // Gym stats - app users only, staff never count
         $totalMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
+            ->appUsers()
             ->count();
 
         $activeMembersThisWeek = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
+            ->appUsers()
             ->whereHas('workoutSessions', function ($query) {
                 $query->whereBetween('performed_at', [
                     Carbon::now()->startOfWeek(),
@@ -55,9 +51,7 @@ class DashboardController extends Controller
 
         // Top active users
         $topMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
+            ->appUsers()
             ->withCount(['workoutSessions' => function ($query) {
                 $query->whereBetween('performed_at', [
                     Carbon::now()->startOfWeek(),
@@ -74,9 +68,7 @@ class DashboardController extends Controller
 
         // Recent users
         $recentMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
+            ->appUsers()
             ->latest()
             ->take(10)
             ->get();

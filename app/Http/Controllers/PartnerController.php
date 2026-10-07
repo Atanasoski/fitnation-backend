@@ -91,9 +91,7 @@ class PartnerController extends Controller
         $partner->loadCount('users');
         $partner->load('identity');
 
-        $membersQuery = $partner->users()->whereDoesntHave('roles', function ($query) {
-            $query->whereIn('slug', ['admin', 'partner_admin']);
-        });
+        $membersQuery = $partner->users()->appUsers();
 
         $totalMembers = (clone $membersQuery)->count();
 

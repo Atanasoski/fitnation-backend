@@ -518,4 +518,200 @@ class RevenueCatWebhookTest extends TestCase
             ->assertJsonPath('user.subscription.status', 'active')
             ->assertJsonPath('user.subscription.is_trial', true);
     }
+
+    // ------------------------------------------------------------------
+    // Characterization: how each event writes the row (locked before the
+    // apply-subscription-state refactor, ticket 026/01)
+    // ------------------------------------------------------------------
+
+    public function test_renewal_keeps_the_known_price_original_purchase_and_partner(): void
+    {
+        $original = \App\Models\Partner::factory()->create();
+        $current = \App\Models\Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $current->id]);
+        $purchasedAt = now()->subMonths(2)->startOfSecond();
+        Subscription::factory()->create([
+            'user_id' => $user->id,
+            'partner_id' => $original->id,
+            'price' => 9.99,
+            'currency' => 'EUR',
+            'purchased_at' => $purchasedAt,
+            'cancelled_at' => now()->subDay(),
+            'status' => SubscriptionStatus::Cancelled,
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+        $expiresAtMs = now()->addMonths(2)->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'RENEWAL',
+            'product_id' => 'com.fitnation.app.premium.yearly',
+            'store' => 'PLAY_STORE',
+            'price' => null,
+            'currency' => null,
+            'expiration_at_ms' => $expiresAtMs,
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame($original->id, $subscription->partner_id);
+        $this->assertSame('com.fitnation.app.premium.yearly', $subscription->product_id);
+        $this->assertSame('play_store', $subscription->store->value);
+        $this->assertSame(SubscriptionStatus::Active, $subscription->status);
+        $this->assertSame('9.99', $subscription->price);
+        $this->assertSame('EUR', $subscription->currency);
+        $this->assertTrue($purchasedAt->equalTo($subscription->purchased_at));
+        $this->assertSame(intdiv($expiresAtMs, 1000), $subscription->expires_at->getTimestamp());
+        $this->assertNull($subscription->cancelled_at);
+    }
+
+    public function test_renewal_without_a_row_creates_one_under_the_users_partner(): void
+    {
+        $partner = \App\Models\Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'RENEWAL',
+            'period_type' => 'TRIAL',
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame($partner->id, $subscription->partner_id);
+        $this->assertSame(SubscriptionPeriodType::Normal, $subscription->period_type);
+        $this->assertSame('4.99', $subscription->price);
+        $this->assertNotNull($subscription->purchased_at);
+    }
+
+    public function test_initial_purchase_over_an_old_row_starts_a_new_purchase(): void
+    {
+        $user = User::factory()->create();
+        Subscription::factory()->expired()->create([
+            'user_id' => $user->id,
+            'price' => 9.99,
+            'cancelled_at' => now()->subMonth(),
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+        $purchasedAtMs = now()->subMinute()->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'purchased_at_ms' => $purchasedAtMs,
+            'price' => null,
+            'environment' => 'SANDBOX',
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(SubscriptionStatus::Active, $subscription->status);
+        $this->assertNull($subscription->price);
+        $this->assertNull($subscription->cancelled_at);
+        $this->assertSame('sandbox', $subscription->environment);
+        $this->assertSame(intdiv($purchasedAtMs, 1000), $subscription->purchased_at->getTimestamp());
+        $this->assertDatabaseCount('subscriptions', 1);
+    }
+
+    public function test_refund_ends_the_period_now(): void
+    {
+        $user = User::factory()->create();
+        Subscription::factory()->create([
+            'user_id' => $user->id,
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'CANCELLATION',
+            'cancel_reason' => 'CUSTOMER_SUPPORT',
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertFalse($subscription->expires_at->isFuture());
+        $this->assertNotNull($subscription->cancelled_at);
+    }
+
+    public function test_pause_keeps_access_and_resume_reactivates(): void
+    {
+        $user = User::factory()->create();
+        Subscription::factory()->cancelled()->create([
+            'user_id' => $user->id,
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'SUBSCRIPTION_PAUSED',
+            'event_timestamp_ms' => now()->subMinutes(2)->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->assertSame(SubscriptionStatus::Paused, Subscription::where('user_id', $user->id)->first()->status);
+        $this->assertTrue($user->fresh()->hasAppAccess());
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'SUBSCRIPTION_RESUMED',
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(SubscriptionStatus::Active, $subscription->status);
+        $this->assertNull($subscription->cancelled_at);
+    }
+
+    public function test_status_events_without_a_subscription_create_nothing(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['CANCELLATION', 'UNCANCELLATION', 'EXPIRATION', 'BILLING_ISSUE', 'SUBSCRIPTION_PAUSED'] as $i => $type) {
+            $this->postWebhook($this->eventPayload([
+                'app_user_id' => (string) $user->id,
+                'type' => $type,
+                'event_timestamp_ms' => now()->getTimestampMs() + $i,
+            ]))->assertOk();
+        }
+
+        $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_each_applied_event_moves_the_high_water_mark(): void
+    {
+        $user = User::factory()->create();
+        $purchaseTs = now()->subMinutes(10)->getTimestampMs();
+        $cancelTs = now()->subMinutes(5)->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'event_timestamp_ms' => $purchaseTs,
+        ]))->assertOk();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'CANCELLATION',
+            'event_timestamp_ms' => $cancelTs,
+        ]))->assertOk();
+        // Older than the cancellation, newer than the purchase: skipped.
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'UNCANCELLATION',
+            'event_timestamp_ms' => $cancelTs - 1,
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(SubscriptionStatus::Cancelled, $subscription->status);
+        $this->assertSame($cancelTs, $subscription->last_event_at_ms);
+    }
+
+    public function test_price_change_still_moves_the_high_water_mark(): void
+    {
+        $user = User::factory()->create();
+        $subscription = Subscription::factory()->create([
+            'user_id' => $user->id,
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+        $ts = now()->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'PRICE_CHANGE',
+            'event_timestamp_ms' => $ts,
+        ]))->assertOk();
+
+        $this->assertSame($ts, $subscription->fresh()->last_event_at_ms);
+    }
 }

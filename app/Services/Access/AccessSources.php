@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin;
+namespace App\Services\Access;
 
 use App\Enums\AccessSource;
 use App\Enums\AdminChangeKind;
@@ -19,15 +19,18 @@ use Illuminate\Support\Collection;
  * source (and its facts) of given users, and a query constraint "users whose
  * source is X" that runs in SQL so the Users list can filter and the Overview
  * can count. tests/Feature/Admin/AccessSourceTest.php holds them to each other.
+ * Not an admin module: GET /user reports the source too (sourceOf()).
  *
  * In order, the first that holds:
  * - a subscription that grants access (Subscription::isActive(): an
  *   access-granting status and expires_at in the future) — Active reads
  *   Trial on a trial period and Subscribed otherwise; Cancelled reads
  *   "Cancelled, paid until"; Billing issue; Paused;
- * - Sponsored — the user's partner is sponsoring its members
- *   (Partner::isSponsoringMembers());
- * - Complimentary — User::hasComplimentaryAccess();
+ * - Sponsored — the user's partner is an active Sponsoring Partner whose
+ *   sponsorship has not run out (Partner::isSponsoringMembers());
+ * - Signup Trial — User::isOnSignupTrial();
+ * - Complimentary — User::hasComplimentaryAccess() (the two are exclusive:
+ *   one date, one recorded kind);
  * - None.
  *
  * These are the facts User::entitlements() reads, through the same
@@ -42,6 +45,16 @@ final class AccessSources
     public static function for(User $user): Access
     {
         return self::forUsers(collect([$user]))[$user->id];
+    }
+
+    /**
+     * Just the source, read through the user's own subscription and partner
+     * relations — free when they are loaded (as GET /user loads them), and
+     * no lookup of who granted Complimentary Access. For the API payload.
+     */
+    public static function sourceOf(User $user): AccessSource
+    {
+        return self::resolve($user, $user->subscription, $user->partner)->source;
     }
 
     /**
@@ -131,13 +144,25 @@ final class AccessSources
             AccessSource::Paused => $subscription(SubscriptionStatus::Paused),
             AccessSource::Sponsored => self::withoutSubscriptionAccess($query)
                 ->whereHas('partner', fn (Builder $partners) => $partners->sponsoringMembers()),
-            AccessSource::Complimentary => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
-                ->withComplimentaryAccess(),
+            AccessSource::SignupTrial => self::withoutPaidAccess($query)->onSignupTrial(),
+            AccessSource::Complimentary => self::withoutPaidAccess($query)->withComplimentaryAccess(),
             // NOT (ends > now) is NULL for a NULL date in SQL, so the negated
             // group also requires the date to be set: no date at all reads None.
-            AccessSource::None => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
-                ->whereNot(fn (Builder $q) => $q->withComplimentaryAccess()->whereNotNull('users.grace_period_ends_at')),
+            AccessSource::None => self::withoutPaidAccess($query)
+                ->whereNot(fn (Builder $q) => $q->withFreeAccess()->whereNotNull('users.grace_period_ends_at')),
         };
+    }
+
+    /**
+     * Neither a subscription nor a Sponsoring Partner grants access: who the
+     * free-access sources (and None) are read from.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    private static function withoutPaidAccess(Builder $query): Builder
+    {
+        return self::withoutSponsorship(self::withoutSubscriptionAccess($query));
     }
 
     /**
@@ -178,6 +203,10 @@ final class AccessSources
 
         if ($partner?->isSponsoringMembers()) {
             return new Access(AccessSource::Sponsored, until: $partner->plan_expires_at, sponsor: $partner);
+        }
+
+        if ($user->isOnSignupTrial()) {
+            return new Access(AccessSource::SignupTrial, until: $user->grace_period_ends_at);
         }
 
         if ($user->hasComplimentaryAccess()) {

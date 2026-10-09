@@ -6,7 +6,7 @@ use App\Helpers\ColorHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\User;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use App\Services\Admin\ActivityStatuses;
 use App\Services\Admin\Overview;
 use Carbon\CarbonImmutable;

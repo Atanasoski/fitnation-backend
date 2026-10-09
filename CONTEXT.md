@@ -336,18 +336,28 @@ _Avoid_: direct user, no-partner user, default partner.
 
 ### Sponsoring Partner
 
-A partner on the sponsor plan: it pays for its members, so they have access
-without a subscription of their own. Expected to stay rare — the
+An active partner on the sponsor plan: it pays for its members, so they have
+access without a subscription of their own. A deactivated partner sponsors no
+one, whatever its plan. Expected to stay rare — the
 [House Partner](#house-partner) is the paying base.
 
 _Avoid_: B2B partner, paid partner.
+
+### Acquisition Partner
+
+The partner a user belonged to when their subscription row was first
+created, stored on the subscription (`subscriptions.partner_id`) and frozen
+there: it says which gym brought in that paying user, even after the user
+moves to another partner. Only `SubscriptionRecord` writes it.
+
+_Avoid_: subscription partner, current partner (that is `users.partner_id`).
 
 ## Access
 
 ### Access Source
 
 Why a user may use the app, read off the rules alone: **Subscribed**,
-**Trial**, **Cancelled, paid until** (they cancelled but the period they paid
+**Trial** (a store trial), **Signup Trial**, **Cancelled, paid until** (they cancelled but the period they paid
 for has not run out), **Billing issue**, **Paused**, **Sponsored** (their partner is a
 [Sponsoring Partner](#sponsoring-partner)), **Complimentary**
 ([Complimentary Access](#complimentary-access)), or **None**. It is the same
@@ -364,6 +374,51 @@ help someone stuck or to let a person in early.
 
 _Avoid_: grace period — a cancelled subscription still running to its end is
 not this, and is not called grace either.
+
+### Signup Trial
+
+Free access every new user gets for a fixed number of days from the moment
+they finish onboarding, with no payment and no store involved. Once per
+account. We set its length, not the stores. Distinct from
+[Complimentary Access](#complimentary-access) (granted by an admin) and from a
+store **Trial** (part of a subscription).
+
+_Avoid_: free trial (alone — ambiguous with the store trial), grace period.
+
+### Free Access
+
+Access until a date with no payment: a [Signup Trial](#signup-trial) or
+[Complimentary Access](#complimentary-access). The user carries one date and
+the kind beside it (`free_access_kind` on the wire); a new grant replaces the
+old one, so an admin grant over a running Signup Trial makes it Complimentary.
+The kind outlives the date, which is how the Signup Trial stays once per
+account.
+
+_Avoid_: grace period (the column is still `grace_period_ends_at`; the name is
+kept, not the meaning).
+
+### Subscription Sync
+
+The backend re-reading a user's subscription from RevenueCat on the app's
+request, instead of waiting for a webhook. It records what RevenueCat says now,
+so a webhook about anything older cannot undo it. It is how a user who paid,
+but whose webhook is late or lost, gets their access recorded.
+
+_Avoid_: restore (that is the store's re-delivery of past purchases to a device), refresh.
+
+### Billing Retry
+
+A subscription whose renewal charge failed while the store retries it
+(`billing_issue`). It keeps access until the store's own grace-period end, or
+the paid period's end when the store gives none. "Grace period" here is
+always the store's, never [Free Access](#free-access).
+
+### Subscription Extension
+
+The store moving a subscription's end later without a charge (an Apple
+extension, a Play deferral), or RevenueCat letting access through a store
+outage (a temporary entitlement, a day at most). It only ever moves the end
+later, reopens an expired subscription, and leaves any other status as it was.
 
 ### Expected Monthly Revenue
 
@@ -398,9 +453,10 @@ _Avoid_: engagement level, churned, dormant.
 ### Admin Change
 
 A record of something a super admin changed about a user by hand: a grant,
-extension or early end of [Complimentary Access](#complimentary-access), or a
-move to another partner. It says who, when, what (until, or from → to) and
-why. The user page lists them as "Grants & partner changes". Two kinds only;
-it is not a general audit log.
+extension or early end of [Complimentary Access](#complimentary-access), an
+early end of a [Signup Trial](#signup-trial), or a move to another partner.
+It says who, when, what (until, or from → to) and why. The user page lists
+them as "Grants & partner changes". Those three kinds only; it is not a
+general audit log.
 
 _Avoid_: audit log, activity log.

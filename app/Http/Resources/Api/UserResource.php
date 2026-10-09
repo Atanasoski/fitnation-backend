@@ -2,12 +2,17 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Models\User;
 use App\Notifications\WeeklySummary;
+use App\Services\Access\AccessSources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserResource extends JsonResource
 {
+    /** What GET /user loads, so every endpoint answering with "the user" matches it. */
+    public const RELATIONS = ['partner', 'profile', 'subscription'];
+
     /**
      * Transform the resource into an array.
      *
@@ -47,6 +52,10 @@ class UserResource extends JsonResource
                 'is_trial' => $this->subscription?->isInTrial() ?? false,
                 'is_sponsored_by_gym' => $this->partner?->isSponsoringMembers() ?? false,
                 'grace_period_ends_at' => $this->grace_period_ends_at,
+                'free_access_kind' => $this->freeAccessKind()?->value,
+                'access_source' => AccessSources::sourceOf($this->resource)->value,
+                'enforced' => (bool) config('subscriptions.enforced'),
+                'signup_trial_days' => User::signupTrialDays(),
             ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

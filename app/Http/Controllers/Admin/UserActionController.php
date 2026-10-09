@@ -49,6 +49,26 @@ class UserActionController extends Controller
     }
 
     /**
+     * End a running Signup Trial now. Only a user on one can be ended this
+     * way; Complimentary Access has its own action.
+     */
+    public function endSignupTrial(Request $request, User $user): RedirectResponse
+    {
+        $this->ensureAppUser($user);
+
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+
+        if (! $user->isOnSignupTrial()) {
+            return redirect()->route('admin.users.show', $user)
+                ->withErrors(['signup_trial' => 'This user is not on a Signup Trial.']);
+        }
+
+        UserChanges::endSignupTrial($user, $data['reason'] ?? null, $request->user());
+
+        return $this->backToUser($user, 'Signup Trial ended.');
+    }
+
+    /**
      * Move the user to another partner. Only an active partner can take them,
      * and it must be a different one.
      */

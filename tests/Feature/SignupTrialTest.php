@@ -82,6 +82,20 @@ class SignupTrialTest extends TestCase
             ->assertJsonPath('user.subscription.grace_period_ends_at', Carbon::parse('2026-10-12 12:00:00')->toJSON());
     }
 
+    public function test_the_api_says_the_access_is_a_signup_trial_and_how_long_it_runs(): void
+    {
+        $user = $this->onboardable();
+        $this->completeOnboarding($user);
+
+        $this->actingAs($user->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.subscription.access_source', 'signup_trial')
+            ->assertJsonPath('user.subscription.free_access_kind', 'signup_trial')
+            ->assertJsonPath('user.subscription.enforced', true)
+            ->assertJsonPath('user.subscription.signup_trial_days', 7);
+    }
+
     public function test_the_trial_ends_on_its_date(): void
     {
         $user = $this->onboardable();
@@ -133,6 +147,25 @@ class SignupTrialTest extends TestCase
         $this->assertEquals('2026-10-19 12:00:00', $user->fresh()->grace_period_ends_at->toDateTimeString());
     }
 
+    public function test_the_launch_grace_command_skips_users_whose_free_access_was_ended(): void
+    {
+        $endedGrant = User::factory()->create(['free_access_kind' => 'complimentary']);
+        $endedTrial = User::factory()->create(['free_access_kind' => 'signup_trial']);
+        $never = User::factory()->create();
+
+        $this->artisan('subscriptions:grant-launch-grace', ['--force' => true, '--days' => 30])
+            ->expectsOutput('Granted 30 days of grace access to 1 user(s).')
+            ->assertSuccessful();
+
+        foreach ([$endedGrant, $endedTrial] as $ended) {
+            $this->actingAs($ended->fresh(), 'sanctum')->getJson('/api/user')
+                ->assertJsonPath('user.subscription.access_source', 'none')
+                ->assertJsonPath('user.subscription.grace_period_ends_at', null);
+        }
+        $this->actingAs($never->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'complimentary');
+    }
+
     public function test_the_launch_grace_command_skips_trialed_users(): void
     {
         $trialed = $this->onboardable();
@@ -145,5 +178,45 @@ class SignupTrialTest extends TestCase
 
         $this->assertEquals('2026-10-12 12:00:00', $trialed->fresh()->grace_period_ends_at->toDateTimeString());
         $this->assertEquals('2026-11-04 12:00:00', $existing->fresh()->grace_period_ends_at->toDateTimeString());
+
+        $this->assertDatabaseHas('users', ['id' => $existing->id, 'free_access_kind' => 'complimentary']);
+        $this->actingAs($existing->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.free_access_kind', 'complimentary')
+            ->assertJsonPath('user.subscription.access_source', 'complimentary');
+        $this->actingAs($trialed->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.free_access_kind', 'signup_trial');
+    }
+
+    public function test_the_api_reports_the_trial_length_and_enforcement_even_when_off(): void
+    {
+        config(['subscriptions.enforced' => false, 'subscriptions.signup_trial_days' => 14]);
+        $user = $this->onboardable();
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.entitlements', ['app_access'])
+            ->assertJsonPath('user.subscription.enforced', false)
+            ->assertJsonPath('user.subscription.signup_trial_days', 14)
+            ->assertJsonPath('user.subscription.access_source', 'none')
+            ->assertJsonPath('user.subscription.free_access_kind', null)
+            ->assertJsonPath('user.subscription.grace_period_ends_at', null);
+    }
+
+    public function test_the_trial_gets_the_user_past_the_gate_and_its_end_closes_it(): void
+    {
+        $user = $this->onboardable();
+        $this->completeOnboarding($user);
+
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/plans')->assertOk();
+
+        Carbon::setTestNow('2026-10-12 12:00:01');
+
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/plans')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'subscription_required');
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'none')
+            ->assertJsonPath('user.subscription.free_access_kind', 'signup_trial');
     }
 }

@@ -213,7 +213,7 @@
                         <span class="font-medium text-gray-800 dark:text-white/90">{{ $change->kind->label() }}</span>
                         <span class="text-gray-500 dark:text-gray-400">
                             · by {{ $change->admin?->name ?? 'a deleted account' }} · {{ $change->created_at->format('j M Y') }}
-                            @if ($change->kind === \App\Enums\AdminChangeKind::ComplimentaryAccess)
+                            @if ($change->kind->isAccessChange())
                                 · {{ $change->until ? 'until '.$change->until->format('j M Y') : 'ended' }}
                             @else
                                 · {{ $change->fromPartner?->name ?? 'no partner' }} → {{ $change->toPartner?->name ?? 'a deleted partner' }}

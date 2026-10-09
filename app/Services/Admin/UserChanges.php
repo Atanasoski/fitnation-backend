@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Enums\AdminChangeKind;
+use App\Enums\FreeAccessKind;
 use App\Models\AdminChange;
 use App\Models\Partner;
 use App\Models\User;
@@ -12,10 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * What a super admin changes about a user by hand: Complimentary Access
- * (grant, extend, end now), the user's partner, and deactivating or
- * restoring the account. Access and partner changes write the user and an
- * admin change record together, so the "Grants & partner changes" history
- * can never miss one.
+ * (grant, extend, end now), ending a Signup Trial early, the user's partner,
+ * and deactivating or restoring the account. Access and partner changes
+ * write the user and an admin change record together, so the "Grants &
+ * partner changes" history can never miss one.
  *
  * Validation (a future date, a reason, an active target partner) belongs to
  * the HTTP request; this module only applies a change it is given.
@@ -24,27 +25,37 @@ final class UserChanges
 {
     /**
      * Grant Complimentary Access until $until, or move an existing grant's
-     * end date (extend). Stored as users.grace_period_ends_at.
+     * end date (extend). Stored as users.grace_period_ends_at with
+     * free_access_kind `complimentary`; a grant over a running Signup Trial
+     * replaces it, so the label follows the latest reason.
      */
     public static function grantComplimentaryAccess(User $user, CarbonInterface $until, string $reason, User $admin): AdminChange
     {
         return DB::transaction(function () use ($user, $until, $reason, $admin) {
-            $user->forceFill(['grace_period_ends_at' => $until])->save();
+            $user->grantFreeAccess(FreeAccessKind::Complimentary, $until);
 
             return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => $until]);
         });
     }
 
     /**
-     * End Complimentary Access now. Recorded with a null until.
+     * End Complimentary Access now. Recorded with a null until. The kind
+     * stays, so the account still counts as having had free access and never
+     * gets a Signup Trial after it (User::startSignupTrial).
      */
     public static function endComplimentaryAccess(User $user, ?string $reason, User $admin): AdminChange
     {
-        return DB::transaction(function () use ($user, $reason, $admin) {
-            $user->forceFill(['grace_period_ends_at' => null])->save();
+        return self::endFreeAccess($user, AdminChangeKind::ComplimentaryAccess, $reason, $admin);
+    }
 
-            return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => null]);
-        });
+    /**
+     * End a running Signup Trial now. Recorded with a null until. Like ending
+     * Complimentary Access, the kind stays, so the account never gets
+     * another Signup Trial.
+     */
+    public static function endSignupTrial(User $user, ?string $reason, User $admin): AdminChange
+    {
+        return self::endFreeAccess($user, AdminChangeKind::SignupTrial, $reason, $admin);
     }
 
     public static function changePartner(User $user, Partner $to, string $reason, User $admin): AdminChange
@@ -97,6 +108,18 @@ final class UserChanges
             ->latest()
             ->latest('id')
             ->get();
+    }
+
+    /**
+     * Null the until-date and record the end; free_access_kind is left as is.
+     */
+    private static function endFreeAccess(User $user, AdminChangeKind $kind, ?string $reason, User $admin): AdminChange
+    {
+        return DB::transaction(function () use ($user, $kind, $reason, $admin) {
+            $user->forceFill(['grace_period_ends_at' => null])->save();
+
+            return self::record($user, $admin, $kind, $reason, ['until' => null]);
+        });
     }
 
     /**

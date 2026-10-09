@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Enums\AccessSource;
+use App\Enums\FreeAccessKind;
 use App\Enums\PartnerPlan;
 use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStatus;
@@ -12,9 +13,10 @@ use App\Enums\SubscriptionStore;
 use App\Models\Partner;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -30,9 +32,9 @@ class AccessSourceTest extends TestCase
     private const NOW = '2026-10-05 12:00:00';
 
     /**
-     * fixture name => [expected source, subscription state or null, partner state or null, Complimentary until (minutes from now) or null]
+     * fixture name => [expected source, subscription state or null, partner state or null, free access until (minutes from now) or null, and optionally its kind (default Complimentary)]
      *
-     * @return array<string, array{AccessSource, ?array<string, mixed>, ?array<string, mixed>, ?int}>
+     * @return array<string, array{0: AccessSource, 1: ?array<string, mixed>, 2: ?array<string, mixed>, 3: ?int, 4?: ?FreeAccessKind}>
      */
     private function fixtures(): array
     {
@@ -41,9 +43,10 @@ class AccessSourceTest extends TestCase
             'period_type' => $period,
             'expires_at' => now()->addMinutes($expiresInMinutes),
         ];
-        $sponsor = fn (?int $expiresInMinutes) => [
+        $sponsor = fn (?int $expiresInMinutes, bool $active = true) => [
             'plan' => PartnerPlan::Sponsor,
             'plan_expires_at' => $expiresInMinutes === null ? null : now()->addMinutes($expiresInMinutes),
+            'is_active' => $active,
         ];
         $free = ['plan' => PartnerPlan::Free, 'plan_expires_at' => null];
 
@@ -67,6 +70,11 @@ class AccessSourceTest extends TestCase
             'sponsor, no end date' => [AccessSource::Sponsored, null, $sponsor(null), null],
             'sponsor, a minute ahead' => [AccessSource::Sponsored, null, $sponsor(1), null],
             'sponsor, a minute past' => [AccessSource::None, null, $sponsor(-1), null],
+            'deactivated sponsor, no end date' => [AccessSource::None, null, $sponsor(null, active: false), null],
+            'deactivated sponsor, a minute ahead' => [AccessSource::None, null, $sponsor(1, active: false), null],
+            'deactivated sponsor, complimentary' => [AccessSource::Complimentary, null, $sponsor(null, active: false), 600],
+            'deactivated sponsor, signup trial' => [AccessSource::SignupTrial, null, $sponsor(null, active: false), 600, FreeAccessKind::SignupTrial],
+            'deactivated sponsor, cancelled subscription' => [AccessSource::Cancelled, $sub(SubscriptionStatus::Cancelled, 600), $sponsor(null, active: false), null],
             'complimentary, a minute ahead' => [AccessSource::Complimentary, null, null, 1],
             'complimentary, a minute past' => [AccessSource::None, null, null, -1],
             'sponsored with an active subscription' => [AccessSource::Subscribed, $sub(SubscriptionStatus::Active, 600), $sponsor(null), null],
@@ -75,6 +83,12 @@ class AccessSourceTest extends TestCase
             'sponsored and complimentary' => [AccessSource::Sponsored, null, $sponsor(600), 600],
             'lapsed subscription, sponsored' => [AccessSource::Sponsored, $sub(SubscriptionStatus::Cancelled, -1), $sponsor(null), null],
             'lapsed subscription and sponsorship, complimentary' => [AccessSource::Complimentary, $sub(SubscriptionStatus::Active, -1), $sponsor(-1), 1],
+            'signup trial, a minute ahead' => [AccessSource::SignupTrial, null, null, 1, FreeAccessKind::SignupTrial],
+            'signup trial, a minute past' => [AccessSource::None, null, null, -1, FreeAccessKind::SignupTrial],
+            'signup trial with an active subscription' => [AccessSource::Subscribed, $sub(SubscriptionStatus::Active, 600), null, 600, FreeAccessKind::SignupTrial],
+            'signup trial, sponsored' => [AccessSource::Sponsored, null, $sponsor(null), 600, FreeAccessKind::SignupTrial],
+            'free access with no kind recorded' => [AccessSource::Complimentary, null, null, 600, null],
+            'ended grant, kind kept' => [AccessSource::None, null, null, null, FreeAccessKind::Complimentary],
         ];
     }
 
@@ -85,6 +99,7 @@ class AccessSourceTest extends TestCase
 
         foreach ($expected as $name => [$id, $source]) {
             $this->assertSame($source, AccessSources::for(User::findOrFail($id))->source, "per-user source for: {$name}");
+            $this->assertSame($source, AccessSources::sourceOf(User::findOrFail($id)), "source of: {$name}");
         }
 
         $batch = AccessSources::forUsers(User::query()->whereKey(array_column($expected, 0))->get());
@@ -202,6 +217,22 @@ class AccessSourceTest extends TestCase
         $this->assertSame('Complimentary until 1 Dec 2026', $access->detail());
     }
 
+    public function test_a_signup_trial_user_carries_the_end_date(): void
+    {
+        $this->travelTo(self::NOW);
+        $user = User::factory()->create([
+            'grace_period_ends_at' => Carbon::parse('2026-10-12 12:00:00'),
+            'free_access_kind' => FreeAccessKind::SignupTrial,
+        ]);
+
+        $access = AccessSources::for($user);
+
+        $this->assertSame(AccessSource::SignupTrial, $access->source);
+        $this->assertSame('Signup Trial', $access->source->label());
+        $this->assertEquals(Carbon::parse('2026-10-12 12:00:00'), $access->until);
+        $this->assertSame('Signup Trial ends 12 Oct 2026', $access->detail());
+    }
+
     public function test_a_user_with_no_access_says_so(): void
     {
         $this->travelTo(self::NOW);
@@ -220,10 +251,13 @@ class AccessSourceTest extends TestCase
     private function createFixtures(): array
     {
         $expected = [];
-        foreach ($this->fixtures() as $name => [$source, $subscription, $partner, $complimentaryMinutes]) {
+        foreach ($this->fixtures() as $name => $fixture) {
+            [$source, $subscription, $partner, $freeMinutes, $kind] = $fixture + [4 => FreeAccessKind::Complimentary];
+            // Slug from the fixture name: the factory's fake company names collide across this many partners.
             $user = User::factory()->create([
-                'partner_id' => $partner === null ? null : Partner::factory()->create($partner)->id,
-                'grace_period_ends_at' => $complimentaryMinutes === null ? null : now()->addMinutes($complimentaryMinutes),
+                'partner_id' => $partner === null ? null : Partner::factory()->create(['slug' => Str::slug($name), ...$partner])->id,
+                'grace_period_ends_at' => $freeMinutes === null ? null : now()->addMinutes($freeMinutes),
+                'free_access_kind' => $kind,
             ]);
             if ($subscription !== null) {
                 Subscription::factory()->create(['user_id' => $user->id, ...$subscription]);

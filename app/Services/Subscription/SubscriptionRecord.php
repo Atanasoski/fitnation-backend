@@ -22,7 +22,10 @@ use Illuminate\Support\Facades\DB;
  *    report.
  *
  * Event times are epoch milliseconds, as RevenueCat sends them. A state with
- * no event time is applied unconditionally and moves no mark.
+ * no event time (a webhook missing event_timestamp_ms) is applied
+ * unconditionally and moves no mark. A REST snapshot has no event time of its
+ * own but is current by definition: pass now() in milliseconds, so an older
+ * webhook arriving later cannot undo it.
  */
 final class SubscriptionRecord
 {

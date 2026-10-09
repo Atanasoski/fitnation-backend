@@ -129,7 +129,7 @@ final class SubscriptionState
         };
     }
 
-    public static function periodType(?string $type): SubscriptionPeriodType
+    private static function periodType(?string $type): SubscriptionPeriodType
     {
         return match (strtoupper((string) $type)) {
             'TRIAL' => SubscriptionPeriodType::Trial,

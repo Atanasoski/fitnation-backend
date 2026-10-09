@@ -343,6 +343,15 @@ one, whatever its plan. Expected to stay rare — the
 
 _Avoid_: B2B partner, paid partner.
 
+### Acquisition Partner
+
+The partner a user belonged to when their subscription row was first
+created, stored on the subscription (`subscriptions.partner_id`) and frozen
+there: it says which gym brought in that paying user, even after the user
+moves to another partner. Only `SubscriptionRecord` writes it.
+
+_Avoid_: subscription partner, current partner (that is `users.partner_id`).
+
 ## Access
 
 ### Access Source

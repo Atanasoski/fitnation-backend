@@ -164,7 +164,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         } elseif ($state === null) {
             Log::info('Unhandled RevenueCat event type', [
                 'type' => $type,
-                'webhook_call_id' => $this->webhookCall->id,
+                'webhook_call_id' => $context['webhook_call_id'],
                 'event' => $event,
             ]);
         } elseif ($type === 'CANCELLATION' && $this->isRefund($event)) {

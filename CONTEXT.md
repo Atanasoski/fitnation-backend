@@ -406,6 +406,20 @@ but whose webhook is late or lost, gets their access recorded.
 
 _Avoid_: restore (that is the store's re-delivery of past purchases to a device), refresh.
 
+### Billing Retry
+
+A subscription whose renewal charge failed while the store retries it
+(`billing_issue`). It keeps access until the store's own grace-period end, or
+the paid period's end when the store gives none. "Grace period" here is
+always the store's, never [Free Access](#free-access).
+
+### Subscription Extension
+
+The store moving a subscription's end later without a charge (an Apple
+extension, a Play deferral), or RevenueCat letting access through a store
+outage (a temporary entitlement, a day at most). It only ever moves the end
+later, reopens an expired subscription, and leaves any other status as it was.
+
 ### Expected Monthly Revenue
 
 What the paying subscriptions are expected to bring in per month, in **USD**:

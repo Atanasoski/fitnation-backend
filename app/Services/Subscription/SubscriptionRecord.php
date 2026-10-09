@@ -2,8 +2,10 @@
 
 namespace App\Services\Subscription;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,6 +22,8 @@ use Illuminate\Support\Facades\DB;
  *  - the acquisition partner is frozen when the row is created;
  *  - a renewal keeps the original purchase time and any price it does not
  *    report.
+ *  - an extension only ever pushes the expiry later, reopening an expired
+ *    subscription and keeping any other status;
  *  - a stale event still fills in a price the row does not know: a REST
  *    snapshot reports no USD price, so a sync that beat the purchase
  *    webhook leaves it for that webhook, which is stale by then.
@@ -61,10 +65,11 @@ final class SubscriptionRecord
                 self::fillPurchase($subscription, $user, $state);
             }
 
-            $subscription->fill([
-                ...($state->status ? ['status' => $state->status] : []),
-                ...$state->dates(),
-            ]);
+            if ($state->extendsTo() !== null) {
+                self::extend($subscription, $state->extendsTo());
+            } else {
+                $subscription->fill(['status' => $state->status, ...$state->dates()]);
+            }
 
             if ($eventAtMs !== null) {
                 $subscription->last_event_at_ms = $eventAtMs;
@@ -129,6 +134,19 @@ final class SubscriptionRecord
 
             return $subscription;
         });
+    }
+
+    private static function extend(Subscription $subscription, Carbon $until): void
+    {
+        if ($subscription->expires_at !== null && $subscription->expires_at->gte($until)) {
+            return;
+        }
+
+        $subscription->expires_at = $until;
+
+        if ($subscription->status === SubscriptionStatus::Expired) {
+            $subscription->status = SubscriptionStatus::Active;
+        }
     }
 
     private static function isStale(?Subscription $subscription, ?int $eventAtMs): bool

@@ -738,7 +738,8 @@ class RevenueCatWebhookTest extends TestCase
 
     private function assertGate(User $user, int $status): void
     {
-        $this->actingAs($user, 'sanctum')->getJson(self::GATED_ROUTE)->assertStatus($status);
+        // fresh(): actingAs reuses the instance, and its loaded subscription would be stale.
+        $this->actingAs($user->fresh(), 'sanctum')->getJson(self::GATED_ROUTE)->assertStatus($status);
     }
 
     public function test_billing_issue_keeps_access_until_the_stores_grace_period_ends(): void
@@ -798,18 +799,9 @@ class RevenueCatWebhookTest extends TestCase
     {
         $user = $this->subscriberEndingTomorrow();
 
-        $this->postWebhook([
-            'api_version' => '1.0',
-            'event' => [
-                'type' => 'TEMPORARY_ENTITLEMENT_GRANT',
-                'id' => (string) Str::uuid(),
-                'app_user_id' => (string) $user->id,
-                'store' => 'APP_STORE',
-                'environment' => 'PRODUCTION',
-                'expiration_at_ms' => now()->addDays(2)->getTimestampMs(),
-                'event_timestamp_ms' => now()->getTimestampMs(),
-            ],
-        ])->assertOk();
+        $this->postWebhook($this->temporaryGrant($user, [
+            'expiration_at_ms' => now()->addDays(2)->getTimestampMs(),
+        ]))->assertOk();
 
         $this->travel(36)->hours();
         $this->assertGate($user, 200);
@@ -837,8 +829,10 @@ class RevenueCatWebhookTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/user')
-            ->assertJsonPath('user.subscription.status', 'cancelled')
-            ->assertJsonPath('user.entitlements', ['app_access']);
+            ->assertJsonPath('user.subscription.status', 'cancelled');
+
+        $this->travel(9)->days();
+        $this->assertGate($user, 200);
     }
 
     public function test_stale_billing_issue_and_extension_events_cannot_cut_access_short(): void
@@ -873,5 +867,78 @@ class RevenueCatWebhookTest extends TestCase
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/user')
             ->assertJsonPath('user.subscription.status', 'active');
+    }
+
+    /** RevenueCat's TEMPORARY_ENTITLEMENT_GRANT, as its sample shows it: no product, no expiration. */
+    private function temporaryGrant(User $user, array $overrides = []): array
+    {
+        return [
+            'api_version' => '1.0',
+            'event' => array_merge([
+                'type' => 'TEMPORARY_ENTITLEMENT_GRANT',
+                'id' => (string) Str::uuid(),
+                'app_user_id' => (string) $user->id,
+                'store' => 'APP_STORE',
+                'event_timestamp_ms' => now()->getTimestampMs(),
+            ], $overrides),
+        ];
+    }
+
+    public function test_a_temporary_entitlement_grant_without_an_expiration_gives_a_day_of_access(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+        $this->travel(24 * 60 + 1)->minutes();
+        $this->assertGate($user, 403);
+
+        $this->postWebhook($this->temporaryGrant($user))->assertOk();
+
+        $this->travel(23)->hours();
+        $this->assertGate($user, 200);
+
+        $this->travel(2)->hours();
+        $this->assertGate($user, 403);
+    }
+
+    public function test_a_temporary_entitlement_grant_never_shortens_a_longer_subscription(): void
+    {
+        $user = User::factory()->create();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'expiration_at_ms' => now()->addDays(30)->getTimestampMs(),
+            'event_timestamp_ms' => now()->subMinute()->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->postWebhook($this->temporaryGrant($user, [
+            'expiration_at_ms' => now()->addDay()->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->travel(20)->days();
+        $this->assertGate($user, 200);
+    }
+
+    public function test_an_extension_after_expiration_reopens_access_until_the_new_date(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+        $this->travel(24 * 60 + 1)->minutes();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'EXPIRATION',
+            'event_timestamp_ms' => now()->getTimestampMs(),
+        ]))->assertOk();
+        $this->assertGate($user, 403);
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'SUBSCRIPTION_EXTENDED',
+            'expiration_at_ms' => now()->addDays(5)->getTimestampMs(),
+            'event_timestamp_ms' => now()->getTimestampMs() + 1,
+        ]))->assertOk();
+
+        $this->travel(4)->days();
+        $this->assertGate($user, 200);
+
+        $this->travel(2)->days();
+        $this->assertGate($user, 403);
     }
 }

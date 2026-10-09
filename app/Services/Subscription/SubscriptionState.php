@@ -29,7 +29,7 @@ use InvalidArgumentException;
 final class SubscriptionState
 {
     /**
-     * @param  SubscriptionStatus|null  $status  null = unchanged (an extension moves only the expiry)
+     * @param  SubscriptionStatus|null  $status  null only for an extension, whose status follows from the row
      * @param  array<string, mixed>  $purchase  columns a purchase reports; empty for a status change
      * @param  array<string, Carbon|null>  $dates  expires_at / cancelled_at this state sets; absent = unchanged
      */
@@ -38,6 +38,7 @@ final class SubscriptionState
         private readonly array $purchase = [],
         private readonly array $dates = [],
         private readonly bool $isNewPurchase = false,
+        private readonly ?Carbon $extendsTo = null,
     ) {}
 
     /**
@@ -136,17 +137,18 @@ final class SubscriptionState
      */
     public static function billingIssue(?Carbon $accessUntil): self
     {
-        return new self(SubscriptionStatus::BillingIssue, dates: self::expiry($accessUntil));
+        return new self(SubscriptionStatus::BillingIssue, dates: self::expiresAtColumn($accessUntil));
     }
 
     /**
-     * The store (or RevenueCat, for a temporary entitlement) moved the end of
-     * the current period to $expiresAt. Nothing else changes: a cancelled
-     * subscription stays cancelled, it just runs longer.
+     * The store (or RevenueCat, for a temporary entitlement) lets access run
+     * until $until. An extension only ever pushes the expiry later, and it
+     * reopens an expired subscription; any other status is kept, so a
+     * cancelled subscription stays cancelled, it just runs longer.
      */
-    public static function extended(Carbon $expiresAt): self
+    public static function extended(Carbon $until): self
     {
-        return new self(null, dates: self::expiry($expiresAt));
+        return new self(null, extendsTo: $until);
     }
 
     /** Android only: the pause takes effect at the current expiry. */
@@ -170,7 +172,7 @@ final class SubscriptionState
     }
 
     /** @return array<string, Carbon> an expires_at to set, or nothing when unknown */
-    private static function expiry(?Carbon $expiresAt): array
+    private static function expiresAtColumn(?Carbon $expiresAt): array
     {
         return $expiresAt ? ['expires_at' => $expiresAt] : [];
     }
@@ -189,6 +191,16 @@ final class SubscriptionState
     public function isPurchase(): bool
     {
         return $this->purchase !== [];
+    }
+
+    /**
+     * @internal read by SubscriptionRecord
+     *
+     * The date an extension lets access run until; null for any other state.
+     */
+    public function extendsTo(): ?Carbon
+    {
+        return $this->extendsTo;
     }
 
     /** @internal read by SubscriptionRecord */

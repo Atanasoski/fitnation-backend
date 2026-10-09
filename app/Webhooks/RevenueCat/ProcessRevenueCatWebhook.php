@@ -19,6 +19,12 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     // Events that write a subscription row and so need product_id and store.
     private const PURCHASE_EVENTS = ['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE'];
 
+    // Events that let access run until a later date.
+    private const EXTENSION_EVENTS = ['SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT'];
+
+    // RevenueCat's documented maximum for a temporary entitlement.
+    private const TEMPORARY_GRANT_HOURS = 24;
+
     public function handle(): void
     {
         $event = $this->webhookCall->payload['event'] ?? null;
@@ -109,6 +115,10 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
      */
     private function stateFor(string $type, array $event): ?SubscriptionState
     {
+        if (in_array($type, self::EXTENSION_EVENTS, true)) {
+            return $this->extendedState($type, $event);
+        }
+
         $environment = $event['environment'] ?? 'production';
 
         return match ($type) {
@@ -139,16 +149,14 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
                 : SubscriptionState::cancelled(now()),
             'UNCANCELLATION', 'SUBSCRIPTION_RESUMED' => SubscriptionState::uncancelled(),
             'EXPIRATION' => SubscriptionState::expired(),
-            // The store keeps access through its billing grace period, when it
-            // has one; otherwise until the paid period's expiry.
+            // The store keeps access through its own billing grace period
+            // (store retries the charge), when it has one; otherwise until
+            // the paid period's expiry. The sync reads the same way.
             'BILLING_ISSUE' => SubscriptionState::billingIssue(
                 $this->fromMs($event['grace_period_expiration_at_ms'] ?? null)
                     ?? $this->fromMs($event['expiration_at_ms'] ?? null),
             ),
             'SUBSCRIPTION_PAUSED' => SubscriptionState::paused(),
-            // The store pushed the period's end back (Apple extension, Play
-            // deferral), or RevenueCat granted access through a store outage.
-            'SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT' => $this->extension($event),
             // PRICE_CHANGE only announces a future price; it carries no new
             // expiration, so running it through renewal would wipe expires_at.
             // It and unhandled types change nothing but the high-water mark.
@@ -157,14 +165,22 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     }
 
     /**
-     * Moves the expiry to the event's expiration. Without one there is nothing
-     * to apply, and the event only moves the high-water mark.
+     * The store pushed the period's end back (SUBSCRIPTION_EXTENDED: Apple
+     * extension, Play deferral), or RevenueCat let access through a store
+     * outage (TEMPORARY_ENTITLEMENT_GRANT). Access runs to the event's
+     * expiration. A temporary grant often carries none, so it runs for
+     * RevenueCat's documented maximum from the event. An extension without
+     * an expiration has nothing to apply and only moves the high-water mark.
      */
-    private function extension(array $event): ?SubscriptionState
+    private function extendedState(string $type, array $event): ?SubscriptionState
     {
-        $expiresAt = $this->fromMs($event['expiration_at_ms'] ?? null);
+        $until = $this->fromMs($event['expiration_at_ms'] ?? null);
 
-        return $expiresAt ? SubscriptionState::extended($expiresAt) : null;
+        if (! $until && $type === 'TEMPORARY_ENTITLEMENT_GRANT') {
+            $until = $this->fromMs($event['event_timestamp_ms'] ?? null)?->addHours(self::TEMPORARY_GRANT_HOURS);
+        }
+
+        return $until ? SubscriptionState::extended($until) : null;
     }
 
     private function isRefund(array $event): bool
@@ -180,7 +196,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
 
         if ($type === 'PRICE_CHANGE') {
             Log::info('RevenueCat PRICE_CHANGE noted — no subscription change applied', $context);
-        } elseif ($state === null && in_array($type, ['SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT'], true)) {
+        } elseif ($state === null && in_array($type, self::EXTENSION_EVENTS, true)) {
             Log::warning("RevenueCat {$type} carried no expiration — nothing applied", $context);
         } elseif ($state === null) {
             Log::info('Unhandled RevenueCat event type', [

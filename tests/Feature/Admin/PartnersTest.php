@@ -45,6 +45,20 @@ class PartnersTest extends TestCase
             ->assertSeeInOrder(['Lift Club', 'Partner', 'Free', 'Inactive']);
     }
 
+    public function test_a_deactivated_sponsor_plan_partner_is_not_called_a_sponsoring_partner(): void
+    {
+        $gym = Partner::factory()->create(['name' => 'Iron Temple', 'plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2026-12-01 00:00:00', 'is_active' => false]);
+
+        $this->asAdmin('/admin/partners')
+            ->assertOk()
+            ->assertSeeInOrder(['Iron Temple', 'Partner', 'Sponsor', '1 Dec 2026', 'Inactive'])
+            ->assertDontSee('Sponsoring Partner');
+
+        $this->asAdmin("/admin/partners/{$gym->slug}")
+            ->assertOk()
+            ->assertDontSee('Sponsoring Partner');
+    }
+
     public function test_member_counts_leave_out_staff_and_deleted_users_and_active_means_trained_this_week(): void
     {
         $gym = Partner::factory()->create(['name' => 'Iron Temple', 'slug' => 'iron-temple', 'plan' => PartnerPlan::Free]);

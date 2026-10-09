@@ -60,16 +60,17 @@ class Partner extends Model
     }
 
     /**
-     * House if this is the configured House Partner, Sponsoring if it is on
-     * the sponsor plan (whether or not the sponsorship has run out or the
-     * partner is deactivated — a label for the plan; who actually sponsors
-     * is isSponsoringMembers()), else plain.
+     * House if this is the configured House Partner, Sponsoring if it is an
+     * active partner on the sponsor plan (whether or not the sponsorship has
+     * run out; who actually sponsors today is isSponsoringMembers()), else
+     * plain. A deactivated partner sponsors no one, so it is never called a
+     * Sponsoring Partner (CONTEXT.md).
      */
     public function kind(): PartnerKind
     {
         return match (true) {
             $this->isHouse() => PartnerKind::House,
-            $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
+            $this->is_active && $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
             default => PartnerKind::Plain,
         };
     }

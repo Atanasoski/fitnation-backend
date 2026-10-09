@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\DB;
  *  - the acquisition partner is frozen when the row is created;
  *  - a renewal keeps the original purchase time and any price it does not
  *    report.
+ *  - a stale event still fills in a price the row does not know: a REST
+ *    snapshot reports no USD price, so a sync that beat the purchase
+ *    webhook leaves it for that webhook, which is stale by then.
  *
  * Event times are epoch milliseconds, as RevenueCat sends them. A state with
  * no event time (a webhook missing event_timestamp_ms) is applied
@@ -40,6 +43,8 @@ final class SubscriptionRecord
             $subscription = Subscription::where('user_id', $user->id)->first();
 
             if (self::isStale($subscription, $eventAtMs)) {
+                self::fillUnknownPrice($subscription, $state);
+
                 return false;
             }
 
@@ -129,6 +134,17 @@ final class SubscriptionRecord
         return $eventAtMs !== null
             && $subscription?->last_event_at_ms !== null
             && $eventAtMs <= $subscription->last_event_at_ms;
+    }
+
+    private static function fillUnknownPrice(Subscription $subscription, SubscriptionState $state): void
+    {
+        $price = $state->purchase()['price'] ?? null;
+
+        if ($subscription->price !== null || $price === null) {
+            return;
+        }
+
+        $subscription->update(['price' => $price, 'currency' => $state->purchase()['currency'] ?? $subscription->currency]);
     }
 
     private static function fillPurchase(Subscription $subscription, User $user, SubscriptionState $state): void

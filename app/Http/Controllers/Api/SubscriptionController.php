@@ -27,7 +27,7 @@ class SubscriptionController extends Controller
         }
 
         return response()->json([
-            'user' => new UserResource($user->load(['partner', 'profile', 'subscription'])),
+            'user' => new UserResource($user->load(UserResource::RELATIONS)),
         ]);
     }
 }

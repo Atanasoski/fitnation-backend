@@ -8,6 +8,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserResource extends JsonResource
 {
+    /** What GET /user loads, so every endpoint answering with "the user" matches it. */
+    public const RELATIONS = ['partner', 'profile', 'subscription'];
+
     /**
      * Transform the resource into an array.
      *

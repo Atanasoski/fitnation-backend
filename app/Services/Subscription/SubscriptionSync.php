@@ -2,6 +2,7 @@
 
 namespace App\Services\Subscription;
 
+use App\Enums\Entitlement;
 use App\Enums\SubscriptionStatus;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
@@ -27,8 +28,6 @@ use Illuminate\Support\Facades\Log;
  */
 final class SubscriptionSync
 {
-    private const ENTITLEMENT = 'app_access';
-
     /**
      * @throws SubscriptionSyncFailed
      */
@@ -95,11 +94,11 @@ final class SubscriptionSync
         }
 
         $subscriber = $response->json('subscriber');
-        $productId = $subscriber['entitlements'][self::ENTITLEMENT]['product_identifier'] ?? null;
+        $productId = $subscriber['entitlements'][Entitlement::AppAccess->value]['product_identifier'] ?? null;
         $subscription = is_string($productId) ? ($subscriber['subscriptions'][$productId] ?? null) : null;
 
         if (! is_array($subscription)) {
-            Log::info('Subscription sync: no app_access subscription at RevenueCat', ['user_id' => $user->id]);
+            Log::info('Subscription sync: no subscription behind the entitlement at RevenueCat', ['user_id' => $user->id, 'entitlement' => Entitlement::AppAccess->value]);
 
             return null;
         }

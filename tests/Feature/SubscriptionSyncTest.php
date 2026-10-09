@@ -323,4 +323,27 @@ class SubscriptionSyncTest extends TestCase
             ->assertJsonPath('user.subscription.status', 'expired')
             ->assertJsonPath('user.entitlements', []);
     }
+
+    public function test_a_late_purchase_webhook_after_a_sync_still_records_the_price(): void
+    {
+        $user = User::factory()->create();
+        $this->fakeRevenueCat($this->subscriber([
+            'unsubscribe_detected_at' => now()->toIso8601ZuluString(),
+        ]));
+        $this->sync($user)->assertOk();
+
+        $this->postWebhook([
+            'type' => 'INITIAL_PURCHASE',
+            'app_user_id' => (string) $user->id,
+            'price' => 4.99,
+            'currency' => 'EUR',
+            'event_timestamp_ms' => now()->subMinute()->getTimestampMs(),
+        ])->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame('4.99', $subscription->price);
+        $this->assertSame('EUR', $subscription->currency);
+        // Stale otherwise: the cancellation the sync saw stands.
+        $this->assertSame('cancelled', $subscription->status->value);
+    }
 }

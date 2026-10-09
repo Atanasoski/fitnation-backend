@@ -147,6 +147,25 @@ class SignupTrialTest extends TestCase
         $this->assertEquals('2026-10-19 12:00:00', $user->fresh()->grace_period_ends_at->toDateTimeString());
     }
 
+    public function test_the_launch_grace_command_skips_users_whose_free_access_was_ended(): void
+    {
+        $endedGrant = User::factory()->create(['free_access_kind' => 'complimentary']);
+        $endedTrial = User::factory()->create(['free_access_kind' => 'signup_trial']);
+        $never = User::factory()->create();
+
+        $this->artisan('subscriptions:grant-launch-grace', ['--force' => true, '--days' => 30])
+            ->expectsOutput('Granted 30 days of grace access to 1 user(s).')
+            ->assertSuccessful();
+
+        foreach ([$endedGrant, $endedTrial] as $ended) {
+            $this->actingAs($ended->fresh(), 'sanctum')->getJson('/api/user')
+                ->assertJsonPath('user.subscription.access_source', 'none')
+                ->assertJsonPath('user.subscription.grace_period_ends_at', null);
+        }
+        $this->actingAs($never->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'complimentary');
+    }
+
     public function test_the_launch_grace_command_skips_trialed_users(): void
     {
         $trialed = $this->onboardable();

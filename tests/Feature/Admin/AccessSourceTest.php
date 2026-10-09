@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Admin\AccessSources;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -42,9 +43,10 @@ class AccessSourceTest extends TestCase
             'period_type' => $period,
             'expires_at' => now()->addMinutes($expiresInMinutes),
         ];
-        $sponsor = fn (?int $expiresInMinutes) => [
+        $sponsor = fn (?int $expiresInMinutes, bool $active = true) => [
             'plan' => PartnerPlan::Sponsor,
             'plan_expires_at' => $expiresInMinutes === null ? null : now()->addMinutes($expiresInMinutes),
+            'is_active' => $active,
         ];
         $free = ['plan' => PartnerPlan::Free, 'plan_expires_at' => null];
 
@@ -68,6 +70,11 @@ class AccessSourceTest extends TestCase
             'sponsor, no end date' => [AccessSource::Sponsored, null, $sponsor(null), null],
             'sponsor, a minute ahead' => [AccessSource::Sponsored, null, $sponsor(1), null],
             'sponsor, a minute past' => [AccessSource::None, null, $sponsor(-1), null],
+            'deactivated sponsor, no end date' => [AccessSource::None, null, $sponsor(null, active: false), null],
+            'deactivated sponsor, a minute ahead' => [AccessSource::None, null, $sponsor(1, active: false), null],
+            'deactivated sponsor, complimentary' => [AccessSource::Complimentary, null, $sponsor(null, active: false), 600],
+            'deactivated sponsor, signup trial' => [AccessSource::SignupTrial, null, $sponsor(null, active: false), 600, FreeAccessKind::SignupTrial],
+            'deactivated sponsor, cancelled subscription' => [AccessSource::Cancelled, $sub(SubscriptionStatus::Cancelled, 600), $sponsor(null, active: false), null],
             'complimentary, a minute ahead' => [AccessSource::Complimentary, null, null, 1],
             'complimentary, a minute past' => [AccessSource::None, null, null, -1],
             'sponsored with an active subscription' => [AccessSource::Subscribed, $sub(SubscriptionStatus::Active, 600), $sponsor(null), null],
@@ -247,7 +254,7 @@ class AccessSourceTest extends TestCase
         foreach ($this->fixtures() as $name => $fixture) {
             [$source, $subscription, $partner, $freeMinutes, $kind] = $fixture + [4 => FreeAccessKind::Complimentary];
             $user = User::factory()->create([
-                'partner_id' => $partner === null ? null : Partner::factory()->create($partner)->id,
+                'partner_id' => $partner === null ? null : Partner::factory()->create(['slug' => Str::slug($name), ...$partner])->id,
                 'grace_period_ends_at' => $freeMinutes === null ? null : now()->addMinutes($freeMinutes),
                 'free_access_kind' => $kind,
             ]);

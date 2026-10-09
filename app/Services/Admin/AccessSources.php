@@ -25,8 +25,8 @@ use Illuminate\Support\Collection;
  *   access-granting status and expires_at in the future) — Active reads
  *   Trial on a trial period and Subscribed otherwise; Cancelled reads
  *   "Cancelled, paid until"; Billing issue; Paused;
- * - Sponsored — the user's partner is sponsoring its members
- *   (Partner::isSponsoringMembers());
+ * - Sponsored — the user's partner is an active Sponsoring Partner whose
+ *   sponsorship has not run out (Partner::isSponsoringMembers());
  * - Signup Trial — User::isOnSignupTrial();
  * - Complimentary — User::hasComplimentaryAccess() (the two are exclusive:
  *   one date, one recorded kind);

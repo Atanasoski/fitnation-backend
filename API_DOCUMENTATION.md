@@ -375,7 +375,7 @@ App access is controlled by **entitlements**. A user has access when **any** of 
 2. **Sponsoring gym (partner)** — the user's partner is on a `sponsor` plan, so the gym pays on the member's behalf (multi-tenant: some gyms cover their members, others don't).
 3. **Active grace period** — a time-limited grant (e.g. a launch grace window) set on the user.
 
-There is no client-facing subscription purchase API — purchases happen in-app through RevenueCat's SDK, and the backend is updated asynchronously via webhook. **The frontend never writes subscription state; it only reads it** from `GET /api/user`.
+There is no client-facing subscription purchase API — purchases happen in-app through RevenueCat's SDK, and the backend is updated asynchronously via webhook. **The frontend never writes subscription state; it only reads it** from `GET /api/user`, or asks the backend to re-read it from RevenueCat with [`POST /api/subscription/sync`](#sync-subscription-from-revenuecat).
 
 ### How to gate the UI
 
@@ -400,6 +400,7 @@ These remain accessible to authenticated users without app access, so the app ca
 | Method | Endpoint | Why |
 |--------|----------|-----|
 | GET | `/api/user` | Read access/entitlement state |
+| POST | `/api/subscription/sync` | Repairs access for a user blocked by a late webhook |
 | DELETE | `/api/user` | Account deletion must always be possible |
 | POST | `/api/logout` | — |
 | POST | `/api/email/verification-notification` | Email verification happens before paywall |
@@ -437,6 +438,31 @@ type SubscriptionStatus =
 - A `status` of `cancelled` still means the user **has access** until `expires_at` — do not gate on `status` directly; gate on `entitlements`.
 - `is_sponsored_by_gym: true` means there may be **no personal subscription** — `status` can be `null` while the user still has full access. This is expected for sponsored-gym members.
 - A refund sets `status` to `expired` and revokes access immediately.
+
+### Sync subscription from RevenueCat
+```
+POST /api/subscription/sync
+```
+*Requires authentication. Does **not** require a subscription. Throttled to 10 requests per minute per user (`429` beyond).*
+
+Re-reads the user's subscriber from the RevenueCat REST API (app user id = `users.id`), takes the subscription behind the `app_access` entitlement and records it on the backend — the same way the webhook would. Call it after a purchase or restore, and when a request answers `403 subscription_required` while RevenueCat says the user has `app_access`. No request body.
+
+The result is treated as current: a webhook for an older event that arrives afterwards does not undo it. Sandbox purchases are ignored in production. When RevenueCat reports no `app_access` entitlement (or a store we do not sell through) nothing is changed.
+
+**Response `200`:** the same payload as `GET /api/user`.
+```typescript
+interface SyncSubscriptionResponse {
+  user: UserResource;   // read entitlements / subscription as usual
+}
+```
+
+**Errors** (nothing is changed on the backend in either case):
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| `500` | `subscription_sync_not_configured` | The server has no RevenueCat secret API key (`REVENUECAT_SECRET_API_KEY`). Operator error. |
+| `502` | `subscription_sync_failed` | RevenueCat could not be reached or answered an error. Safe to retry later. |
+| `429` | — | Throttled. |
 
 ---
 

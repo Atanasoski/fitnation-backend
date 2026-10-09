@@ -17,7 +17,7 @@ use InvalidArgumentException;
  * the same row. The event time travels separately, as an argument to apply().
  *
  * Two shapes:
- *  - a purchase ({@see purchased()}, {@see renewed()}) says what was bought,
+ *  - a purchase ({@see purchased()}, {@see renewed()}, {@see snapshot()}) says what was bought,
  *    from which store, until when — it may create the row;
  *  - a status change ({@see cancelled()}, {@see expired()}, …) only moves an
  *    existing row and never creates one.
@@ -79,6 +79,30 @@ final class SubscriptionState
             SubscriptionStatus::Active,
             self::purchaseColumns($productId, $store, SubscriptionPeriodType::Normal, $price, $currency, $purchasedAt, $environment),
             ['expires_at' => $expiresAt, 'cancelled_at' => null],
+        );
+    }
+
+    /**
+     * The whole subscription as the store reports it right now (a RevenueCat
+     * REST snapshot), rather than one change to it: status, what was bought,
+     * until when, and when auto-renew was turned off, in one state. Like a
+     * renewal it continues any row already there, so the original purchase
+     * time and an unreported price or currency are kept.
+     */
+    public static function snapshot(
+        SubscriptionStatus $status,
+        string $productId,
+        ?string $store,
+        ?string $periodType,
+        ?Carbon $purchasedAt,
+        ?Carbon $expiresAt,
+        ?Carbon $cancelledAt,
+        string $environment,
+    ): self {
+        return new self(
+            $status,
+            self::purchaseColumns($productId, $store, self::periodType($periodType), null, null, $purchasedAt, $environment),
+            ['expires_at' => $expiresAt, 'cancelled_at' => $cancelledAt],
         );
     }
 

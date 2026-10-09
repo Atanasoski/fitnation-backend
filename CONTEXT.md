@@ -385,6 +385,15 @@ store **Trial** (part of a subscription).
 
 _Avoid_: free trial (alone — ambiguous with the store trial), grace period.
 
+### Subscription Sync
+
+The backend re-reading a user's subscription from RevenueCat on the app's
+request, instead of waiting for a webhook. It records what RevenueCat says now,
+so a webhook about anything older cannot undo it. It is how a user who paid,
+but whose webhook is late or lost, gets their access recorded.
+
+_Avoid_: restore (that is the store's re-delivery of past purchases to a device), refresh.
+
 ### Expected Monthly Revenue
 
 What the paying subscriptions are expected to bring in per month, in **USD**:

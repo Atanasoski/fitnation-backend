@@ -253,6 +253,7 @@ class AccessSourceTest extends TestCase
         $expected = [];
         foreach ($this->fixtures() as $name => $fixture) {
             [$source, $subscription, $partner, $freeMinutes, $kind] = $fixture + [4 => FreeAccessKind::Complimentary];
+            // Slug from the fixture name: the factory's fake company names collide across this many partners.
             $user = User::factory()->create([
                 'partner_id' => $partner === null ? null : Partner::factory()->create(['slug' => Str::slug($name), ...$partner])->id,
                 'grace_period_ends_at' => $freeMinutes === null ? null : now()->addMinutes($freeMinutes),

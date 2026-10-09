@@ -61,8 +61,9 @@ class Partner extends Model
 
     /**
      * House if this is the configured House Partner, Sponsoring if it is on
-     * the sponsor plan (whether or not the sponsorship has run out), else
-     * plain.
+     * the sponsor plan (whether or not the sponsorship has run out or the
+     * partner is deactivated — a label for the plan; who actually sponsors
+     * is isSponsoringMembers()), else plain.
      */
     public function kind(): PartnerKind
     {
@@ -74,12 +75,14 @@ class Partner extends Model
     }
 
     /**
-     * Sponsoring Partners whose sponsorship runs out after now and within
-     * $days days.
+     * Active Sponsoring Partners whose sponsorship runs out after now and
+     * within $days days. A deactivated partner sponsors no one, so it has
+     * nothing left to run out.
      */
     public function scopeSponsorshipExpiringWithin(Builder $query, int $days): Builder
     {
         return $query
+            ->where('is_active', true)
             ->where('plan', PartnerPlan::Sponsor)
             ->where('plan_expires_at', '>', now())
             ->where('plan_expires_at', '<=', now()->addDays($days));

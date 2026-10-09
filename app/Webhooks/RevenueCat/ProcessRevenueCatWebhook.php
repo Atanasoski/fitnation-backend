@@ -139,13 +139,32 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
                 : SubscriptionState::cancelled(now()),
             'UNCANCELLATION', 'SUBSCRIPTION_RESUMED' => SubscriptionState::uncancelled(),
             'EXPIRATION' => SubscriptionState::expired(),
-            'BILLING_ISSUE' => SubscriptionState::billingIssue(),
+            // The store keeps access through its billing grace period, when it
+            // has one; otherwise until the paid period's expiry.
+            'BILLING_ISSUE' => SubscriptionState::billingIssue(
+                $this->fromMs($event['grace_period_expiration_at_ms'] ?? null)
+                    ?? $this->fromMs($event['expiration_at_ms'] ?? null),
+            ),
             'SUBSCRIPTION_PAUSED' => SubscriptionState::paused(),
+            // The store pushed the period's end back (Apple extension, Play
+            // deferral), or RevenueCat granted access through a store outage.
+            'SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT' => $this->extension($event),
             // PRICE_CHANGE only announces a future price; it carries no new
             // expiration, so running it through renewal would wipe expires_at.
             // It and unhandled types change nothing but the high-water mark.
             default => null,
         };
+    }
+
+    /**
+     * Moves the expiry to the event's expiration. Without one there is nothing
+     * to apply, and the event only moves the high-water mark.
+     */
+    private function extension(array $event): ?SubscriptionState
+    {
+        $expiresAt = $this->fromMs($event['expiration_at_ms'] ?? null);
+
+        return $expiresAt ? SubscriptionState::extended($expiresAt) : null;
     }
 
     private function isRefund(array $event): bool
@@ -161,6 +180,8 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
 
         if ($type === 'PRICE_CHANGE') {
             Log::info('RevenueCat PRICE_CHANGE noted — no subscription change applied', $context);
+        } elseif ($state === null && in_array($type, ['SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT'], true)) {
+            Log::warning("RevenueCat {$type} carried no expiration — nothing applied", $context);
         } elseif ($state === null) {
             Log::info('Unhandled RevenueCat event type', [
                 'type' => $type,

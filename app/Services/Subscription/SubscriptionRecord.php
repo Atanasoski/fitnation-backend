@@ -61,7 +61,10 @@ final class SubscriptionRecord
                 self::fillPurchase($subscription, $user, $state);
             }
 
-            $subscription->fill(['status' => $state->status, ...$state->dates()]);
+            $subscription->fill([
+                ...($state->status ? ['status' => $state->status] : []),
+                ...$state->dates(),
+            ]);
 
             if ($eventAtMs !== null) {
                 $subscription->last_event_at_ms = $eventAtMs;

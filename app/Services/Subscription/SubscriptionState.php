@@ -19,8 +19,8 @@ use InvalidArgumentException;
  * Two shapes:
  *  - a purchase ({@see purchased()}, {@see renewed()}, {@see snapshot()}) says what was bought,
  *    from which store, until when — it may create the row;
- *  - a status change ({@see cancelled()}, {@see expired()}, …) only moves an
- *    existing row and never creates one.
+ *  - a status change ({@see cancelled()}, {@see expired()}, {@see extended()}, …)
+ *    only moves an existing row and never creates one.
  *
  * Store and period type arrive as RevenueCat's strings, in either case
  * (`APP_STORE` from a webhook, `app_store` from the REST API); the mapping to
@@ -29,11 +29,12 @@ use InvalidArgumentException;
 final class SubscriptionState
 {
     /**
+     * @param  SubscriptionStatus|null  $status  null = unchanged (an extension moves only the expiry)
      * @param  array<string, mixed>  $purchase  columns a purchase reports; empty for a status change
      * @param  array<string, Carbon|null>  $dates  expires_at / cancelled_at this state sets; absent = unchanged
      */
     private function __construct(
-        public readonly SubscriptionStatus $status,
+        public readonly ?SubscriptionStatus $status,
         private readonly array $purchase = [],
         private readonly array $dates = [],
         private readonly bool $isNewPurchase = false,
@@ -128,9 +129,24 @@ final class SubscriptionState
         return new self(SubscriptionStatus::Expired);
     }
 
-    public static function billingIssue(): self
+    /**
+     * The store could not charge and is retrying. Access runs to $accessUntil
+     * (the store's grace-period end, or the paid period's expiry when it gives
+     * none); null leaves the known expiry as it is.
+     */
+    public static function billingIssue(?Carbon $accessUntil): self
     {
-        return new self(SubscriptionStatus::BillingIssue);
+        return new self(SubscriptionStatus::BillingIssue, dates: self::expiry($accessUntil));
+    }
+
+    /**
+     * The store (or RevenueCat, for a temporary entitlement) moved the end of
+     * the current period to $expiresAt. Nothing else changes: a cancelled
+     * subscription stays cancelled, it just runs longer.
+     */
+    public static function extended(Carbon $expiresAt): self
+    {
+        return new self(null, dates: self::expiry($expiresAt));
     }
 
     /** Android only: the pause takes effect at the current expiry. */
@@ -151,6 +167,12 @@ final class SubscriptionState
             'PLAY_STORE' => SubscriptionStore::PlayStore,
             default => null,
         };
+    }
+
+    /** @return array<string, Carbon> an expires_at to set, or nothing when unknown */
+    private static function expiry(?Carbon $expiresAt): array
+    {
+        return $expiresAt ? ['expires_at' => $expiresAt] : [];
     }
 
     private static function periodType(?string $type): SubscriptionPeriodType

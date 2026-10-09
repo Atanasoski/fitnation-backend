@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin;
+namespace App\Services\Access;
 
 use App\Enums\AccessSource;
 use App\Enums\SubscriptionStore;

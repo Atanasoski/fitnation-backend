@@ -11,7 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\Partner;
 use App\Models\User;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use App\Services\Admin\ActivePlan;
 use App\Services\Admin\ActivityStatuses;
 use App\Services\Admin\UserChanges;

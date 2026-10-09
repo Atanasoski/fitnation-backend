@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * Why a user may use the app (CONTEXT.md, Access Source). The rule that
- * assigns one lives in App\Services\Admin\AccessSources.
+ * assigns one lives in App\Services\Access\AccessSources.
  */
 enum AccessSource: string
 {

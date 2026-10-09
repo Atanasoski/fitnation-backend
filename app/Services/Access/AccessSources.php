@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin;
+namespace App\Services\Access;
 
 use App\Enums\AccessSource;
 use App\Enums\AdminChangeKind;
@@ -19,6 +19,7 @@ use Illuminate\Support\Collection;
  * source (and its facts) of given users, and a query constraint "users whose
  * source is X" that runs in SQL so the Users list can filter and the Overview
  * can count. tests/Feature/Admin/AccessSourceTest.php holds them to each other.
+ * Not an admin module: GET /user reports the source too (sourceOf()).
  *
  * In order, the first that holds:
  * - a subscription that grants access (Subscription::isActive(): an

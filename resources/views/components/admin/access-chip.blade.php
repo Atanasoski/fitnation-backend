@@ -1,5 +1,5 @@
 @props(['access'])
-{{-- An Access Source chip; the detail line rides along as a tooltip. Takes an App\Services\Admin\Access. --}}
+{{-- An Access Source chip; the detail line rides along as a tooltip. Takes an App\Services\Access\Access. --}}
 @php
     $classes = match ($access->source) {
         \App\Enums\AccessSource::Subscribed => 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500',

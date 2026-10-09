@@ -4,7 +4,7 @@ namespace App\Http\Resources\Api;
 
 use App\Models\User;
 use App\Notifications\WeeklySummary;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

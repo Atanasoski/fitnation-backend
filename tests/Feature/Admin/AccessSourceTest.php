@@ -13,7 +13,7 @@ use App\Enums\SubscriptionStore;
 use App\Models\Partner;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;

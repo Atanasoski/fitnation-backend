@@ -336,8 +336,9 @@ _Avoid_: direct user, no-partner user, default partner.
 
 ### Sponsoring Partner
 
-A partner on the sponsor plan: it pays for its members, so they have access
-without a subscription of their own. Expected to stay rare — the
+An active partner on the sponsor plan: it pays for its members, so they have
+access without a subscription of their own. A deactivated partner sponsors no
+one, whatever its plan. Expected to stay rare — the
 [House Partner](#house-partner) is the paying base.
 
 _Avoid_: B2B partner, paid partner.
@@ -347,7 +348,7 @@ _Avoid_: B2B partner, paid partner.
 ### Access Source
 
 Why a user may use the app, read off the rules alone: **Subscribed**,
-**Trial**, **Cancelled, paid until** (they cancelled but the period they paid
+**Trial** (a store trial), **Signup Trial**, **Cancelled, paid until** (they cancelled but the period they paid
 for has not run out), **Billing issue**, **Paused**, **Sponsored** (their partner is a
 [Sponsoring Partner](#sponsoring-partner)), **Complimentary**
 ([Complimentary Access](#complimentary-access)), or **None**. It is the same
@@ -364,6 +365,16 @@ help someone stuck or to let a person in early.
 
 _Avoid_: grace period — a cancelled subscription still running to its end is
 not this, and is not called grace either.
+
+### Signup Trial
+
+Free access every new user gets for a fixed number of days from the moment
+they finish onboarding, with no payment and no store involved. Once per
+account. We set its length, not the stores. Distinct from
+[Complimentary Access](#complimentary-access) (granted by an admin) and from a
+store **Trial** (part of a subscription).
+
+_Avoid_: free trial (alone — ambiguous with the store trial), grace period.
 
 ### Expected Monthly Revenue
 

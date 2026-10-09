@@ -2,13 +2,10 @@
 
 namespace App\Webhooks\RevenueCat;
 
-use App\Enums\SubscriptionPeriodType;
-use App\Enums\SubscriptionStatus;
-use App\Enums\SubscriptionStore;
-use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionRecord;
+use App\Services\Subscription\SubscriptionState;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
@@ -57,7 +54,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         // reinstall, family sharing). It has its own from/to identity fields, so
         // handle it before the single-user resolution below.
         if ($type === 'TRANSFER') {
-            DB::transaction(fn () => $this->handleTransfer($event));
+            $this->handleTransfer($event);
 
             return;
         }
@@ -86,49 +83,93 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         }
 
         $eventTs = isset($event['event_timestamp_ms']) ? (int) $event['event_timestamp_ms'] : null;
+        $state = $this->stateFor($type, $event);
 
-        DB::transaction(function () use ($user, $event, $type, $eventTs) {
-            // RevenueCat does not guarantee ordering or exactly-once delivery.
-            // Ignore any event that is older than or identical to the last one
-            // already applied to this subscription (e.g. a late EXPIRATION that
-            // arrives after a RENEWAL would otherwise revoke a paying user).
-            if ($this->isStale($user, $eventTs)) {
-                Log::info('Skipping out-of-order/duplicate RevenueCat event', [
-                    'type' => $type,
-                    'user_id' => $user->id,
-                    'event_timestamp_ms' => $eventTs,
-                    'webhook_call_id' => $this->webhookCall->id,
-                ]);
+        $applied = $state
+            ? SubscriptionRecord::apply($user, $state, $eventTs)
+            : SubscriptionRecord::noteEvent($user, $eventTs);
 
-                return;
-            }
+        if (! $applied) {
+            Log::info('Skipping out-of-order/duplicate RevenueCat event', [
+                'type' => $type,
+                'user_id' => $user->id,
+                'event_timestamp_ms' => $eventTs,
+                'webhook_call_id' => $this->webhookCall->id,
+            ]);
 
-            match ($type) {
-                'INITIAL_PURCHASE' => $this->handleInitialPurchase($user, $event),
-                'RENEWAL', 'PRODUCT_CHANGE' => $this->handleRenewal($user, $event),
-                // PRICE_CHANGE only announces a future price; it carries no new
-                // expiration, so running it through renewal would wipe expires_at.
-                'PRICE_CHANGE' => Log::info('RevenueCat PRICE_CHANGE noted — no subscription change applied', [
-                    'user_id' => $user->id,
-                    'webhook_call_id' => $this->webhookCall->id,
-                ]),
-                'CANCELLATION' => $this->handleCancellation($user, $event),
-                'UNCANCELLATION', 'SUBSCRIPTION_RESUMED' => $this->handleUncancellation($user),
-                'EXPIRATION' => $this->handleExpiration($user),
-                'BILLING_ISSUE' => $this->handleBillingIssue($user),
-                'SUBSCRIPTION_PAUSED' => $this->handlePaused($user),
-                default => Log::info('Unhandled RevenueCat event type', [
-                    'type' => $type,
-                    'webhook_call_id' => $this->webhookCall->id,
-                    'event' => $event,
-                ]),
-            };
+            return;
+        }
 
-            // Advance the high-water mark so later-arriving older events are skipped.
-            if ($eventTs !== null) {
-                Subscription::where('user_id', $user->id)->update(['last_event_at_ms' => $eventTs]);
-            }
-        });
+        $this->logApplied($type, $event, $user, $state);
+    }
+
+    /**
+     * The subscription state an event describes, or null when it changes
+     * nothing about the subscription.
+     */
+    private function stateFor(string $type, array $event): ?SubscriptionState
+    {
+        $environment = $event['environment'] ?? 'production';
+
+        return match ($type) {
+            'INITIAL_PURCHASE' => SubscriptionState::purchased(
+                productId: $event['product_id'],
+                store: $event['store'] ?? null,
+                periodType: $event['period_type'] ?? null,
+                price: $event['price'] ?? null,
+                currency: $event['currency'] ?? null,
+                purchasedAt: $this->fromMs($event['purchased_at_ms'] ?? null),
+                expiresAt: $this->fromMs($event['expiration_at_ms'] ?? null),
+                environment: $environment,
+            ),
+            'RENEWAL', 'PRODUCT_CHANGE' => SubscriptionState::renewed(
+                productId: $event['product_id'],
+                store: $event['store'] ?? null,
+                price: $event['price'] ?? null,
+                currency: $event['currency'] ?? null,
+                purchasedAt: $this->fromMs($event['purchased_at_ms'] ?? null),
+                expiresAt: $this->fromMs($event['expiration_at_ms'] ?? null),
+                environment: $environment,
+            ),
+            // A refund (CUSTOMER_SUPPORT) returns the customer's money — revoke
+            // access immediately rather than honouring the remaining paid period.
+            // Otherwise auto-renew was turned off and access continues until expiry.
+            'CANCELLATION' => $this->isRefund($event)
+                ? SubscriptionState::refunded(now())
+                : SubscriptionState::cancelled(now()),
+            'UNCANCELLATION', 'SUBSCRIPTION_RESUMED' => SubscriptionState::uncancelled(),
+            'EXPIRATION' => SubscriptionState::expired(),
+            'BILLING_ISSUE' => SubscriptionState::billingIssue(),
+            'SUBSCRIPTION_PAUSED' => SubscriptionState::paused(),
+            // PRICE_CHANGE only announces a future price; it carries no new
+            // expiration, so running it through renewal would wipe expires_at.
+            // It and unhandled types change nothing but the high-water mark.
+            default => null,
+        };
+    }
+
+    private function isRefund(array $event): bool
+    {
+        $reason = strtoupper((string) ($event['cancel_reason'] ?? $event['cancellation_reason'] ?? ''));
+
+        return $reason === 'CUSTOMER_SUPPORT';
+    }
+
+    private function logApplied(string $type, array $event, User $user, ?SubscriptionState $state): void
+    {
+        $context = ['user_id' => $user->id, 'webhook_call_id' => $this->webhookCall->id];
+
+        if ($type === 'PRICE_CHANGE') {
+            Log::info('RevenueCat PRICE_CHANGE noted — no subscription change applied', $context);
+        } elseif ($state === null) {
+            Log::info('Unhandled RevenueCat event type', [
+                'type' => $type,
+                'webhook_call_id' => $this->webhookCall->id,
+                'event' => $event,
+            ]);
+        } elseif ($type === 'CANCELLATION' && $this->isRefund($event)) {
+            Log::info('RevenueCat refund — access revoked immediately', $context);
+        }
     }
 
     /**
@@ -182,124 +223,6 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             ->all();
     }
 
-    private function isStale(User $user, ?int $eventTs): bool
-    {
-        if ($eventTs === null) {
-            return false;
-        }
-
-        $last = Subscription::where('user_id', $user->id)->value('last_event_at_ms');
-
-        // <= so exact-duplicate deliveries (same timestamp) are also ignored.
-        return $last !== null && $eventTs <= $last;
-    }
-
-    private function handleInitialPurchase(User $user, array $event): void
-    {
-        Subscription::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'partner_id' => $user->partner_id,
-                'product_id' => $event['product_id'],
-                'store' => $this->mapStore($event['store'] ?? null),
-                'status' => SubscriptionStatus::Active,
-                'period_type' => $this->mapPeriodType($event['period_type'] ?? null),
-                'price' => $event['price'] ?? null,
-                'currency' => $event['currency'] ?? null,
-                'purchased_at' => $this->fromMs($event['purchased_at_ms'] ?? null) ?? now(),
-                'expires_at' => $this->fromMs($event['expiration_at_ms'] ?? null),
-                'cancelled_at' => null,
-                'environment' => strtolower($event['environment'] ?? 'production'),
-            ]
-        );
-    }
-
-    private function handleRenewal(User $user, array $event): void
-    {
-        $subscription = Subscription::firstOrNew(['user_id' => $user->id]);
-
-        // Preserve partner_id (acquisition gym) — never overwritten after initial purchase.
-        if (! $subscription->exists) {
-            $subscription->partner_id = $user->partner_id;
-        }
-
-        $subscription->fill([
-            'product_id' => $event['product_id'],
-            'store' => $this->mapStore($event['store'] ?? null),
-            'status' => SubscriptionStatus::Active,
-            'period_type' => SubscriptionPeriodType::Normal,
-            'price' => $event['price'] ?? $subscription->price,
-            'currency' => $event['currency'] ?? $subscription->currency,
-            'expires_at' => $this->fromMs($event['expiration_at_ms'] ?? null),
-            'cancelled_at' => null,
-            'environment' => strtolower($event['environment'] ?? 'production'),
-        ]);
-
-        if (! $subscription->purchased_at) {
-            $subscription->purchased_at = $this->fromMs($event['purchased_at_ms'] ?? null) ?? now();
-        }
-
-        $subscription->save();
-    }
-
-    private function handleCancellation(User $user, array $event): void
-    {
-        $reason = strtoupper((string) ($event['cancel_reason'] ?? $event['cancellation_reason'] ?? ''));
-
-        // A refund (CUSTOMER_SUPPORT) returns the customer's money — revoke
-        // access immediately rather than honouring the remaining paid period.
-        if ($reason === 'CUSTOMER_SUPPORT') {
-            Subscription::where('user_id', $user->id)->update([
-                'status' => SubscriptionStatus::Expired,
-                'cancelled_at' => now(),
-                'expires_at' => now(),
-            ]);
-
-            Log::info('RevenueCat refund — access revoked immediately', [
-                'user_id' => $user->id,
-                'webhook_call_id' => $this->webhookCall->id,
-            ]);
-
-            return;
-        }
-
-        // Auto-renew turned off — access continues until expires_at (grace period).
-        Subscription::where('user_id', $user->id)->update([
-            'status' => SubscriptionStatus::Cancelled,
-            'cancelled_at' => now(),
-        ]);
-    }
-
-    private function handleUncancellation(User $user): void
-    {
-        Subscription::where('user_id', $user->id)->update([
-            'status' => SubscriptionStatus::Active,
-            'cancelled_at' => null,
-        ]);
-    }
-
-    private function handleExpiration(User $user): void
-    {
-        Subscription::where('user_id', $user->id)->update([
-            'status' => SubscriptionStatus::Expired,
-        ]);
-    }
-
-    private function handleBillingIssue(User $user): void
-    {
-        Subscription::where('user_id', $user->id)->update([
-            'status' => SubscriptionStatus::BillingIssue,
-        ]);
-    }
-
-    // Android-only: user paused — access ends at expires_at, resumes automatically.
-    private function handlePaused(User $user): void
-    {
-        Subscription::where('user_id', $user->id)->update([
-            'status' => SubscriptionStatus::Paused,
-        ]);
-    }
-
     /**
      * RevenueCat TRANSFER moves a subscription between app_user_ids. Re-point the
      * existing subscription to the new (target) user so they keep access. The
@@ -321,7 +244,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             ));
         }
 
-        $subscription = Subscription::whereIn('user_id', $sourceIds)->first();
+        $subscription = SubscriptionRecord::transfer($sourceIds, $target);
 
         if (! $subscription) {
             Log::info('RevenueCat TRANSFER: no source subscription to move', [
@@ -332,15 +255,6 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
 
             return;
         }
-
-        // The unique(user_id) constraint allows the target only one subscription —
-        // drop any superseded one before re-pointing the transferred subscription.
-        Subscription::where('user_id', $target->id)
-            ->whereKeyNot($subscription->id)
-            ->delete();
-
-        $subscription->user_id = $target->id;
-        $subscription->save();
 
         Log::info('RevenueCat TRANSFER applied', [
             'from' => $sourceIds,
@@ -358,7 +272,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             return 'product_id is missing';
         }
 
-        if ($this->mapStore($event['store'] ?? null) === null) {
+        if (SubscriptionState::store($event['store'] ?? null) === null) {
             return sprintf('store %s is not one we sell through', json_encode($event['store'] ?? null));
         }
 
@@ -379,27 +293,6 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             'problem' => $problem,
             'webhook_call_id' => $this->webhookCall->id,
         ]);
-    }
-
-    // Only the two stores we sell through; anything else is rejected up front
-    // in purchasePayloadProblem() rather than silently recorded as App Store.
-    private function mapStore(?string $store): ?SubscriptionStore
-    {
-        return match (strtoupper((string) $store)) {
-            'APP_STORE' => SubscriptionStore::AppStore,
-            'PLAY_STORE' => SubscriptionStore::PlayStore,
-            default => null,
-        };
-    }
-
-    private function mapPeriodType(?string $type): SubscriptionPeriodType
-    {
-        return match (strtoupper((string) $type)) {
-            'TRIAL' => SubscriptionPeriodType::Trial,
-            'INTRO' => SubscriptionPeriodType::Intro,
-            'PROMOTIONAL' => SubscriptionPeriodType::Promotional,
-            default => SubscriptionPeriodType::Normal,
-        };
     }
 
     private function fromMs(?int $ms): ?Carbon

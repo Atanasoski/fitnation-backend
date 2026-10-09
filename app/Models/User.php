@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Entitlement;
+use App\Enums\FreeAccessKind;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
@@ -79,6 +80,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'push_enabled' => 'boolean',
             'notification_settings' => 'array',
             'grace_period_ends_at' => 'datetime',
+            'free_access_kind' => FreeAccessKind::class,
         ];
     }
 
@@ -242,7 +244,7 @@ class User extends Authenticatable implements MustVerifyEmail
             $set->push(Entitlement::AppAccess);
         }
 
-        if ($this->hasComplimentaryAccess()) {
+        if ($this->hasFreeAccess()) {
             $set->push(Entitlement::AppAccess);
         }
 
@@ -250,13 +252,64 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Free access until a date, without payment: a Signup Trial or
+     * Complimentary Access (CONTEXT.md). The date is grace_period_ends_at (a
+     * name kept for now), the reason is free_access_kind. Either one grants
+     * app access; scopeWithFreeAccess() is the same rule in SQL.
+     */
+    public function hasFreeAccess(): bool
+    {
+        return $this->grace_period_ends_at !== null && $this->grace_period_ends_at > now();
+    }
+
+    /**
+     * Why the user has (or had) free access until grace_period_ends_at; null
+     * when no date is set. A date with no recorded kind reads Complimentary:
+     * every date set before the kind was recorded was an admin or test grant.
+     */
+    public function freeAccessKind(): ?FreeAccessKind
+    {
+        if ($this->grace_period_ends_at === null) {
+            return null;
+        }
+
+        return $this->free_access_kind ?? FreeAccessKind::Complimentary;
+    }
+
+    /**
+     * The Signup Trial (CONTEXT.md) is running. scopeOnSignupTrial() is the
+     * same rule in SQL.
+     */
+    public function isOnSignupTrial(): bool
+    {
+        return $this->hasFreeAccess() && $this->freeAccessKind() === FreeAccessKind::SignupTrial;
+    }
+
+    /**
      * Complimentary Access (CONTEXT.md): an admin let this user in until a
-     * date. Stored as grace_period_ends_at, a name kept for now.
-     * scopeWithComplimentaryAccess() is the same rule in SQL.
+     * date. scopeWithComplimentaryAccess() is the same rule in SQL.
      */
     public function hasComplimentaryAccess(): bool
     {
-        return $this->grace_period_ends_at !== null && $this->grace_period_ends_at > now();
+        return $this->hasFreeAccess() && $this->freeAccessKind() === FreeAccessKind::Complimentary;
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithFreeAccess(Builder $query): Builder
+    {
+        return $query->where('users.grace_period_ends_at', '>', now());
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeOnSignupTrial(Builder $query): Builder
+    {
+        return $query->withFreeAccess()->where('users.free_access_kind', FreeAccessKind::SignupTrial);
     }
 
     /**
@@ -265,7 +318,9 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function scopeWithComplimentaryAccess(Builder $query): Builder
     {
-        return $query->where('users.grace_period_ends_at', '>', now());
+        return $query->withFreeAccess()->where(fn (Builder $q) => $q
+            ->whereNull('users.free_access_kind')
+            ->orWhere('users.free_access_kind', FreeAccessKind::Complimentary));
     }
 
     /**
@@ -329,21 +384,25 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The free days a new user gets when onboarding completes: app access with
-     * no card and no store, via grace_period_ends_at, so the paywall takes
-     * over when the date passes. One-shot per account — a date already set
-     * (an earlier trial, the launch grace) is never moved. Returns whether a
-     * trial was started.
+     * The Signup Trial (CONTEXT.md): the free days a new user gets when
+     * onboarding completes — app access with no card and no store, until
+     * grace_period_ends_at, so the paywall takes over when the date passes.
+     * Once per account: a user who already had any free access (an earlier
+     * trial, Complimentary Access, the launch grace — even one since ended)
+     * never gets one. Returns whether a trial was started.
      */
     public function startSignupTrial(): bool
     {
         $days = (int) config('subscriptions.signup_trial_days', 0);
 
-        if ($days <= 0 || $this->grace_period_ends_at !== null) {
+        if ($days <= 0 || $this->grace_period_ends_at !== null || $this->free_access_kind !== null) {
             return false;
         }
 
-        $this->forceFill(['grace_period_ends_at' => now()->addDays($days)])->save();
+        $this->forceFill([
+            'grace_period_ends_at' => now()->addDays($days),
+            'free_access_kind' => FreeAccessKind::SignupTrial,
+        ])->save();
 
         return true;
     }

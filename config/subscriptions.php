@@ -25,10 +25,11 @@ return [
     |
     | Days of app access a new user gets when onboarding completes, with no
     | card and no store involved (User::startSignupTrial, called from
-    | WelcomePlanGenerationService). It reuses grace_period_ends_at, so the
-    | paywall takes over when the date passes. 0 disables it. The launch grace
-    | command is unaffected: it only touches users who were never granted
-    | anything.
+    | WelcomePlanGenerationService). It reuses grace_period_ends_at, with
+    | free_access_kind `signup_trial`, so the paywall takes over when the date
+    | passes. 0 disables it. GET /user reports it as signup_trial_days. The
+    | launch grace command is unaffected: it only touches users who were never
+    | granted anything.
     |
     */
 

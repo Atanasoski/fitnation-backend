@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ComplimentaryAccessAndPartnerChangeTest extends TestCase
@@ -86,6 +87,52 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
         $this->actingAs($admin)
             ->get("/admin/users/{$member->id}")
             ->assertSeeInOrder(['Complimentary until 31 Jan 2027', 'Grants', 'until 31 Jan 2027', 'Extended', 'until 20 Oct 2026', 'First']);
+    }
+
+    public function test_a_grant_over_a_running_signup_trial_becomes_complimentary(): void
+    {
+        config(['subscriptions.signup_trial_days' => 7]);
+        $admin = $this->userWithRole('admin', ['name' => 'Grace Hopper']);
+        $member = $this->member(Partner::factory()->create());
+        $member->startSignupTrial();
+
+        $this->actingAs($member->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'signup_trial')
+            ->assertJsonPath('user.subscription.free_access_kind', 'signup_trial');
+        $this->actingAs($admin)
+            ->get("/admin/users/{$member->id}")
+            ->assertSeeInOrder(['Access Source', 'Signup Trial', 'Signup Trial ends 12 Oct 2026', 'Grant Complimentary Access']);
+
+        $this->actingAs($admin)
+            ->post("/admin/users/{$member->id}/complimentary-access", ['until' => '2026-12-01', 'reason' => 'App Review account'])
+            ->assertSessionHas('success');
+
+        $this->actingAs($member->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'complimentary')
+            ->assertJsonPath('user.subscription.free_access_kind', 'complimentary')
+            ->assertJsonPath('user.subscription.grace_period_ends_at', Carbon::parse('2026-12-01 23:59:59')->toJSON());
+        $this->actingAs($admin)
+            ->get("/admin/users/{$member->id}")
+            ->assertSeeInOrder(['Access Source', 'Complimentary', 'Complimentary until 1 Dec 2026 · granted by Grace Hopper', 'Extend Complimentary Access']);
+    }
+
+    public function test_ending_complimentary_access_does_not_open_a_signup_trial(): void
+    {
+        config(['subscriptions.signup_trial_days' => 7]);
+        $admin = $this->userWithRole('admin');
+        $member = $this->member(Partner::factory()->create());
+
+        $this->actingAs($admin)->post("/admin/users/{$member->id}/complimentary-access", ['until' => '2026-12-01', 'reason' => 'Early access']);
+        $this->actingAs($admin)->delete("/admin/users/{$member->id}/complimentary-access", ['reason' => 'Done']);
+
+        $this->assertFalse($member->fresh()->startSignupTrial());
+        $this->actingAs($member->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'none')
+            ->assertJsonPath('user.subscription.free_access_kind', null)
+            ->assertJsonPath('user.subscription.grace_period_ends_at', null);
     }
 
     public function test_an_admin_ends_complimentary_access_now(): void

@@ -14,6 +14,7 @@ enum AccessSource: string
     case BillingIssue = 'billing_issue';
     case Paused = 'paused';
     case Sponsored = 'sponsored';
+    case SignupTrial = 'signup_trial';
     case Complimentary = 'complimentary';
     case None = 'none';
 
@@ -22,6 +23,7 @@ enum AccessSource: string
         return match ($this) {
             self::Cancelled => 'Cancelled, paid until',
             self::BillingIssue => 'Billing issue',
+            self::SignupTrial => 'Signup Trial',
             default => ucfirst($this->value),
         };
     }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\FreeAccessKind;
 use App\Models\User;
 use Illuminate\Console\Command;
 
@@ -34,7 +35,11 @@ class GrantLaunchGrace extends Command
             return self::FAILURE;
         }
 
-        $query->update(['grace_period_ends_at' => now()->addDays($days)]);
+        // Launch grace is Complimentary Access (CONTEXT.md), not a Signup Trial.
+        $query->update([
+            'grace_period_ends_at' => now()->addDays($days),
+            'free_access_kind' => FreeAccessKind::Complimentary,
+        ]);
 
         $this->info("Granted {$days} days of grace access to {$count} user(s).");
 

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Enums\AdminChangeKind;
+use App\Enums\FreeAccessKind;
 use App\Models\AdminChange;
 use App\Models\Partner;
 use App\Models\User;
@@ -24,19 +25,26 @@ final class UserChanges
 {
     /**
      * Grant Complimentary Access until $until, or move an existing grant's
-     * end date (extend). Stored as users.grace_period_ends_at.
+     * end date (extend). Stored as users.grace_period_ends_at with
+     * free_access_kind `complimentary`; a grant over a running Signup Trial
+     * replaces it, so the label follows the latest reason.
      */
     public static function grantComplimentaryAccess(User $user, CarbonInterface $until, string $reason, User $admin): AdminChange
     {
         return DB::transaction(function () use ($user, $until, $reason, $admin) {
-            $user->forceFill(['grace_period_ends_at' => $until])->save();
+            $user->forceFill([
+                'grace_period_ends_at' => $until,
+                'free_access_kind' => FreeAccessKind::Complimentary,
+            ])->save();
 
             return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => $until]);
         });
     }
 
     /**
-     * End Complimentary Access now. Recorded with a null until.
+     * End Complimentary Access now. Recorded with a null until. The kind
+     * stays, so the account still counts as having had free access and never
+     * gets a Signup Trial after it (User::startSignupTrial).
      */
     public static function endComplimentaryAccess(User $user, ?string $reason, User $admin): AdminChange
     {

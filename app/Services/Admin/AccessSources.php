@@ -27,7 +27,9 @@ use Illuminate\Support\Collection;
  *   "Cancelled, paid until"; Billing issue; Paused;
  * - Sponsored — the user's partner is sponsoring its members
  *   (Partner::isSponsoringMembers());
- * - Complimentary — User::hasComplimentaryAccess();
+ * - Signup Trial — User::isOnSignupTrial();
+ * - Complimentary — User::hasComplimentaryAccess() (the two are exclusive:
+ *   one date, one recorded kind);
  * - None.
  *
  * These are the facts User::entitlements() reads, through the same
@@ -131,12 +133,14 @@ final class AccessSources
             AccessSource::Paused => $subscription(SubscriptionStatus::Paused),
             AccessSource::Sponsored => self::withoutSubscriptionAccess($query)
                 ->whereHas('partner', fn (Builder $partners) => $partners->sponsoringMembers()),
+            AccessSource::SignupTrial => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
+                ->onSignupTrial(),
             AccessSource::Complimentary => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
                 ->withComplimentaryAccess(),
             // NOT (ends > now) is NULL for a NULL date in SQL, so the negated
             // group also requires the date to be set: no date at all reads None.
             AccessSource::None => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
-                ->whereNot(fn (Builder $q) => $q->withComplimentaryAccess()->whereNotNull('users.grace_period_ends_at')),
+                ->whereNot(fn (Builder $q) => $q->withFreeAccess()->whereNotNull('users.grace_period_ends_at')),
         };
     }
 
@@ -178,6 +182,10 @@ final class AccessSources
 
         if ($partner?->isSponsoringMembers()) {
             return new Access(AccessSource::Sponsored, until: $partner->plan_expires_at, sponsor: $partner);
+        }
+
+        if ($user->isOnSignupTrial()) {
+            return new Access(AccessSource::SignupTrial, until: $user->grace_period_ends_at);
         }
 
         if ($user->hasComplimentaryAccess()) {

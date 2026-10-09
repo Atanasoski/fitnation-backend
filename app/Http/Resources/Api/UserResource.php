@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api;
 
 use App\Notifications\WeeklySummary;
+use App\Services\Admin\AccessSources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,6 +51,10 @@ class UserResource extends JsonResource
                 'is_trial' => $this->subscription?->isInTrial() ?? false,
                 'is_sponsored_by_gym' => $this->partner?->isSponsoringMembers() ?? false,
                 'grace_period_ends_at' => $this->grace_period_ends_at,
+                'free_access_kind' => $this->freeAccessKind()?->value,
+                'access_source' => AccessSources::for($this->resource)->source->value,
+                'enforced' => (bool) config('subscriptions.enforced'),
+                'signup_trial_days' => max(0, (int) config('subscriptions.signup_trial_days', 0)),
             ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

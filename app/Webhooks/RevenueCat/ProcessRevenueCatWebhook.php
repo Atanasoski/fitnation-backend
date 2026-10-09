@@ -135,7 +135,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
 
         return match ($type) {
             'INITIAL_PURCHASE' => SubscriptionState::purchased(
-                productId: $event['product_id'],
+                productId: $this->productId($event),
                 store: $event['store'] ?? null,
                 periodType: $event['period_type'] ?? null,
                 price: $event['price'] ?? null,
@@ -151,7 +151,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
                 environment: $environment,
             ),
             'RENEWAL' => SubscriptionState::renewed(
-                productId: $event['product_id'],
+                productId: $this->productId($event),
                 store: $event['store'] ?? null,
                 price: $event['price'] ?? null,
                 currency: $event['currency'] ?? null,
@@ -251,15 +251,19 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
      */
     private function resolveUser(array $event): ?User
     {
-        $ids = $this->numericIds(array_merge(
+        return $this->firstRegistered($this->numericIds(array_merge(
             [$event['app_user_id'] ?? null, $event['original_app_user_id'] ?? null],
             (array) ($event['aliases'] ?? []),
-        ));
+        )));
+    }
 
-        if (empty($ids)) {
-            return null;
-        }
-
+    /**
+     * The user behind the first of $ids that is registered, in the given order.
+     *
+     * @param  array<int, int>  $ids
+     */
+    private function firstRegistered(array $ids): ?User
+    {
         $users = User::whereIn('id', $ids)->get()->keyBy('id');
 
         foreach ($ids as $id) {
@@ -303,7 +307,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         $targetIds = $this->numericIds((array) ($event['transferred_to'] ?? []));
         $sourceIds = $this->numericIds((array) ($event['transferred_from'] ?? []));
 
-        $target = User::whereIn('id', $targetIds)->first();
+        $target = $this->firstRegistered($targetIds);
 
         if (! $target) {
             // Retry — the target user may not be registered yet.

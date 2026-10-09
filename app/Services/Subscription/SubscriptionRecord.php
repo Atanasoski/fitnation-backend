@@ -130,15 +130,15 @@ final class SubscriptionRecord
                 return null;
             }
 
-            $receivers = Subscription::where('user_id', $to->id)
+            $receiversOwn = Subscription::where('user_id', $to->id)
                 ->whereKeyNot($subscription->id)
                 ->first();
 
-            if ($receivers?->isActive() && ! $subscription->isActive()) {
+            if ($receiversOwn?->isActive() && ! $subscription->isActive()) {
                 return null;
             }
 
-            $receivers?->delete();
+            $receiversOwn?->delete();
 
             $subscription->user_id = $to->id;
             $subscription->save();

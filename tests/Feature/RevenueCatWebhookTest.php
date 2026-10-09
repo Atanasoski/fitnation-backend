@@ -1149,11 +1149,11 @@ class RevenueCatWebhookTest extends TestCase
         $from = User::factory()->create();
         $to = User::factory()->create();
         $transferred = Subscription::factory()->expired()->create(['user_id' => $from->id]);
-        $receivers = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
+        $receiversOwn = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
 
         $this->postWebhook($this->transferPayload($from, $to))->assertOk();
 
-        $this->assertSame($receivers->id, Subscription::where('user_id', $to->id)->value('id'));
+        $this->assertSame($receiversOwn->id, Subscription::where('user_id', $to->id)->value('id'));
         $this->assertEntitled($to, true);
         $this->assertDatabaseHas('subscriptions', ['id' => $transferred->id]);
     }
@@ -1163,13 +1163,28 @@ class RevenueCatWebhookTest extends TestCase
         $from = User::factory()->create();
         $to = User::factory()->create();
         $transferred = Subscription::factory()->create(['user_id' => $from->id, 'expires_at' => now()->addYear()]);
-        $receivers = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
+        $receiversOwn = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
 
         $this->postWebhook($this->transferPayload($from, $to))->assertOk();
 
         $this->assertSame($transferred->id, Subscription::where('user_id', $to->id)->value('id'));
-        $this->assertDatabaseMissing('subscriptions', ['id' => $receivers->id]);
+        $this->assertDatabaseMissing('subscriptions', ['id' => $receiversOwn->id]);
         $this->assertEntitled($to, true);
         $this->assertEntitled($from, false);
+    }
+
+    public function test_a_transfer_goes_to_the_first_registered_receiver_listed(): void
+    {
+        $from = User::factory()->create();
+        $other = User::factory()->create();
+        $to = User::factory()->create();
+        Subscription::factory()->create(['user_id' => $from->id]);
+        $payload = $this->transferPayload($from, $to);
+        $payload['event']['transferred_to'] = ['$RCAnonymousID:x', (string) $to->id, (string) $other->id];
+
+        $this->postWebhook($payload)->assertOk();
+
+        $this->assertEntitled($to, true);
+        $this->assertEntitled($other, false);
     }
 }

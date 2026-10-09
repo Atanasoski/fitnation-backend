@@ -92,6 +92,7 @@ class AccessSourceTest extends TestCase
 
         foreach ($expected as $name => [$id, $source]) {
             $this->assertSame($source, AccessSources::for(User::findOrFail($id))->source, "per-user source for: {$name}");
+            $this->assertSame($source, AccessSources::sourceOf(User::findOrFail($id)), "source of: {$name}");
         }
 
         $batch = AccessSources::forUsers(User::query()->whereKey(array_column($expected, 0))->get());

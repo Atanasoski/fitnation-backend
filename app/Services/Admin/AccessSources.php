@@ -47,6 +47,16 @@ final class AccessSources
     }
 
     /**
+     * Just the source, read through the user's own subscription and partner
+     * relations — free when they are loaded (as GET /user loads them), and
+     * no lookup of who granted Complimentary Access. For the API payload.
+     */
+    public static function sourceOf(User $user): AccessSource
+    {
+        return self::resolve($user, $user->subscription, $user->partner)->source;
+    }
+
+    /**
      * Two queries for any number of users: their subscriptions and partners,
      * plus one for who granted any Complimentary Access.
      *
@@ -133,15 +143,25 @@ final class AccessSources
             AccessSource::Paused => $subscription(SubscriptionStatus::Paused),
             AccessSource::Sponsored => self::withoutSubscriptionAccess($query)
                 ->whereHas('partner', fn (Builder $partners) => $partners->sponsoringMembers()),
-            AccessSource::SignupTrial => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
-                ->onSignupTrial(),
-            AccessSource::Complimentary => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
-                ->withComplimentaryAccess(),
+            AccessSource::SignupTrial => self::withoutPaidAccess($query)->onSignupTrial(),
+            AccessSource::Complimentary => self::withoutPaidAccess($query)->withComplimentaryAccess(),
             // NOT (ends > now) is NULL for a NULL date in SQL, so the negated
             // group also requires the date to be set: no date at all reads None.
-            AccessSource::None => self::withoutSponsorship(self::withoutSubscriptionAccess($query))
+            AccessSource::None => self::withoutPaidAccess($query)
                 ->whereNot(fn (Builder $q) => $q->withFreeAccess()->whereNotNull('users.grace_period_ends_at')),
         };
+    }
+
+    /**
+     * Neither a subscription nor a Sponsoring Partner grants access: who the
+     * free-access sources (and None) are read from.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    private static function withoutPaidAccess(Builder $query): Builder
+    {
+        return self::withoutSponsorship(self::withoutSubscriptionAccess($query));
     }
 
     /**

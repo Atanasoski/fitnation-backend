@@ -7,6 +7,7 @@ use App\Enums\FreeAccessKind;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
+use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
@@ -393,17 +394,31 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function startSignupTrial(): bool
     {
-        $days = (int) config('subscriptions.signup_trial_days', 0);
+        $days = self::signupTrialDays();
 
-        if ($days <= 0 || $this->grace_period_ends_at !== null || $this->free_access_kind !== null) {
+        if ($days === 0 || $this->grace_period_ends_at !== null || $this->free_access_kind !== null) {
             return false;
         }
 
-        $this->forceFill([
-            'grace_period_ends_at' => now()->addDays($days),
-            'free_access_kind' => FreeAccessKind::SignupTrial,
-        ])->save();
+        $this->grantFreeAccess(FreeAccessKind::SignupTrial, now()->addDays($days));
 
         return true;
+    }
+
+    /**
+     * The configured Signup Trial length in days; 0 means none.
+     */
+    public static function signupTrialDays(): int
+    {
+        return max(0, (int) config('subscriptions.signup_trial_days', 0));
+    }
+
+    /**
+     * Free access until $until, for the reason $kind: the date and the kind
+     * are always written together. Replaces whatever free access was there.
+     */
+    public function grantFreeAccess(FreeAccessKind $kind, CarbonInterface $until): void
+    {
+        $this->forceFill(['grace_period_ends_at' => $until, 'free_access_kind' => $kind])->save();
     }
 }

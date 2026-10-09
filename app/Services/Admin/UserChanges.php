@@ -32,10 +32,7 @@ final class UserChanges
     public static function grantComplimentaryAccess(User $user, CarbonInterface $until, string $reason, User $admin): AdminChange
     {
         return DB::transaction(function () use ($user, $until, $reason, $admin) {
-            $user->forceFill([
-                'grace_period_ends_at' => $until,
-                'free_access_kind' => FreeAccessKind::Complimentary,
-            ])->save();
+            $user->grantFreeAccess(FreeAccessKind::Complimentary, $until);
 
             return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => $until]);
         });

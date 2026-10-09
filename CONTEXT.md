@@ -385,6 +385,18 @@ store **Trial** (part of a subscription).
 
 _Avoid_: free trial (alone — ambiguous with the store trial), grace period.
 
+### Free Access
+
+Access until a date with no payment: a [Signup Trial](#signup-trial) or
+[Complimentary Access](#complimentary-access). The user carries one date and
+the kind beside it (`free_access_kind` on the wire); a new grant replaces the
+old one, so an admin grant over a running Signup Trial makes it Complimentary.
+The kind outlives the date, which is how the Signup Trial stays once per
+account.
+
+_Avoid_: grace period (the column is still `grace_period_ends_at`; the name is
+kept, not the meaning).
+
 ### Subscription Sync
 
 The backend re-reading a user's subscription from RevenueCat on the app's

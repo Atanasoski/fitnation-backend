@@ -17,7 +17,7 @@ use InvalidArgumentException;
  * the same row. The event time travels separately, as an argument to apply().
  *
  * Two shapes:
- *  - a purchase ({@see purchased()}, {@see renewed()}, {@see snapshot()}) says what was bought,
+ *  - a purchase ({@see purchased()}, {@see renewed()}, {@see productChanged()}, {@see snapshot()}) says what was bought,
  *    from which store, until when — it may create the row;
  *  - a status change ({@see cancelled()}, {@see expired()}, {@see extended()}, …)
  *    only moves an existing row and never creates one.
@@ -29,7 +29,7 @@ use InvalidArgumentException;
 final class SubscriptionState
 {
     /**
-     * @param  SubscriptionStatus|null  $status  null only for an extension, whose status follows from the row
+     * @param  SubscriptionStatus|null  $status  null for an extension or a product change, whose status follows from the row
      * @param  array<string, mixed>  $purchase  columns a purchase reports; empty for a status change
      * @param  array<string, Carbon|null>  $dates  expires_at / cancelled_at this state sets; absent = unchanged
      */
@@ -82,6 +82,26 @@ final class SubscriptionState
             self::purchaseColumns($productId, $store, SubscriptionPeriodType::Normal, $price, $currency, $purchasedAt, $environment),
             ['expires_at' => $expiresAt, 'cancelled_at' => null],
         );
+    }
+
+    /**
+     * The subscriber switched product (monthly <-> yearly). The row records the
+     * new product from here on; nothing else about the subscription changes:
+     * the status is kept, so a pending cancellation stays pending (this is
+     * not a renewal), as are the original purchase time, the period type and
+     * the known price, which the next renewal reports for the new product.
+     * Only a reported expiry is taken. With no row yet it creates an active one.
+     */
+    public static function productChanged(
+        string $productId,
+        ?string $store,
+        ?Carbon $expiresAt,
+        string $environment,
+    ): self {
+        $purchase = self::purchaseColumns($productId, $store, SubscriptionPeriodType::Normal, null, null, null, $environment);
+        unset($purchase['period_type']);
+
+        return new self(null, $purchase, self::expiresAtColumn($expiresAt));
     }
 
     /**

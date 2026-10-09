@@ -941,4 +941,235 @@ class RevenueCatWebhookTest extends TestCase
         $this->travel(2)->days();
         $this->assertGate($user, 403);
     }
+
+    // ------------------------------------------------------------------
+    // Webhook robustness (026/03): retries, lookup, event data
+    // ------------------------------------------------------------------
+
+    public function test_a_failed_webhook_is_retried_five_times_with_growing_delays(): void
+    {
+        $call = WebhookCall::create(['name' => 'revenuecat', 'url' => '/api/webhooks/revenuecat', 'payload' => []]);
+        $job = new ProcessRevenueCatWebhook($call);
+
+        $this->assertSame(5, $job->tries);
+        $this->assertSame([60, 300, 1800, 3600], $job->backoff());
+    }
+
+    private function assertEntitled(User $user, bool $entitled): void
+    {
+        $this->actingAs($user->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.entitlements', $entitled ? ['app_access'] : []);
+    }
+
+    public function test_the_app_user_id_wins_over_the_original_id_and_aliases(): void
+    {
+        // Created first, so the lower ids: a lowest-id lookup would pick them.
+        $original = User::factory()->create();
+        $alias = User::factory()->create();
+        $buyer = User::factory()->create();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $buyer->id,
+            'original_app_user_id' => (string) $original->id,
+            'aliases' => [(string) $alias->id, (string) $original->id, (string) $buyer->id],
+        ]))->assertOk();
+
+        $this->assertEntitled($buyer, true);
+        $this->assertEntitled($original, false);
+        $this->assertEntitled($alias, false);
+    }
+
+    public function test_the_original_id_wins_over_aliases_when_the_app_user_id_is_anonymous(): void
+    {
+        $alias = User::factory()->create();
+        $original = User::factory()->create();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => '$RCAnonymousID:abc123',
+            'original_app_user_id' => (string) $original->id,
+            'aliases' => [(string) $alias->id, '$RCAnonymousID:abc123', (string) $original->id],
+        ]))->assertOk();
+
+        $this->assertEntitled($original, true);
+        $this->assertEntitled($alias, false);
+    }
+
+    public function test_an_app_user_id_with_no_account_falls_through_to_the_next_id(): void
+    {
+        $original = User::factory()->create();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) ($original->id + 1000),
+            'original_app_user_id' => (string) $original->id,
+        ]))->assertOk();
+
+        $this->assertEntitled($original, true);
+    }
+
+    private const MONTHLY = 'com.fitnation.app.premium.monthly';
+
+    private const YEARLY = 'com.fitnation.app.premium.yearly';
+
+    /** RevenueCat sends the old product in product_id and the new one in new_product_id. */
+    private function productChange(User $user, array $overrides = []): array
+    {
+        return $this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'PRODUCT_CHANGE',
+            'product_id' => self::MONTHLY,
+            'new_product_id' => self::YEARLY,
+            ...$overrides,
+        ]);
+    }
+
+    public function test_a_product_change_records_the_new_product(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+
+        $this->postWebhook($this->productChange($user))->assertOk();
+
+        $this->assertSame(self::YEARLY, Subscription::where('user_id', $user->id)->value('product_id'));
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.status', 'active')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+    }
+
+    public function test_a_product_change_without_a_new_product_id_records_the_events_product(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+
+        $this->postWebhook($this->productChange($user, [
+            'store' => 'PLAY_STORE',
+            'product_id' => self::YEARLY.':yearly',
+            'new_product_id' => null,
+        ]))->assertOk();
+
+        $this->assertSame(self::YEARLY.':yearly', Subscription::where('user_id', $user->id)->value('product_id'));
+    }
+
+    public function test_a_product_change_does_not_clear_a_pending_cancellation(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'CANCELLATION',
+            'cancel_reason' => 'UNSUBSCRIBE',
+            'event_timestamp_ms' => now()->subSeconds(30)->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->postWebhook($this->productChange($user))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(self::YEARLY, $subscription->product_id);
+        $this->assertNotNull($subscription->cancelled_at);
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.status', 'cancelled')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+    }
+
+    public function test_a_cancellation_records_when_it_happened_not_when_it_was_processed(): void
+    {
+        $user = User::factory()->create();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'event_timestamp_ms' => now()->subDays(3)->getTimestampMs(),
+        ]))->assertOk();
+        $cancelledAtMs = now()->subDays(2)->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'CANCELLATION',
+            'cancel_reason' => 'UNSUBSCRIBE',
+            'event_timestamp_ms' => $cancelledAtMs,
+        ]))->assertOk();
+
+        $this->assertSame(intdiv($cancelledAtMs, 1000), Subscription::where('user_id', $user->id)->first()->cancelled_at->getTimestamp());
+    }
+
+    public function test_a_refund_ends_access_when_it_happened_not_when_it_was_processed(): void
+    {
+        $user = User::factory()->create();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'event_timestamp_ms' => now()->subDays(3)->getTimestampMs(),
+        ]))->assertOk();
+        $refundedAtMs = now()->subDays(2)->getTimestampMs();
+
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'CANCELLATION',
+            'cancel_reason' => 'CUSTOMER_SUPPORT',
+            'event_timestamp_ms' => $refundedAtMs,
+        ]))->assertOk();
+
+        $subscription = Subscription::where('user_id', $user->id)->first();
+        $this->assertSame(intdiv($refundedAtMs, 1000), $subscription->cancelled_at->getTimestamp());
+        $this->assertSame(intdiv($refundedAtMs, 1000), $subscription->expires_at->getTimestamp());
+    }
+
+    public function test_a_new_purchase_on_an_existing_row_keeps_the_acquisition_partner(): void
+    {
+        $acquiredVia = \App\Models\Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $acquiredVia->id]);
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'event_timestamp_ms' => now()->subMonths(2)->getTimestampMs(),
+        ]))->assertOk();
+        $user->update(['partner_id' => \App\Models\Partner::factory()->create()->id]);
+
+        // The old subscription lapsed; the user buys again under the new partner.
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'EXPIRATION',
+            'event_timestamp_ms' => now()->subMonth()->getTimestampMs(),
+        ]))->assertOk();
+        $this->postWebhook($this->eventPayload(['app_user_id' => (string) $user->id]))->assertOk();
+
+        $this->assertSame($acquiredVia->id, Subscription::where('user_id', $user->id)->value('partner_id'));
+    }
+
+    private function transferPayload(User $from, User $to): array
+    {
+        return [
+            'api_version' => '1.0',
+            'event' => [
+                'type' => 'TRANSFER',
+                'id' => (string) Str::uuid(),
+                'transferred_from' => [(string) $from->id],
+                'transferred_to' => [(string) $to->id],
+                'event_timestamp_ms' => now()->getTimestampMs(),
+            ],
+        ];
+    }
+
+    public function test_a_transfer_keeps_the_receivers_active_subscription_over_an_expired_one(): void
+    {
+        $from = User::factory()->create();
+        $to = User::factory()->create();
+        $transferred = Subscription::factory()->expired()->create(['user_id' => $from->id]);
+        $receivers = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
+
+        $this->postWebhook($this->transferPayload($from, $to))->assertOk();
+
+        $this->assertSame($receivers->id, Subscription::where('user_id', $to->id)->value('id'));
+        $this->assertEntitled($to, true);
+        $this->assertDatabaseHas('subscriptions', ['id' => $transferred->id]);
+    }
+
+    public function test_a_transfer_of_an_active_subscription_replaces_the_receivers_active_one(): void
+    {
+        $from = User::factory()->create();
+        $to = User::factory()->create();
+        $transferred = Subscription::factory()->create(['user_id' => $from->id, 'expires_at' => now()->addYear()]);
+        $receivers = Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth()]);
+
+        $this->postWebhook($this->transferPayload($from, $to))->assertOk();
+
+        $this->assertSame($transferred->id, Subscription::where('user_id', $to->id)->value('id'));
+        $this->assertDatabaseMissing('subscriptions', ['id' => $receivers->id]);
+        $this->assertEntitled($to, true);
+        $this->assertEntitled($from, false);
+    }
 }

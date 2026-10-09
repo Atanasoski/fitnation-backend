@@ -16,6 +16,18 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     // Cap retries so a permanently unmatchable user ID doesn't clog the queue.
     public int $tries = 5;
 
+    /**
+     * Seconds to wait before each retry. The usual failure is a purchase that
+     * reached us before the user registered, so retries must be spread out
+     * enough for that to heal on its own: about 1 min, 5 min, 30 min, 1 h.
+     *
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [60, 300, 1800, 3600];
+    }
+
     // Events that write a subscription row and so need product_id and store.
     private const PURCHASE_EVENTS = ['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE'];
 
@@ -132,7 +144,13 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
                 expiresAt: $this->fromMs($event['expiration_at_ms'] ?? null),
                 environment: $environment,
             ),
-            'RENEWAL', 'PRODUCT_CHANGE' => SubscriptionState::renewed(
+            'PRODUCT_CHANGE' => SubscriptionState::productChanged(
+                productId: $this->productId($event),
+                store: $event['store'] ?? null,
+                expiresAt: $this->fromMs($event['expiration_at_ms'] ?? null),
+                environment: $environment,
+            ),
+            'RENEWAL' => SubscriptionState::renewed(
                 productId: $event['product_id'],
                 store: $event['store'] ?? null,
                 price: $event['price'] ?? null,
@@ -144,9 +162,11 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             // A refund (CUSTOMER_SUPPORT) returns the customer's money — revoke
             // access immediately rather than honouring the remaining paid period.
             // Otherwise auto-renew was turned off and access continues until expiry.
+            // Stamped with when it happened (the event time), so a delayed or
+            // replayed delivery does not rewrite history.
             'CANCELLATION' => $this->isRefund($event)
-                ? SubscriptionState::refunded(now())
-                : SubscriptionState::cancelled(now()),
+                ? SubscriptionState::refunded($this->eventTime($event))
+                : SubscriptionState::cancelled($this->eventTime($event)),
             'UNCANCELLATION', 'SUBSCRIPTION_RESUMED' => SubscriptionState::uncancelled(),
             'EXPIRATION' => SubscriptionState::expired(),
             // The store keeps access through its own billing grace period
@@ -223,21 +243,32 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
      * The mobile app MUST set RevenueCat's appUserID to the numeric users.id;
      * we also check original_app_user_id and aliases to cover anonymous-then-
      * identified purchase flows.
+     *
+     * Most specific first: app_user_id (the id last seen, the one that made
+     * this purchase), then original_app_user_id, then aliases in the order
+     * sent. The first id that is a registered user wins, so a device shared by
+     * two accounts files the purchase under the one that made it.
      */
     private function resolveUser(array $event): ?User
     {
-        $candidates = array_merge(
+        $ids = $this->numericIds(array_merge(
             [$event['app_user_id'] ?? null, $event['original_app_user_id'] ?? null],
             (array) ($event['aliases'] ?? []),
-        );
-
-        $ids = $this->numericIds($candidates);
+        ));
 
         if (empty($ids)) {
             return null;
         }
 
-        return User::whereIn('id', $ids)->first();
+        $users = User::whereIn('id', $ids)->get()->keyBy('id');
+
+        foreach ($ids as $id) {
+            if ($users->has($id)) {
+                return $users->get($id);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -263,7 +294,9 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     /**
      * RevenueCat TRANSFER moves a subscription between app_user_ids. Re-point the
      * existing subscription to the new (target) user so they keep access. The
-     * source user is left without a subscription, which is correct — ownership moved.
+     * source user is left without a subscription, which is correct — ownership
+     * moved. A target whose own subscription grants access keeps it when the
+     * transferred one does not.
      */
     private function handleTransfer(array $event): void
     {
@@ -284,7 +317,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         $subscription = SubscriptionRecord::transfer($sourceIds, $target);
 
         if (! $subscription) {
-            Log::info('RevenueCat TRANSFER: no source subscription to move', [
+            Log::info('RevenueCat TRANSFER: nothing moved (no source subscription, or the receiver keeps its own active one)', [
                 'to' => $target->id,
                 'from' => $sourceIds,
                 'webhook_call_id' => $this->webhookCall->id,
@@ -303,7 +336,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
 
     private function purchasePayloadProblem(array $event): ?string
     {
-        $productId = $event['product_id'] ?? null;
+        $productId = $this->productId($event);
 
         if (! is_string($productId) || $productId === '') {
             return 'product_id is missing';
@@ -314,6 +347,18 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
         }
 
         return null;
+    }
+
+    /**
+     * The product the event leaves the subscriber on. PRODUCT_CHANGE carries
+     * the old product in product_id and the new one in new_product_id; the
+     * latter is omitted when RevenueCat has none (e.g. an immediate Play
+     * change), and then product_id is the best we know.
+     */
+    private function productId(array $event): mixed
+    {
+        return ($event['type'] === 'PRODUCT_CHANGE' ? ($event['new_product_id'] ?? null) : null)
+            ?? $event['product_id'] ?? null;
     }
 
     private function reject(string $type, string $problem): void
@@ -330,6 +375,12 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             'problem' => $problem,
             'webhook_call_id' => $this->webhookCall->id,
         ]);
+    }
+
+    /** When the event happened; processing time only when RevenueCat left it out. */
+    private function eventTime(array $event): Carbon
+    {
+        return $this->fromMs($event['event_timestamp_ms'] ?? null) ?? now();
     }
 
     private function fromMs(?int $ms): ?Carbon

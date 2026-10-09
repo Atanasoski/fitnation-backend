@@ -62,13 +62,14 @@ final class SubscriptionRecord
             ]);
 
             if ($state->isPurchase()) {
-                self::fillPurchase($subscription, $user, $state);
+                self::fillPurchase($subscription, $state);
             }
 
             if ($state->extendsTo() !== null) {
                 self::extend($subscription, $state->extendsTo());
             } else {
-                $subscription->fill(['status' => $state->status, ...$state->dates()]);
+                $subscription->fill($state->dates());
+                $subscription->status = $state->status ?? $subscription->status ?? SubscriptionStatus::Active;
             }
 
             if ($eventAtMs !== null) {
@@ -110,11 +111,15 @@ final class SubscriptionRecord
     /**
      * Move a subscription from one of $fromUserIds to $to (RevenueCat TRANSFER:
      * restore purchases, reinstall, family sharing). A user holds one row, so
-     * any row $to already had is superseded and deleted.
+     * any row $to already had is superseded and deleted — unless that row
+     * grants access and the transferred one does not (restoring an old,
+     * expired purchase onto an account that pays): then $to keeps its own and
+     * nothing moves.
      *
      * @param  array<int, int>  $fromUserIds
-     * @return Subscription|null the moved subscription, or null when none of
-     *                           $fromUserIds had one
+     * @return Subscription|null the moved subscription, or null when nothing
+     *                           moved (none of $fromUserIds had one, or $to
+     *                           kept its own)
      */
     public static function transfer(array $fromUserIds, User $to): ?Subscription
     {
@@ -125,9 +130,15 @@ final class SubscriptionRecord
                 return null;
             }
 
-            Subscription::where('user_id', $to->id)
+            $receivers = Subscription::where('user_id', $to->id)
                 ->whereKeyNot($subscription->id)
-                ->delete();
+                ->first();
+
+            if ($receivers?->isActive() && ! $subscription->isActive()) {
+                return null;
+            }
+
+            $receivers?->delete();
 
             $subscription->user_id = $to->id;
             $subscription->save();
@@ -168,14 +179,14 @@ final class SubscriptionRecord
         $subscription->update(['price' => $price, 'currency' => $state->purchase()['currency'] ?? $subscription->currency]);
     }
 
-    private static function fillPurchase(Subscription $subscription, User $user, SubscriptionState $state): void
+    private static function fillPurchase(Subscription $subscription, SubscriptionState $state): void
     {
         $purchase = $state->purchase();
 
         if ($state->isNewPurchase()) {
-            // A new purchase is taken whole. It currently also re-stamps the
-            // acquisition partner on an existing row; 026/03 freezes it.
-            $subscription->partner_id = $user->partner_id;
+            // A new purchase is taken whole, except the acquisition partner:
+            // it was frozen when the row was created and a later purchase
+            // under another partner does not re-attribute it.
             $subscription->fill([...$purchase, 'purchased_at' => $purchase['purchased_at'] ?? now()]);
 
             return;

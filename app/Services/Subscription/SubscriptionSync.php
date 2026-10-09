@@ -113,6 +113,9 @@ final class SubscriptionSync
         $cancelledAt = self::date($subscription['unsubscribe_detected_at'] ?? null);
         $expiresAt = self::date($subscription['expires_date'] ?? null);
         $billingIssue = ($subscription['billing_issues_detected_at'] ?? null) !== null;
+        // Google Play only: set while a pause is scheduled or running, the
+        // REST counterpart of the SUBSCRIPTION_PAUSED webhook.
+        $paused = ($subscription['auto_resume_date'] ?? null) !== null;
 
         // A billing issue keeps access through the store's grace period.
         if ($billingIssue) {
@@ -124,6 +127,8 @@ final class SubscriptionSync
             $refundedAt !== null => [SubscriptionStatus::Expired, $refundedAt, $refundedAt],
             $expiresAt !== null && $expiresAt->isPast() => [SubscriptionStatus::Expired, $expiresAt, $cancelledAt],
             $billingIssue => [SubscriptionStatus::BillingIssue, $expiresAt, $cancelledAt],
+            // Access runs to the paid period's end, when the pause takes effect.
+            $paused => [SubscriptionStatus::Paused, $expiresAt, $cancelledAt],
             $cancelledAt !== null => [SubscriptionStatus::Cancelled, $expiresAt, $cancelledAt],
             default => [SubscriptionStatus::Active, $expiresAt, null],
         };

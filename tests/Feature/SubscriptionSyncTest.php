@@ -312,6 +312,61 @@ class SubscriptionSyncTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson('/api/user')->assertJsonPath('user.entitlements', []);
     }
 
+    public function test_a_paused_play_subscription_syncs_as_paused_like_the_webhook(): void
+    {
+        $purchasedAt = now()->subDays(20);
+        $expiresAt = now()->addDays(10);
+        $viaWebhook = User::factory()->create();
+        $viaSync = User::factory()->create();
+
+        $this->postWebhook([
+            'type' => 'INITIAL_PURCHASE',
+            'app_user_id' => (string) $viaWebhook->id,
+            'store' => 'PLAY_STORE',
+            'purchased_at_ms' => $purchasedAt->getTimestampMs(),
+            'expiration_at_ms' => $expiresAt->getTimestampMs(),
+            'event_timestamp_ms' => now()->subMinutes(2)->getTimestampMs(),
+        ])->assertOk();
+        $this->postWebhook([
+            'type' => 'SUBSCRIPTION_PAUSED',
+            'app_user_id' => (string) $viaWebhook->id,
+            'store' => 'PLAY_STORE',
+            'auto_resume_at_ms' => now()->addMonths(2)->getTimestampMs(),
+            'event_timestamp_ms' => now()->subMinute()->getTimestampMs(),
+        ])->assertOk();
+
+        // REST v1 marks a paused Google Play subscription by auto_resume_date.
+        $this->fakeRevenueCat($this->subscriber([
+            'store' => 'play_store',
+            'original_purchase_date' => $purchasedAt->toIso8601ZuluString(),
+            'purchase_date' => $purchasedAt->toIso8601ZuluString(),
+            'expires_date' => $expiresAt->toIso8601ZuluString(),
+            'auto_resume_date' => now()->addMonths(2)->toIso8601ZuluString(),
+        ]));
+        $this->sync($viaSync)->assertOk()
+            ->assertJsonPath('user.subscription.status', 'paused')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+
+        $this->assertSame(
+            $this->rowOf($viaWebhook, except: ['price', 'currency']),
+            $this->rowOf($viaSync, except: ['price', 'currency']),
+        );
+    }
+
+    public function test_a_paused_subscription_past_its_paid_period_is_expired_without_access(): void
+    {
+        $user = User::factory()->create();
+        $this->fakeRevenueCat($this->subscriber([
+            'store' => 'play_store',
+            'expires_date' => now()->subDay()->toIso8601ZuluString(),
+            'auto_resume_date' => now()->addMonth()->toIso8601ZuluString(),
+        ]));
+
+        $this->sync($user)->assertOk()
+            ->assertJsonPath('user.subscription.status', 'expired')
+            ->assertJsonPath('user.entitlements', []);
+    }
+
     public function test_a_refund_ends_access(): void
     {
         $user = User::factory()->create();

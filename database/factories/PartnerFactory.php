@@ -22,7 +22,7 @@ class PartnerFactory extends Factory
         return [
             'name' => $name,
             'slug' => \Illuminate\Support\Str::slug($name),
-            'domain' => fake()->optional()->domainName(),
+            'domain' => fake()->boolean() ? fake()->unique()->domainName() : null,
             'is_active' => true,
         ];
     }

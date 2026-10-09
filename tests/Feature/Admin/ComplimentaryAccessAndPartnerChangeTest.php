@@ -152,6 +152,47 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
             ->assertSeeInOrder(['Access Source', 'None', 'Grants', 'Complimentary Access', 'by Grace Hopper', 'ended', 'Paid after all']);
     }
 
+    public function test_an_admin_ends_a_running_signup_trial_now(): void
+    {
+        config(['subscriptions.signup_trial_days' => 7]);
+        $admin = $this->userWithRole('admin', ['name' => 'Grace Hopper']);
+        $member = $this->member(Partner::factory()->create());
+        $member->startSignupTrial();
+
+        $this->actingAs($admin)
+            ->get("/admin/users/{$member->id}")
+            ->assertSeeInOrder(['Access Source', 'Signup Trial', 'End Signup Trial now']);
+
+        $this->actingAs($admin)
+            ->delete("/admin/users/{$member->id}/signup-trial", ['reason' => 'Abusing trials'])
+            ->assertRedirect("/admin/users/{$member->id}")
+            ->assertSessionHas('success', 'Signup Trial ended.');
+
+        $this->assertFalse($member->fresh()->startSignupTrial());
+        $this->actingAs($member->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertJsonPath('user.subscription.access_source', 'none')
+            ->assertJsonPath('user.subscription.grace_period_ends_at', null);
+        $this->actingAs($admin)
+            ->get("/admin/users/{$member->id}")
+            ->assertSeeInOrder(['Access Source', 'None', 'Grants', 'Signup Trial', 'by Grace Hopper', 'ended', 'Abusing trials'])
+            ->assertDontSee('End Signup Trial now');
+    }
+
+    public function test_only_a_running_signup_trial_can_be_ended_as_one(): void
+    {
+        $admin = $this->userWithRole('admin');
+        $complimentary = $this->member(Partner::factory()->create(), ['grace_period_ends_at' => now()->addMonth()]);
+
+        $this->actingAs($admin)
+            ->delete("/admin/users/{$complimentary->id}/signup-trial")
+            ->assertRedirect("/admin/users/{$complimentary->id}")
+            ->assertSessionHasErrors('signup_trial');
+
+        $this->assertTrue($complimentary->fresh()->hasComplimentaryAccess());
+        $this->assertDatabaseCount('admin_changes', 0);
+    }
+
     public function test_an_admin_moves_a_user_to_another_partner_with_a_reason(): void
     {
         $admin = $this->userWithRole('admin', ['name' => 'Grace Hopper']);
@@ -217,6 +258,9 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
                 ->assertForbidden();
             $this->actingAs($notAdmin)
                 ->delete("/admin/users/{$member->id}/complimentary-access")
+                ->assertForbidden();
+            $this->actingAs($notAdmin)
+                ->delete("/admin/users/{$member->id}/signup-trial")
                 ->assertForbidden();
             $this->actingAs($notAdmin)
                 ->patch("/admin/users/{$member->id}/partner", ['partner_id' => $other->id, 'reason' => 'x'])

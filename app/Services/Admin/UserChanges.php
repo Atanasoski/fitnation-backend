@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * What a super admin changes about a user by hand: Complimentary Access
- * (grant, extend, end now), the user's partner, and deactivating or
+ * (grant, extend, end now), ending a Signup Trial early, the user's partner, and deactivating or
  * restoring the account. Access and partner changes write the user and an
  * admin change record together, so the "Grants & partner changes" history
  * can never miss one.
@@ -49,6 +49,20 @@ final class UserChanges
             $user->forceFill(['grace_period_ends_at' => null])->save();
 
             return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => null]);
+        });
+    }
+
+    /**
+     * End a running Signup Trial now. Recorded with a null until. Like ending
+     * Complimentary Access, the kind stays, so the account never gets
+     * another Signup Trial.
+     */
+    public static function endSignupTrial(User $user, ?string $reason, User $admin): AdminChange
+    {
+        return DB::transaction(function () use ($user, $reason, $admin) {
+            $user->forceFill(['grace_period_ends_at' => null])->save();
+
+            return self::record($user, $admin, AdminChangeKind::SignupTrial, $reason, ['until' => null]);
         });
     }
 

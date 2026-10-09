@@ -1232,8 +1232,16 @@ class RevenueCatWebhookTest extends TestCase
     {
         $from = User::factory()->create();
         $to = User::factory()->create();
-        Subscription::factory()->create(['user_id' => $from->id, 'expires_at' => now()->addYear(), 'last_event_at_ms' => now()->subHour()->getTimestampMs()]);
-        Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth(), 'last_event_at_ms' => now()->addMinute()->getTimestampMs()]);
+        Subscription::factory()->create([
+            'user_id' => $from->id,
+            'expires_at' => now()->addYear(),
+            'last_event_at_ms' => now()->subHour()->getTimestampMs(),
+        ]);
+        Subscription::factory()->create([
+            'user_id' => $to->id,
+            'expires_at' => now()->addMonth(),
+            'last_event_at_ms' => now()->addMinute()->getTimestampMs(),
+        ]);
 
         $this->postWebhook($this->transferPayload($from, $to))->assertOk();
         // Older than the receiver's own last event, though newer than the transfer.

@@ -100,7 +100,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             ));
         }
 
-        $eventTs = isset($event['event_timestamp_ms']) ? (int) $event['event_timestamp_ms'] : null;
+        $eventTs = $this->eventTimestampMs($event);
         $state = $this->stateFor($type, $event);
 
         $applied = $state
@@ -318,7 +318,7 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             ));
         }
 
-        $eventTs = isset($event['event_timestamp_ms']) ? (int) $event['event_timestamp_ms'] : null;
+        $eventTs = $this->eventTimestampMs($event);
         $subscription = SubscriptionRecord::transfer($sourceIds, $target, $eventTs);
 
         if (! $subscription) {
@@ -380,6 +380,12 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             'problem' => $problem,
             'webhook_call_id' => $this->webhookCall->id,
         ]);
+    }
+
+    /** The event time in epoch ms, the stale-event mark's unit; null when absent. */
+    private function eventTimestampMs(array $event): ?int
+    {
+        return isset($event['event_timestamp_ms']) ? (int) $event['event_timestamp_ms'] : null;
     }
 
     /** When the event happened; processing time only when RevenueCat left it out. */

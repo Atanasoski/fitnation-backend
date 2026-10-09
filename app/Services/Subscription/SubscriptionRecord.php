@@ -113,10 +113,12 @@ final class SubscriptionRecord
      * restore purchases, reinstall, family sharing). Ownership moves, so none
      * of the source users keeps a row. A user holds one row, so $to gets the
      * best of them (one that grants access, then the latest expiry); the rest,
-     * and any row $to already had, are superseded and deleted — unless $to's
-     * own row grants access and none of the transferred ones does (restoring
-     * an old, expired purchase onto an account that pays): then $to keeps its
-     * own and nothing moves.
+     * and any row $to already had, are superseded and deleted.
+     *
+     * The exception: $to's own row grants access and none of the transferred
+     * ones does (restoring an old, expired purchase onto an account that
+     * pays). Then $to keeps its own and nothing moves or is deleted; the
+     * source users keep their rows, none of which grants access.
      *
      * The moved row carries the highest stale-event mark of every row it
      * replaces and the transfer's own time, so an event that happened before
@@ -133,7 +135,7 @@ final class SubscriptionRecord
             $transferred = Subscription::whereIn('user_id', $fromUserIds)
                 ->where('user_id', '!=', $to->id)
                 ->get()
-                ->sortByDesc(fn (Subscription $s) => [$s->isActive(), $s->expires_at?->getTimestamp() ?? 0])
+                ->sortByDesc(self::transferRank(...))
                 ->values();
             $subscription = $transferred->first();
 
@@ -160,6 +162,17 @@ final class SubscriptionRecord
 
             return $subscription;
         });
+    }
+
+    /**
+     * Which transferred row $to gets: one that grants access first, then the
+     * latest expiry (arrays compare element by element).
+     *
+     * @return array{0: bool, 1: int}
+     */
+    private static function transferRank(Subscription $subscription): array
+    {
+        return [$subscription->isActive(), $subscription->expires_at?->getTimestamp() ?? 0];
     }
 
     private static function extend(Subscription $subscription, Carbon $until): void

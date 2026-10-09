@@ -367,6 +367,20 @@ class SubscriptionSyncTest extends TestCase
             ->assertJsonPath('user.entitlements', []);
     }
 
+    public function test_a_paused_subscription_with_auto_renew_off_is_cancelled(): void
+    {
+        $user = User::factory()->create();
+        $this->fakeRevenueCat($this->subscriber([
+            'store' => 'play_store',
+            'unsubscribe_detected_at' => now()->subDay()->toIso8601ZuluString(),
+            'auto_resume_date' => now()->addMonths(2)->toIso8601ZuluString(),
+        ]));
+
+        $this->sync($user)->assertOk()
+            ->assertJsonPath('user.subscription.status', 'cancelled')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+    }
+
     public function test_a_refund_ends_access(): void
     {
         $user = User::factory()->create();

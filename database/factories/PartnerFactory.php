@@ -17,7 +17,7 @@ class PartnerFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->company();
+        $name = fake()->unique()->company();
 
         return [
             'name' => $name,

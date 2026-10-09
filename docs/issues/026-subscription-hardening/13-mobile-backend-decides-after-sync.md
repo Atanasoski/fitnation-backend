@@ -8,9 +8,13 @@
 
 **Branch:** `fix/subscription-hardening` in `front-end`. Work in `front-end/apps/mobile` (and `packages/shared` where needed); read its `CLAUDE.md` first.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] After a successful sync without `app_access`, the gate routes to the paywall even though RevenueCat's cached customerInfo grants access, until RevenueCat or the backend changes (a later purchase/restore or a new `/user` with access lifts it).
-- [ ] A failed sync (500/502/429/network) keeps today's fallback.
-- [ ] A mutation that got `subscription_required` surfaces a retryable error; no automatic retry.
-- [ ] Unit-tested at the recovery/gate modules (prior art: `subscriptionRecovery` tests, `gate.test.ts`). `pnpm test` and typecheck green.
+- [x] After a successful sync without `app_access`, the gate routes to the paywall even though RevenueCat's cached customerInfo grants access, until RevenueCat or the backend changes (a later purchase/restore or a new `/user` with access lifts it).
+- [x] A failed sync (500/502/429/network) keeps today's fallback.
+- [x] A mutation that got `subscription_required` surfaces a retryable error; no automatic retry.
+- [x] Unit-tested at the recovery/gate modules (prior art: `subscriptionRecovery` tests, `gate.test.ts`). `pnpm test` and typecheck green.
+
+## Notes / handoff
+
+front-end `9af18e6`, `c9b40d9`. Open: the refusal isn't persisted (after an app restart RevenueCat is trusted until the next 403); the 403 message lives in the shared HTTP layer so web shows it too (web routes to `/subscribe` on that 403 anyway); the AuthContext lift wiring has no tests.

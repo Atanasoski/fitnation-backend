@@ -8,9 +8,13 @@
 
 **Branch:** `fix/subscription-hardening` in `front-end`. Work in `front-end/apps/mobile` (and `packages/shared` where needed); read its `CLAUDE.md` first.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The shared HTTP layer aborts requests after 15 s with a recognisable timeout error, so the post-purchase wait stays ≈10 s plus at most one request.
-- [ ] A purchase that completes but RevenueCat does not grant `app_access` shows "Purchase didn't go through — try Restore." instead of nothing.
-- [ ] The duplicated `sub()` subscription test fixture is one shared test helper.
-- [ ] `pnpm test` and typecheck (no new errors over baseline) green.
+- [x] The shared HTTP layer aborts requests after 15 s with a recognisable timeout error, so the post-purchase wait stays ≈10 s plus at most one request.
+- [x] A purchase that completes but RevenueCat does not grant `app_access` shows "Purchase didn't go through — try Restore." instead of nothing.
+- [x] The duplicated `sub()` subscription test fixture is one shared test helper.
+- [x] `pnpm test` and typecheck (no new errors over baseline) green.
+
+## Notes / handoff
+
+front-end `691c514`, `56a0d29`, `1bc00e9`, `400da5a`, `dfc9a62`. 15 s default timeout (`'timeout'` failure kind), uploads 120 s, per-request `timeoutMs`; sync + `/user` poll share one ≈10 s budget; `purchaseOutcomeMessage`; shared `sub()` in `apps/mobile/src/test/fixtures.ts`.

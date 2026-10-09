@@ -19,8 +19,8 @@ class GrantLaunchGrace extends Command
         $days = (int) $this->option('days');
 
         // Idempotent: only users who never had Free Access of either kind.
-        // The kind outlives the date, so a grant or Signup Trial that was
-        // ended (by an admin or by running out) is never granted again.
+        // The kind outlives the date, so a grant or Signup Trial an admin
+        // ended (date nulled, kind kept) is never granted again.
         $query = User::whereNull('grace_period_ends_at')->whereNull('free_access_kind');
         $count = $query->count();
 

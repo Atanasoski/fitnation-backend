@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * What a super admin changes about a user by hand: Complimentary Access
- * (grant, extend, end now), ending a Signup Trial early, the user's partner, and deactivating or
- * restoring the account. Access and partner changes write the user and an
- * admin change record together, so the "Grants & partner changes" history
- * can never miss one.
+ * (grant, extend, end now), ending a Signup Trial early, the user's partner,
+ * and deactivating or restoring the account. Access and partner changes
+ * write the user and an admin change record together, so the "Grants &
+ * partner changes" history can never miss one.
  *
  * Validation (a future date, a reason, an active target partner) belongs to
  * the HTTP request; this module only applies a change it is given.
@@ -45,11 +45,7 @@ final class UserChanges
      */
     public static function endComplimentaryAccess(User $user, ?string $reason, User $admin): AdminChange
     {
-        return DB::transaction(function () use ($user, $reason, $admin) {
-            $user->forceFill(['grace_period_ends_at' => null])->save();
-
-            return self::record($user, $admin, AdminChangeKind::ComplimentaryAccess, $reason, ['until' => null]);
-        });
+        return self::endFreeAccess($user, AdminChangeKind::ComplimentaryAccess, $reason, $admin);
     }
 
     /**
@@ -59,11 +55,7 @@ final class UserChanges
      */
     public static function endSignupTrial(User $user, ?string $reason, User $admin): AdminChange
     {
-        return DB::transaction(function () use ($user, $reason, $admin) {
-            $user->forceFill(['grace_period_ends_at' => null])->save();
-
-            return self::record($user, $admin, AdminChangeKind::SignupTrial, $reason, ['until' => null]);
-        });
+        return self::endFreeAccess($user, AdminChangeKind::SignupTrial, $reason, $admin);
     }
 
     public static function changePartner(User $user, Partner $to, string $reason, User $admin): AdminChange
@@ -116,6 +108,18 @@ final class UserChanges
             ->latest()
             ->latest('id')
             ->get();
+    }
+
+    /**
+     * Null the until-date and record the end; free_access_kind is left as is.
+     */
+    private static function endFreeAccess(User $user, AdminChangeKind $kind, ?string $reason, User $admin): AdminChange
+    {
+        return DB::transaction(function () use ($user, $kind, $reason, $admin) {
+            $user->forceFill(['grace_period_ends_at' => null])->save();
+
+            return self::record($user, $admin, $kind, $reason, ['until' => null]);
+        });
     }
 
     /**

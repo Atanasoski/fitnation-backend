@@ -21,4 +21,13 @@ enum AdminChangeKind: string
             self::PartnerChange => 'Partner change',
         };
     }
+
+    /**
+     * Whether the change is to Free Access, recorded with an until-date
+     * (null: ended now) rather than a from → to partner.
+     */
+    public function isAccessChange(): bool
+    {
+        return $this !== self::PartnerChange;
+    }
 }

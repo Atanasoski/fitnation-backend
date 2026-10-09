@@ -109,38 +109,53 @@ final class SubscriptionRecord
     }
 
     /**
-     * Move a subscription from one of $fromUserIds to $to (RevenueCat TRANSFER:
-     * restore purchases, reinstall, family sharing). A user holds one row, so
-     * any row $to already had is superseded and deleted — unless that row
-     * grants access and the transferred one does not (restoring an old,
-     * expired purchase onto an account that pays): then $to keeps its own and
-     * nothing moves.
+     * Move the subscriptions of $fromUserIds to $to (RevenueCat TRANSFER:
+     * restore purchases, reinstall, family sharing). Ownership moves, so none
+     * of the source users keeps a row. A user holds one row, so $to gets the
+     * best of them (one that grants access, then the latest expiry); the rest,
+     * and any row $to already had, are superseded and deleted — unless $to's
+     * own row grants access and none of the transferred ones does (restoring
+     * an old, expired purchase onto an account that pays): then $to keeps its
+     * own and nothing moves.
+     *
+     * The moved row carries the highest stale-event mark of every row it
+     * replaces and the transfer's own time, so an event that happened before
+     * the transfer, for either side, cannot undo it.
      *
      * @param  array<int, int>  $fromUserIds
      * @return Subscription|null the moved subscription, or null when nothing
      *                           moved (none of $fromUserIds had one, or $to
      *                           kept its own)
      */
-    public static function transfer(array $fromUserIds, User $to): ?Subscription
+    public static function transfer(array $fromUserIds, User $to, ?int $eventAtMs = null): ?Subscription
     {
-        return DB::transaction(function () use ($fromUserIds, $to) {
-            $subscription = Subscription::whereIn('user_id', $fromUserIds)->first();
+        return DB::transaction(function () use ($fromUserIds, $to, $eventAtMs) {
+            $transferred = Subscription::whereIn('user_id', $fromUserIds)
+                ->where('user_id', '!=', $to->id)
+                ->get()
+                ->sortByDesc(fn (Subscription $s) => [$s->isActive(), $s->expires_at?->getTimestamp() ?? 0])
+                ->values();
+            $subscription = $transferred->first();
 
             if (! $subscription) {
                 return null;
             }
 
-            $receiversOwn = Subscription::where('user_id', $to->id)
-                ->whereKeyNot($subscription->id)
-                ->first();
+            $receiversOwn = Subscription::where('user_id', $to->id)->first();
 
             if ($receiversOwn?->isActive() && ! $subscription->isActive()) {
                 return null;
             }
 
-            $receiversOwn?->delete();
+            $superseded = $transferred->slice(1)->push($receiversOwn)->filter();
+            $marks = $superseded->pluck('last_event_at_ms')
+                ->push($subscription->last_event_at_ms, $eventAtMs)
+                ->filter(fn ($mark) => $mark !== null);
+
+            $superseded->each->delete();
 
             $subscription->user_id = $to->id;
+            $subscription->last_event_at_ms = $marks->max();
             $subscription->save();
 
             return $subscription;

@@ -1206,4 +1206,62 @@ class RevenueCatWebhookTest extends TestCase
         $this->assertEntitled($to, true);
         $this->assertEntitled($other, false);
     }
+
+    public function test_an_older_event_for_the_receiver_cannot_undo_a_transfer(): void
+    {
+        $from = User::factory()->create();
+        $to = User::factory()->create();
+        Subscription::factory()->create([
+            'user_id' => $from->id,
+            'expires_at' => now()->addMonth(),
+            'last_event_at_ms' => now()->subMinutes(10)->getTimestampMs(),
+        ]);
+
+        $this->postWebhook($this->transferPayload($from, $to))->assertOk();
+        // Delivered late: it happened before the transfer.
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $to->id,
+            'type' => 'EXPIRATION',
+            'event_timestamp_ms' => now()->subMinute()->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->assertEntitled($to, true);
+    }
+
+    public function test_a_transfer_keeps_the_highest_mark_of_the_rows_it_replaces(): void
+    {
+        $from = User::factory()->create();
+        $to = User::factory()->create();
+        Subscription::factory()->create(['user_id' => $from->id, 'expires_at' => now()->addYear(), 'last_event_at_ms' => now()->subHour()->getTimestampMs()]);
+        Subscription::factory()->create(['user_id' => $to->id, 'expires_at' => now()->addMonth(), 'last_event_at_ms' => now()->addMinute()->getTimestampMs()]);
+
+        $this->postWebhook($this->transferPayload($from, $to))->assertOk();
+        // Older than the receiver's own last event, though newer than the transfer.
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $to->id,
+            'type' => 'EXPIRATION',
+            'event_timestamp_ms' => now()->addSeconds(30)->getTimestampMs(),
+        ]))->assertOk();
+
+        $this->assertEntitled($to, true);
+    }
+
+    public function test_a_transfer_from_several_users_moves_all_their_subscriptions(): void
+    {
+        $lapsed = User::factory()->create();
+        $paying = User::factory()->create();
+        $to = User::factory()->create();
+        Subscription::factory()->expired()->create(['user_id' => $lapsed->id]);
+        $active = Subscription::factory()->create(['user_id' => $paying->id, 'expires_at' => now()->addMonth()]);
+        $payload = $this->transferPayload($lapsed, $to);
+        $payload['event']['transferred_from'] = [(string) $lapsed->id, (string) $paying->id];
+
+        $this->postWebhook($payload)->assertOk();
+
+        $this->assertSame($active->id, Subscription::where('user_id', $to->id)->value('id'));
+        $this->assertEntitled($to, true);
+        $this->assertEntitled($paying, false);
+        $this->assertDatabaseMissing('subscriptions', ['user_id' => $lapsed->id]);
+        $this->assertDatabaseMissing('subscriptions', ['user_id' => $paying->id]);
+    }
 }

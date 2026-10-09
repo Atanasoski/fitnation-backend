@@ -296,11 +296,11 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     }
 
     /**
-     * RevenueCat TRANSFER moves a subscription between app_user_ids. Re-point the
-     * existing subscription to the new (target) user so they keep access. The
-     * source user is left without a subscription, which is correct — ownership
-     * moved. A target whose own subscription grants access keeps it when the
-     * transferred one does not.
+     * RevenueCat TRANSFER moves subscriptions between app_user_ids. Re-point
+     * them to the new (target) user so they keep access. The source users are
+     * left without a subscription, which is correct — ownership moved. A
+     * target whose own subscription grants access keeps it when none of the
+     * transferred ones does. See {@see SubscriptionRecord::transfer()}.
      */
     private function handleTransfer(array $event): void
     {
@@ -318,7 +318,8 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             ));
         }
 
-        $subscription = SubscriptionRecord::transfer($sourceIds, $target);
+        $eventTs = isset($event['event_timestamp_ms']) ? (int) $event['event_timestamp_ms'] : null;
+        $subscription = SubscriptionRecord::transfer($sourceIds, $target, $eventTs);
 
         if (! $subscription) {
             Log::info('RevenueCat TRANSFER: nothing moved (no source subscription, or the receiver keeps its own active one)', [

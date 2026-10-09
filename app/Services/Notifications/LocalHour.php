@@ -84,13 +84,7 @@ final class LocalHour
             return collect();
         }
 
-        $ranked = Device::query()->selectRaw(
-            'user_id, timezone, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY last_seen_at DESC, id DESC) AS rank_in_user'
-        );
-
-        return Device::query()
-            ->fromSub($ranked, 'latest')
-            ->where('rank_in_user', 1)
+        return Device::mostRecentlySeenPerUser()
             ->where(function ($query) use ($timezones) {
                 $query->whereIn('timezone', $timezones->filter()->values());
 

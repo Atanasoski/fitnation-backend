@@ -85,9 +85,8 @@ final class WeeklyProgress
         }
 
         // The payload's `week` is the label, "Mar 02" — not a date, despite the
-        // name, and not the same `week` the users.show chart sends (which is the
-        // Y-m-d). Both are shipped contracts; historicalWeeks() below names its
-        // own keys unambiguously so neither caller has to guess.
+        // name. It is a shipped contract; historicalWeeks() below names its own
+        // keys unambiguously so a caller does not have to guess.
         $historicalWeeks = array_map(
             fn (array $week) => ['week' => $week['label'], 'workouts' => $week['workouts']],
             $this->historicalWeeks($user, self::HISTORY_WEEKS, $asOf),

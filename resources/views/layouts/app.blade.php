@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'Dashboard' }} | {{ config('app.name', 'Fit Nation') }}</title>
+    <title>@hasSection('title')@yield('title')@else{{ $title ?? 'Dashboard' }}@endif | {{ config('app.name', 'Fit Nation') }}</title>
 
     <!-- Brand icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo/favicon-32.png') }}">
@@ -88,10 +88,12 @@
             const theme = savedTheme || systemTheme;
             if (theme === 'dark') {
                 document.documentElement.classList.add('dark');
-                document.body.classList.add('dark', 'bg-gray-900');
+                // In <head> there is no body yet; the body's classes are set
+                // by the Alpine theme state once it exists.
+                document.body?.classList.add('dark', 'bg-gray-900');
             } else {
                 document.documentElement.classList.remove('dark');
-                document.body.classList.remove('dark', 'bg-gray-900');
+                document.body?.classList.remove('dark', 'bg-gray-900');
             }
         })();
     </script>

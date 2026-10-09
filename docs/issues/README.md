@@ -24,6 +24,9 @@ run agents inventing seven different module shapes.
 | [019](019-unfinished-account-nudges.md) | Unfinished Account nudges — email a user who never verified or onboarded, 1/3/7 days | feature | new mail + notification, shared local-hour helpers out of `Inactivity` |
 | [020](020-weekly-summary-email.md) | Weekly Summary email, Monday 08:00 local, with one-click unsubscribe | feature | `WeeklyProgress::for($asOf)`, `users.notification_settings`, unsubscribe route |
 | [021](021-equipment-supports-added-weight.md) | Equipment types say whether an exercise takes added weight | low | migration, `EquipmentTypeResource`, seeder |
+| [023](023-super-admin-panel-v2.md) | Super-admin panel v2 — partner edit (4 colours), exercise gallery + Archived Exercise + Partner Overrides, a user's plan outline replacing partner-admin plan pages (tickets 01–08 done on `feat/super-admin-panel-v2`; PR pending) | feature | `PartnerController` form, `workout_exercises.archived_at`, override-write module, `PlanPolicy`, `/users/{user}/plans` |
+| [024](024-super-admin-insights-revenue-system.md) | Super-admin panel: Insights (question wall, 7/30/90), Revenue tab (current state, USD), System (app versions, push, admins grant/revoke) (tickets 01–06 done on `feat/super-admin-insights`; PR pending) | feature | `Admin\Insights`, `Admin\Revenue`, `System\Fleet`, `Admin\Admins`, Old Build constraint |
+| [025](025-remove-partner-admin-panel.md) | Remove the partner-admin panel, library-programs UI, invitations and web registration; web login admin-only; `partner_admin` role kept dormant (tickets 01–03) | cleanup | old `UserController`, `DashboardController`, `PartnerController`, `PlanController`, `ExerciseController` partner methods, `MenuHelper`, invitations, `RegisteredUserController` |
 
 ## Done
 
@@ -37,6 +40,7 @@ run agents inventing seven different module shapes.
 - [014](014-partner-exercise-presentation.md) — PR #42 — `PartnerExerciseView`
 - [015](015-measured-field-residue.md) — PR #43 — one home for the imperial step
 - [018](018-push-notifications-phase-one.md) — PRs #45–#48 — Devices, `ExpoChannel`, Inactivity Nudge; [ADR-0003](../adr/0003-a-device-is-an-authenticated-session.md); mobile half in front-end PR #55
+- [022](022-super-admin-panel.md) — PR #58 — super-admin panel v1
 
 ## Suggested order
 

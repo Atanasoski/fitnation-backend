@@ -24,7 +24,7 @@ class UnitSystemTest extends TestCase
 
     public function test_imperial_user_profile_shows_converted_weight_and_height(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update([
             'weight' => 80.0,
             'height' => 180,
@@ -46,7 +46,7 @@ class UnitSystemTest extends TestCase
 
     public function test_metric_user_profile_output_is_unchanged(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update([
             'weight' => 82.5,
             'height' => 175,
@@ -66,7 +66,7 @@ class UnitSystemTest extends TestCase
 
     public function test_imperial_user_set_log_listing_shows_lbs_converted_stepped_weight(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();
@@ -104,7 +104,7 @@ class UnitSystemTest extends TestCase
 
     public function test_patch_profile_onboarding_with_imperial_persists_kg_and_cm(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         // Simulate "no prior profile row" (onboarding scenario).
         $user->profile()->delete();
         $user->refresh();
@@ -132,7 +132,7 @@ class UnitSystemTest extends TestCase
 
     public function test_patch_profile_uses_stored_preference_when_payload_omits_unit_system(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $response = $this
@@ -153,7 +153,7 @@ class UnitSystemTest extends TestCase
 
     public function test_logging_set_with_lbs_weight_persists_kg_for_imperial_user(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();
@@ -184,8 +184,8 @@ class UnitSystemTest extends TestCase
      */
     public function test_fitness_metrics_service_output_is_identical_regardless_of_unit_preference(): void
     {
-        $metricUser = User::factory()->create();
-        $imperialUser = User::factory()->create();
+        $metricUser = User::factory()->entitled()->create();
+        $imperialUser = User::factory()->entitled()->create();
 
         foreach ([$metricUser, $imperialUser] as $user) {
             $user->profile->update([
@@ -258,8 +258,8 @@ class UnitSystemTest extends TestCase
      */
     public function test_progression_calculator_target_weight_is_identical_regardless_of_unit_preference(): void
     {
-        $metricUser = User::factory()->create();
-        $imperialUser = User::factory()->create();
+        $metricUser = User::factory()->entitled()->create();
+        $imperialUser = User::factory()->entitled()->create();
 
         foreach ([$metricUser, $imperialUser] as $user) {
             $user->profile->update(['weight' => 80.0]);
@@ -310,7 +310,7 @@ class UnitSystemTest extends TestCase
 
     public function test_updating_template_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();
@@ -342,7 +342,7 @@ class UnitSystemTest extends TestCase
 
     public function test_updating_session_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();
@@ -372,7 +372,7 @@ class UnitSystemTest extends TestCase
 
     public function test_adding_session_exercise_with_lbs_target_weight_persists_kg_for_imperial_user(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         $exercise = Exercise::factory()->create();
@@ -397,7 +397,7 @@ class UnitSystemTest extends TestCase
 
     public function test_imperial_weight_exceeding_the_kg_bound_after_conversion_is_rejected(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['unit_system' => UnitSystem::Imperial]);
 
         // 1200 lbs -> 544.31 kg, above the existing max:500 kg bound.
@@ -413,7 +413,7 @@ class UnitSystemTest extends TestCase
 
     public function test_profile_update_rejects_a_null_unit_system(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $response = $this
             ->actingAs($user, 'sanctum')

@@ -23,7 +23,7 @@ class PlanActivationTest extends TestCase
 
     public function test_creating_an_active_routine_leaves_the_active_program_alone(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create([
@@ -41,7 +41,7 @@ class PlanActivationTest extends TestCase
 
     public function test_creating_and_updating_a_routine_leave_the_same_plans_active(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create(['user_id' => $user->id, 'is_active' => true]);
@@ -67,7 +67,7 @@ class PlanActivationTest extends TestCase
 
     public function test_creating_an_active_plan_via_the_generic_endpoint_leaves_the_other_type_alone(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create(['user_id' => $user->id, 'is_active' => true]);
@@ -87,15 +87,16 @@ class PlanActivationTest extends TestCase
         $this->assertFalse($routine->fresh()->is_active);
     }
 
-    public function test_a_partner_admin_activating_a_users_program_leaves_their_routine_alone(): void
+    /**
+     * Staff activation on the plan outline, which is super-admin only since
+     * 025/02 (it was a partner admin before).
+     */
+    public function test_a_super_admin_activating_a_users_program_leaves_their_routine_alone(): void
     {
         $partner = Partner::factory()->create();
-        $admin = User::factory()->create(['partner_id' => $partner->id]);
-        $admin->roles()->attach(Role::firstOrCreate(
-            ['slug' => 'partner_admin'],
-            ['name' => 'Partner Admin', 'description' => 'Can manage partner organization']
-        ));
-        $member = User::factory()->create(['partner_id' => $partner->id]);
+        $admin = User::factory()->entitled()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']));
+        $member = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $routine = Plan::factory()->create([
             'user_id' => $member->id,
@@ -104,6 +105,7 @@ class PlanActivationTest extends TestCase
         ]);
         $oldProgram = Plan::factory()->program()->create(['user_id' => $member->id, 'is_active' => true]);
 
+        // A new plan starts inactive (023/06); activating it is its own step.
         $this->actingAs($admin)->post(route('plans.store', $member), [
             'name' => 'New Program',
             'type' => PlanType::Program->value,
@@ -112,6 +114,8 @@ class PlanActivationTest extends TestCase
         ]);
 
         $created = Plan::where('name', 'New Program')->firstOrFail();
+        $this->assertFalse($created->is_active);
+        $this->actingAs($admin)->post(route('plans.activate', $created));
 
         $this->assertTrue($routine->fresh()->is_active, 'Creating a program deactivated the user\'s routine.');
         $this->assertFalse($oldProgram->fresh()->is_active);
@@ -131,7 +135,7 @@ class PlanActivationTest extends TestCase
 
     public function test_generating_a_program_deactivates_every_other_program_not_only_auto_generated_ones(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile()->update([
             'training_days_per_week' => 3,
             'gender' => \App\Enums\Gender::Male,
@@ -170,7 +174,7 @@ class PlanActivationTest extends TestCase
 
     public function test_an_update_that_omits_is_active_leaves_the_plan_active(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $routine = Plan::factory()->create([
@@ -190,7 +194,7 @@ class PlanActivationTest extends TestCase
 
     public function test_an_active_plan_that_changes_type_does_not_leave_two_active(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         Sanctum::actingAs($user);
 
         $program = Plan::factory()->program()->create(['user_id' => $user->id, 'is_active' => true]);

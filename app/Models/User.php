@@ -2,20 +2,27 @@
 
 namespace App\Models;
 
+use App\Enums\Entitlement;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
 use App\Notifications\VerifyEmail;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+
+    /** The role slugs that make an account staff rather than an app user. */
+    public const STAFF_ROLES = ['admin', 'partner_admin'];
 
     /**
      * The attributes that are mass assignable.
@@ -71,6 +78,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'onboarding_completed_at' => 'datetime',
             'push_enabled' => 'boolean',
             'notification_settings' => 'array',
+            'grace_period_ends_at' => 'datetime',
         ];
     }
 
@@ -83,6 +91,23 @@ class User extends Authenticatable implements MustVerifyEmail
     public function notificationSetting(string $key, bool $default): bool
     {
         return (bool) ($this->notification_settings[$key] ?? $default);
+    }
+
+    /**
+     * Users whose Notification Setting $key is on — the query twin of
+     * notificationSetting(): a missing key, or a null column, reads as
+     * $default. The one place that rule is written for queries.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeNotificationSettingOn(Builder $query, string $key, bool $default): Builder
+    {
+        $column = 'users.notification_settings';
+
+        return $query->where(fn (Builder $q) => $default
+            ? $q->whereNull($column)->orWhereNull("{$column}->{$key}")->orWhere("{$column}->{$key}", true)
+            : $q->where("{$column}->{$key}", true));
     }
 
     /**
@@ -150,11 +175,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the roles that belong to the user.
+     * Get the roles that belong to the user. The role_user timestamps say
+     * since when (Admins::list()).
      */
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'role_user');
+        return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
     }
 
     /**
@@ -188,5 +214,137 @@ class User extends Authenticatable implements MustVerifyEmail
     public function unitSystem(): UnitSystem
     {
         return $this->profile?->unit_system ?? UnitSystem::Metric;
+    }
+
+    public function subscription(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Subscription::class);
+    }
+
+    /**
+     * @return Collection<int, Entitlement>
+     */
+    public function entitlements(): Collection
+    {
+        // Dark deploy: with enforcement off every user reports every entitlement,
+        // so the app never shows a paywall (config/subscriptions.php).
+        if (! config('subscriptions.enforced')) {
+            return collect(Entitlement::cases());
+        }
+
+        $set = collect();
+
+        if ($this->subscription?->isActive()) {
+            $set = $set->merge($this->subscription->grantedEntitlements());
+        }
+
+        if ($this->partner?->isSponsoringMembers()) {
+            $set->push(Entitlement::AppAccess);
+        }
+
+        if ($this->hasComplimentaryAccess()) {
+            $set->push(Entitlement::AppAccess);
+        }
+
+        return $set->unique()->values();
+    }
+
+    /**
+     * Complimentary Access (CONTEXT.md): an admin let this user in until a
+     * date. Stored as grace_period_ends_at, a name kept for now.
+     * scopeWithComplimentaryAccess() is the same rule in SQL.
+     */
+    public function hasComplimentaryAccess(): bool
+    {
+        return $this->grace_period_ends_at !== null && $this->grace_period_ends_at > now();
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithComplimentaryAccess(Builder $query): Builder
+    {
+        return $query->where('users.grace_period_ends_at', '>', now());
+    }
+
+    /**
+     * Staff: an admin or partner-admin account, the complement of appUsers().
+     */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES);
+    }
+
+    /**
+     * People using the app: everyone but staff (admin and partner-admin
+     * accounts), who the super-admin lists and counts leave out.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAppUsers(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('slug', self::STAFF_ROLES));
+    }
+
+    /**
+     * Users with at least one Completed Session finished between $from and
+     * $to — "active this week" on the Overview and the Partners list.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeTrainedBetween(Builder $query, DateTimeInterface $from, DateTimeInterface $to): Builder
+    {
+        return $query->whereHas('workoutSessions', fn (Builder $sessions) => $sessions
+            ->completed()
+            ->whereBetween('completed_at', [$from, $to]));
+    }
+
+    /**
+     * Users whose name or email contains $term, matched literally (a % or _
+     * in the term is not a wildcard).
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeMatching(Builder $query, string $term): Builder
+    {
+        $like = '%'.addcslashes($term, '\\%_').'%';
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('users.name', 'like', $like)
+            ->orWhere('users.email', 'like', $like));
+    }
+
+    public function hasEntitlement(Entitlement $e): bool
+    {
+        return $this->entitlements()->contains($e);
+    }
+
+    public function hasAppAccess(): bool
+    {
+        return $this->hasEntitlement(Entitlement::AppAccess);
+    }
+
+    /**
+     * The free days a new user gets when onboarding completes: app access with
+     * no card and no store, via grace_period_ends_at, so the paywall takes
+     * over when the date passes. One-shot per account — a date already set
+     * (an earlier trial, the launch grace) is never moved. Returns whether a
+     * trial was started.
+     */
+    public function startSignupTrial(): bool
+    {
+        $days = (int) config('subscriptions.signup_trial_days', 0);
+
+        if ($days <= 0 || $this->grace_period_ends_at !== null) {
+            return false;
+        }
+
+        $this->forceFill(['grace_period_ends_at' => now()->addDays($days)])->save();
+
+        return true;
     }
 }

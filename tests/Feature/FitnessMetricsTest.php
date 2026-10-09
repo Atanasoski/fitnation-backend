@@ -21,7 +21,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_authenticated_user_can_get_fitness_metrics(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update([
             'weight' => 80.0,
             'age' => 30,
@@ -64,7 +64,7 @@ class FitnessMetricsTest extends TestCase
     public function test_fitness_metrics_includes_optional_fields_when_available(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         $user->profile->update([
             'weight' => 80.0,
             'age' => 30,
@@ -137,7 +137,7 @@ class FitnessMetricsTest extends TestCase
         $partner2 = Partner::factory()->create();
 
         // User in partner1
-        $user1 = User::factory()->create(['partner_id' => $partner1->id]);
+        $user1 = User::factory()->entitled()->create(['partner_id' => $partner1->id]);
         $user1->profile->update([
             'weight' => 80.0,
             'age' => 30,
@@ -197,7 +197,7 @@ class FitnessMetricsTest extends TestCase
     public function test_percentile_not_calculated_with_insufficient_comparable_users(): void
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
         $user->profile->update([
             'weight' => 80.0,
             'age' => 30,
@@ -234,7 +234,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_percentile_not_calculated_for_user_without_partner(): void
     {
-        $user = User::factory()->create(['partner_id' => null]);
+        $user = User::factory()->entitled()->create(['partner_id' => null]);
         $user->profile->update([
             'weight' => 80.0,
             'age' => 30,
@@ -256,7 +256,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_historical_weekly_progress_included(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         // Create workout sessions over the last 8 weeks
@@ -298,7 +298,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_weekly_progress_includes_volume_and_daily_breakdown(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         // Get or create exercise
@@ -413,7 +413,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_strength_balance_rewards_coverage_across_many_muscle_groups(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         $muscleGroupConfigs = [
@@ -445,7 +445,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_strength_balance_low_for_single_muscle_group(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         $muscleGroupConfigs = [
@@ -467,7 +467,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_strength_balance_ppl_split_scores_good_or_better(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         $muscleGroupConfigs = [
@@ -502,7 +502,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_strength_balance_zero_for_no_training_data(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         $response = $this
@@ -518,7 +518,7 @@ class FitnessMetricsTest extends TestCase
 
     public function test_strength_balance_needs_improvement_for_two_or_three_groups(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $user->profile->update(['weight' => 80.0]);
 
         $muscleGroupConfigs = [

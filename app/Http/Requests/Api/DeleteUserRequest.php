@@ -15,18 +15,17 @@ class DeleteUserRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * The password is optional (decided 2026-10-02): the mobile app confirms
+     * deletion with a typed word, the bearer token already says who is asking,
+     * and a social account has no password to type. A password that is sent —
+     * the web app still asks for one — must be the user's current one.
      *
      * @return array<string, list<string>>
      */
     public function rules(): array
     {
-        $hasPassword = !is_null($this->user()->password);
-
         return [
-            'password' => $hasPassword
-                ? ['required', 'current_password']
-                : ['nullable'],
+            'password' => ['nullable', 'string', 'current_password'],
         ];
     }
 }

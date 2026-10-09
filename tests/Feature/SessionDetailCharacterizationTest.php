@@ -133,7 +133,7 @@ class SessionDetailCharacterizationTest extends TestCase
     private function makeFixture(): array
     {
         $partner = Partner::factory()->create();
-        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $user->profile()->update([
             'fitness_goal' => FitnessGoal::MuscleGain,
@@ -299,6 +299,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         // progression fires, 60 + 2.5 barbell increment.
                         'progression_status' => 'ready',
                         'target_weight' => 62.5,
+                        'weight_step' => 2.5,
+                        'target_weight_lowered' => 60,
                         'total_reps_previous' => null,
                         'total_reps_target' => null,
                         'rest_seconds' => 90,
@@ -314,6 +316,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         $this->expectedSetLog($this->id['previous2'], $this->id['history'], null, 2, 60, 12),
                         $this->expectedSetLog($this->id['previous3'], $this->id['history'], null, 3, 60, 12),
                     ],
+                    // The three history sets tie on estimated 1RM and reps; the best is one of them, dated by its session.
+                    'best_set' => ['weight' => 60, 'reps' => 12, 'performed_at' => now()->subWeek()->toJSON()],
                     // Two logged sets against a stored target of 3.
                     'is_completed' => false,
                 ],
@@ -337,6 +341,8 @@ class SessionDetailCharacterizationTest extends TestCase
                         // 80kg × 0.65 PRESS base × 0.6 experience = 31.2kg,
                         // rounded down to the 2.5kg barbell increment.
                         'target_weight' => 30,
+                        'weight_step' => 2.5,
+                        'target_weight_lowered' => 27.5,
                         'total_reps_previous' => null,
                         'total_reps_target' => null,
                         'rest_seconds' => 90,
@@ -345,6 +351,7 @@ class SessionDetailCharacterizationTest extends TestCase
                     ],
                     'logged_sets' => [],
                     'previous_sets' => [],
+                    'best_set' => null,
                     'is_completed' => false,
                 ],
             ],

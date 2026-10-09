@@ -138,6 +138,15 @@ class SessionProgression
             'rest_seconds' => $row->rest_seconds ?: $calculated['rest_seconds'],
         ];
 
+        // The equipment step behind the target: what a raise added, and the one
+        // step down the app can offer after a session that was too hard.
+        $exercise = $row->exercise;
+        $step = $exercise ? $this->calculator->getWeightIncrement($exercise) : 0.0;
+        $targets['weight_step'] = $step > 0 ? $step : null;
+        $targets['target_weight_lowered'] = $exercise && $targets['target_weight'] > 0
+            ? $this->calculator->lowerByOneStep((float) $targets['target_weight'], $exercise)
+            : null;
+
         if (($calculated['progression_mode'] ?? 'double_progression') === 'total_reps') {
             $targets['min_target_reps'] = null;
             $targets['max_target_reps'] = null;

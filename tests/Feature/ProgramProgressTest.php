@@ -34,7 +34,7 @@ class ProgramProgressTest extends TestCase
         parent::setUp();
 
         $partner = Partner::factory()->create();
-        $this->user = User::factory()->create(['partner_id' => $partner->id]);
+        $this->user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
 
         $this->plan = Plan::factory()->create([
             'user_id' => $this->user->id,
@@ -85,7 +85,7 @@ class ProgramProgressTest extends TestCase
 
     public function test_another_users_completed_session_does_not_count(): void
     {
-        $other = User::factory()->create(['partner_id' => $this->user->partner_id]);
+        $other = User::factory()->entitled()->create(['partner_id' => $this->user->partner_id]);
 
         foreach ($this->templates as $template) {
             $this->logSession($template, WorkoutSessionStatus::Completed, $other);

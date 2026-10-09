@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             TargetRegionSeeder::class,
             EquipmentTypeSeeder::class,
             AngleSeeder::class,
+            TrainingStyleSeeder::class, // ExerciseClassificationSeeder tags exercises with these
 
             ExerciseSeeder::class,       // Create global exercises
             ExerciseClassificationSeeder::class, // Classify exercises with lookup table FKs

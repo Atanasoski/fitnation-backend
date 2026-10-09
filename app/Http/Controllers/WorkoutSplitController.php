@@ -17,12 +17,6 @@ class WorkoutSplitController extends Controller
      */
     public function index(): View
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can access this page.');
-        }
-
         // Group splits by focus and days_per_week
         $splits = WorkoutSplit::query()
             ->orderBy('focus')
@@ -41,12 +35,6 @@ class WorkoutSplitController extends Controller
      */
     public function create(): View
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can create workout splits.');
-        }
-
         $targetRegions = TargetRegion::orderBy('display_order')->get();
         $focusOptions = SplitFocus::cases();
 
@@ -74,12 +62,6 @@ class WorkoutSplitController extends Controller
      */
     public function edit(WorkoutSplit $workoutSplit): View
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can edit workout splits.');
-        }
-
         $targetRegions = TargetRegion::orderBy('display_order')->get();
         $focusOptions = SplitFocus::cases();
 
@@ -107,12 +89,6 @@ class WorkoutSplitController extends Controller
      */
     public function destroy(WorkoutSplit $workoutSplit): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (! $user->hasRole('admin')) {
-            abort(403, 'Only system administrators can delete workout splits.');
-        }
-
         $workoutSplit->delete();
 
         return redirect()->route('workout-splits.index')

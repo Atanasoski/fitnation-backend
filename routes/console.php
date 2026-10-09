@@ -4,6 +4,7 @@ use App\Jobs\FetchExpoReceipts;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Spatie\WebhookClient\Models\WebhookCall;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -45,3 +46,11 @@ Schedule::command('notifications:weekly-summaries')
     ->hourlyAt([0, 30])
     ->withoutOverlapping()
     ->onOneServer();
+
+// Prune stored webhook payloads past their retention window. The webhook-client
+// config declares delete_after_days but ships no scheduled pruner, so wire one.
+Schedule::call(function () {
+    $days = (int) config('webhook-client.delete_after_days', 90);
+
+    WebhookCall::where('created_at', '<', now()->subDays($days))->delete();
+})->daily()->name('prune-webhook-calls');

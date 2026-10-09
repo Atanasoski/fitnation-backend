@@ -34,26 +34,20 @@ class ColorHelper
     }
 
     /**
-     * Get light mode color palette array for display.
+     * Process partner identity dark-mode colors, keyed like processPartnerColors(),
+     * with defaults from config.
      */
-    public static function getColorPalette(?PartnerIdentity $identity): array
+    public static function processPartnerDarkColors(?PartnerIdentity $identity): array
     {
-        $colors = self::processPartnerColors($identity);
+        $defaults = config('branding.dark');
 
-        return [
-            ['name' => 'Primary', 'value' => $colors['primary']],
-            ['name' => 'Secondary', 'value' => $colors['secondary']],
-            ['name' => 'Background', 'value' => $colors['background']],
-            ['name' => 'Card Background', 'value' => $colors['card_background']],
-            ['name' => 'Text Primary', 'value' => $colors['text_primary']],
-            ['name' => 'Text Secondary', 'value' => $colors['text_secondary']],
-            ['name' => 'Text On Primary', 'value' => $colors['text_on_primary']],
-            ['name' => 'Success', 'value' => $colors['success']],
-            ['name' => 'Warning', 'value' => $colors['warning']],
-            ['name' => 'Danger', 'value' => $colors['danger']],
-            ['name' => 'Accent', 'value' => $colors['accent']],
-            ['name' => 'Border', 'value' => $colors['border']],
-        ];
+        if (! $identity) {
+            return $defaults;
+        }
+
+        return collect($defaults)
+            ->map(fn (string $default, string $key) => $identity->{$key.'_color_dark'} ?? $default)
+            ->all();
     }
 
     /**
@@ -61,25 +55,12 @@ class ColorHelper
      */
     public static function getDarkColorPalette(?PartnerIdentity $identity): array
     {
-        $defaults = config('branding.dark');
+        $colors = self::processPartnerDarkColors($identity);
 
-        if (! $identity) {
-            return array_map(fn ($key, $value) => ['name' => ucwords(str_replace('_', ' ', $key)), 'value' => $value], array_keys($defaults), $defaults);
-        }
-
-        return [
-            ['name' => 'Primary', 'value' => $identity->primary_color_dark ?? $defaults['primary']],
-            ['name' => 'Secondary', 'value' => $identity->secondary_color_dark ?? $defaults['secondary']],
-            ['name' => 'Background', 'value' => $identity->background_color_dark ?? $defaults['background']],
-            ['name' => 'Card Background', 'value' => $identity->card_background_color_dark ?? $defaults['card_background']],
-            ['name' => 'Text Primary', 'value' => $identity->text_primary_color_dark ?? $defaults['text_primary']],
-            ['name' => 'Text Secondary', 'value' => $identity->text_secondary_color_dark ?? $defaults['text_secondary']],
-            ['name' => 'Text On Primary', 'value' => $identity->text_on_primary_color_dark ?? $defaults['text_on_primary']],
-            ['name' => 'Success', 'value' => $identity->success_color_dark ?? $defaults['success']],
-            ['name' => 'Warning', 'value' => $identity->warning_color_dark ?? $defaults['warning']],
-            ['name' => 'Danger', 'value' => $identity->danger_color_dark ?? $defaults['danger']],
-            ['name' => 'Accent', 'value' => $identity->accent_color_dark ?? $defaults['accent']],
-            ['name' => 'Border', 'value' => $identity->border_color_dark ?? $defaults['border']],
-        ];
+        return array_map(
+            fn (string $key, string $value) => ['name' => ucwords(str_replace('_', ' ', $key)), 'value' => $value],
+            array_keys($colors),
+            $colors,
+        );
     }
 }

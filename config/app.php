@@ -136,17 +136,4 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Member Invitation Expiry Days
-    |--------------------------------------------------------------------------
-    |
-    | This value determines how many days a member invitation link remains
-    | valid before expiring. After this period, the invitation will need
-    | to be resent.
-    |
-    */
-
-    'invitation_expiry_days' => env('INVITATION_EXPIRY_DAYS', 7),
-
 ];

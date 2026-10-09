@@ -54,6 +54,13 @@ completed twice reports the same records twice.
 
 _Avoid_: PR — it reads as pull request.
 
+### Stuck Session
+
+A workout session still `active` more than 24 hours after it started. Nobody
+trains for a day, so it almost always means the app lost track of the session
+— the athlete left without finishing or cancelling it. In code it is the query
+scope `WorkoutSession::stuck()`.
+
 ## Fitness Metrics
 
 ### Completed Session
@@ -200,6 +207,16 @@ gone.
 
 _Avoid_: installation, push subscription, client.
 
+### Old Build
+
+A [Device](#device) running a production build of the app that is older than
+the two newest production versions any Device reports. Preview and
+development builds are never Old Builds, and neither is a Device that has not
+reported its version. A user is on an Old Build when their most recently seen
+Device is.
+
+_Avoid_: outdated app, legacy version.
+
 ### Push Token
 
 The address a [Device](#device) can be reached at, issued by the push relay and
@@ -286,3 +303,104 @@ instead. It is the one email that is not about the user's account, so it is
 the one a user may unsubscribe from.
 
 _Avoid_: weekly report, digest, recap.
+
+## Exercises
+
+### Archived Exercise
+
+An exercise retired from the catalogue: no longer offered when searching,
+picking or generating, but still shown everywhere it was already used — in
+plans, sessions and history. An exercise that anyone ever used is archived,
+never deleted; only one nobody used can be deleted outright.
+
+_Avoid_: deleted exercise, disabled exercise, hidden exercise.
+
+### Partner Override
+
+A partner's own description, image or video for a catalogue exercise, shown to
+that partner's members instead of the catalogue's. Anything the override leaves
+blank falls back to the catalogue.
+
+_Avoid_: partner exercise (that is the link, not the content), custom exercise.
+
+## Partners
+
+### House Partner
+
+The partner that is Fit Nation itself, our own brand. Everyone who joins
+without a gym belongs to it, so every user has a partner — only admin
+accounts have none, and they are not users in this sense. Its members are the
+ones who pay for the app.
+
+_Avoid_: direct user, no-partner user, default partner.
+
+### Sponsoring Partner
+
+A partner on the sponsor plan: it pays for its members, so they have access
+without a subscription of their own. Expected to stay rare — the
+[House Partner](#house-partner) is the paying base.
+
+_Avoid_: B2B partner, paid partner.
+
+## Access
+
+### Access Source
+
+Why a user may use the app, read off the rules alone: **Subscribed**,
+**Trial**, **Cancelled, paid until** (they cancelled but the period they paid
+for has not run out), **Billing issue**, **Paused**, **Sponsored** (their partner is a
+[Sponsoring Partner](#sponsoring-partner)), **Complimentary**
+([Complimentary Access](#complimentary-access)), or **None**. It is the same
+whether or not subscriptions are enforced: while they are not, a user with
+None still gets in, and None is exactly who the paywall would stop.
+
+_Avoid_: entitlement (that is what access grants, not where it comes from),
+plan.
+
+### Complimentary Access
+
+Access an admin grants a user by hand, until a date, without payment — to
+help someone stuck or to let a person in early.
+
+_Avoid_: grace period — a cancelled subscription still running to its end is
+not this, and is not called grace either.
+
+### Expected Monthly Revenue
+
+What the paying subscriptions are expected to bring in per month, in **USD**:
+each monthly subscription's price, plus each yearly subscription's price ÷ 12.
+"Paying" means a subscription that still grants access and is not in a trial,
+so a cancelled one still running to its paid-until date counts and a trial
+counts nothing. Production subscriptions only. The price is RevenueCat's USD
+figure for the last transaction, not the amount in the currency the user paid.
+
+_Avoid_: MRR (it implies accounting rules this does not follow), revenue (alone).
+
+## Admin
+
+### Activity Status
+
+The one label that says where a user stands with training, read off their
+[Completed Sessions](#completed-session):
+
+- **Unfinished** — an [Unfinished Account](#unfinished-account).
+- **New** — onboarded, no Completed Session yet, onboarded under 14 days ago.
+- **Active** — a Completed Session in the last 7 days.
+- **Slipping** — last Completed Session 7–14 days ago.
+- **Inactive** — none in over 14 days, or New for over 14 days.
+- **Deleted** — the account is deleted.
+
+The day boundaries are the [Inactivity Nudge](#inactivity-nudge) ladder's, so a
+Slipping user is one the nudges are working on.
+
+_Avoid_: engagement level, churned, dormant.
+
+### Admin Change
+
+A record of something a super admin changed about a user by hand: a grant,
+extension or early end of [Complimentary Access](#complimentary-access), or a
+move to another partner. It says who, when, what (until, or from → to) and
+why. The user page lists them as "Grants & partner changes". Two kinds only;
+it is not a general audit log.
+
+_Avoid_: audit log, activity log.

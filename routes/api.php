@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
-use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MuscleGroupController;
 use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\OnboardingController;
@@ -32,130 +31,140 @@ Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
     ->middleware('throttle:6,1');
 
-// Public invitation validation
-Route::get('/invitations/{token}', [InvitationController::class, 'show']);
-
 Route::get('/partners', [PartnerController::class, 'activeList'])
     ->middleware('throttle:30,1');
 
 Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'])
     ->middleware('throttle:6,1');
 
+// Public webhooks (signature-verified)
+Route::webhooks('webhooks/revenuecat', 'revenuecat')
+    ->middleware('throttle:60,1');
+
 // Protected endpoints
 Route::middleware('auth:sanctum')->name('api.')->group(function () {
-    // Auth endpoints
+    // Auth endpoints — no subscription required
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])
         ->middleware('throttle:6,1')
         ->name('api.verification.send');
 
-    // User endpoints
+    // User endpoints — no subscription required (app reads these to determine access)
     Route::get('/user', [UserController::class, 'show']);
     Route::delete('/user', [UserController::class, 'destroy']);
-    Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
 
-    // Devices — the calling session registers itself for push (ADR-0003)
-    Route::put('/devices', [DeviceController::class, 'register']);
-    Route::patch('/notification-settings', [NotificationSettingsController::class, 'update']);
+    // Onboarding — no subscription required (happens before paywall)
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
 
-    // Profile endpoints
+    // Profile — no subscription required: onboarding saves it (PUT /profile)
+    // before the paywall, and it is the user's own account data
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::patch('/profile', [ProfileController::class, 'update']);
     Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
 
-    // Onboarding endpoints
-    Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
+    // Devices — no subscription required: the calling session registers itself
+    // for push (ADR-0003) and can reach the push switch from the paywall
+    Route::put('/devices', [DeviceController::class, 'register']);
+    Route::patch('/notification-settings', [NotificationSettingsController::class, 'update']);
 
-    // Exercises CRUD
-    Route::apiResource('exercises', ExerciseController::class);
-    Route::get('/exercises/{exercise}/history', [ExerciseController::class, 'history']);
+    // Everything below requires an active subscription
+    Route::middleware(\App\Http\Middleware\RequiresSubscription::class)->group(function () {
 
-    // Muscle Groups (read-only)
-    Route::get('/muscle-groups', [MuscleGroupController::class, 'index']);
-    Route::get('/muscle-groups/{muscleGroup}', [MuscleGroupController::class, 'show']);
+        // Fitness metrics
+        Route::get('/user/fitness-metrics', [FitnessMetricsController::class, 'index']);
 
-    // Categories (read-only)
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/categories/{category}', [CategoryController::class, 'show']);
+        // Exercises CRUD
+        Route::apiResource('exercises', ExerciseController::class);
+        Route::get('/exercises/{exercise}/history', [ExerciseController::class, 'history']);
 
-    // Exercise Classification Lookup Tables (read-only)
-    Route::get('/movement-patterns', [ExerciseClassificationController::class, 'movementPatterns']);
-    Route::get('/target-regions', [ExerciseClassificationController::class, 'targetRegions']);
-    Route::get('/equipment-types', [ExerciseClassificationController::class, 'equipmentTypes']);
-    Route::get('/angles', [ExerciseClassificationController::class, 'angles']);
+        // Muscle Groups (read-only)
+        Route::get('/muscle-groups', [MuscleGroupController::class, 'index']);
+        Route::get('/muscle-groups/{muscleGroup}', [MuscleGroupController::class, 'show']);
 
-    Route::prefix('plans')->group(function () {
-        Route::get('/', [PlanController::class, 'index']);
-        Route::post('/', [PlanController::class, 'store']);
-        Route::post('/regenerate', [PlanController::class, 'regenerate']);
-        Route::get('/{plan}', [PlanController::class, 'show']);
-        Route::put('/{plan}', [PlanController::class, 'update']);
-        Route::delete('/{plan}', [PlanController::class, 'destroy']);
-    });
+        // Categories (read-only)
+        Route::get('/categories', [CategoryController::class, 'index']);
+        Route::get('/categories/{category}', [CategoryController::class, 'show']);
 
-    // Custom Plans API - User can create/manage their own
-    Route::prefix('custom-plans')->group(function () {
-        Route::get('/', [PlanController::class, 'customPlansIndex']);
-        Route::post('/', [PlanController::class, 'customPlansStore']);
-        Route::get('/{customPlan}', [PlanController::class, 'customPlansShow']);
-        Route::put('/{customPlan}', [PlanController::class, 'customPlansUpdate']);
-        Route::delete('/{customPlan}', [PlanController::class, 'customPlansDestroy']);
-    });
+        // Exercise Classification Lookup Tables (read-only)
+        Route::get('/movement-patterns', [ExerciseClassificationController::class, 'movementPatterns']);
+        Route::get('/target-regions', [ExerciseClassificationController::class, 'targetRegions']);
+        Route::get('/equipment-types', [ExerciseClassificationController::class, 'equipmentTypes']);
+        Route::get('/angles', [ExerciseClassificationController::class, 'angles']);
 
-    // Programs API - User clones from partner library
-    Route::prefix('programs')->group(function () {
-        Route::get('/', [PlanController::class, 'programsIndex']);
-        Route::get('/library', [PlanController::class, 'programsLibrary']);
-        Route::get('/active', [PlanController::class, 'activeProgram']);
-        Route::get('/{program}', [PlanController::class, 'programsShow']);
-        Route::patch('/{program}', [PlanController::class, 'programsUpdate']);
-        Route::delete('/{program}', [PlanController::class, 'programsDestroy']);
-        Route::post('/{program}/clone', [PlanController::class, 'programsClone']);
-        Route::get('/{program}/next-workout', [PlanController::class, 'programsNextWorkout']);
-    });
+        Route::prefix('plans')->group(function () {
+            Route::get('/', [PlanController::class, 'index']);
+            Route::post('/', [PlanController::class, 'store']);
+            Route::post('/regenerate', [PlanController::class, 'regenerate']);
+            Route::get('/{plan}', [PlanController::class, 'show']);
+            Route::put('/{plan}', [PlanController::class, 'update']);
+            Route::delete('/{plan}', [PlanController::class, 'destroy']);
+        });
 
-    // Routines API - Partner-provided browsable repeatable workouts
-    Route::prefix('routines')->group(function () {
-        Route::get('/', [PlanController::class, 'routinesIndex']);
-        Route::get('/{routine}', [PlanController::class, 'routinesShow']);
-    });
+        // Custom Plans API - User can create/manage their own
+        Route::prefix('custom-plans')->group(function () {
+            Route::get('/', [PlanController::class, 'customPlansIndex']);
+            Route::post('/', [PlanController::class, 'customPlansStore']);
+            Route::get('/{customPlan}', [PlanController::class, 'customPlansShow']);
+            Route::put('/{customPlan}', [PlanController::class, 'customPlansUpdate']);
+            Route::delete('/{customPlan}', [PlanController::class, 'customPlansDestroy']);
+        });
 
-    // Workout Templates CRUD
-    Route::apiResource('workout-templates', WorkoutTemplateController::class);
+        // Programs API - User clones from partner library
+        Route::prefix('programs')->group(function () {
+            Route::get('/', [PlanController::class, 'programsIndex']);
+            Route::get('/library', [PlanController::class, 'programsLibrary']);
+            Route::get('/active', [PlanController::class, 'activeProgram']);
+            Route::get('/{program}', [PlanController::class, 'programsShow']);
+            Route::patch('/{program}', [PlanController::class, 'programsUpdate']);
+            Route::delete('/{program}', [PlanController::class, 'programsDestroy']);
+            Route::post('/{program}/clone', [PlanController::class, 'programsClone']);
+            Route::get('/{program}/next-workout', [PlanController::class, 'programsNextWorkout']);
+        });
 
-    // Workout Template Exercise Management
-    Route::post('/workout-templates/{workoutTemplate}/exercises', [WorkoutTemplateController::class, 'addExercise']);
-    Route::delete('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'removeExercise']);
-    Route::put('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'updateExercise']);
-    Route::patch('/workout-templates/{workoutTemplate}/exercises/{pivot}/swap', [WorkoutTemplateController::class, 'swapExercise']);
-    Route::post('/workout-templates/{workoutTemplate}/order', [WorkoutTemplateController::class, 'updateOrder']);
+        // Routines API - Partner-provided browsable repeatable workouts
+        Route::prefix('routines')->group(function () {
+            Route::get('/', [PlanController::class, 'routinesIndex']);
+            Route::get('/{routine}', [PlanController::class, 'routinesShow']);
+        });
 
-    // Weekly Workout Planner
-    Route::get('/planner/weekly', [WorkoutPlannerController::class, 'index']);
-    Route::post('/planner/assign', [WorkoutPlannerController::class, 'assign']);
-    Route::post('/planner/unassign', [WorkoutPlannerController::class, 'unassign']);
+        // Workout Templates CRUD
+        Route::apiResource('workout-templates', WorkoutTemplateController::class);
 
-    // Workout Sessions
-    Route::get('/workout-sessions/calendar', [WorkoutSessionController::class, 'calendar']);
-    Route::get('/workout-sessions/today', [WorkoutSessionController::class, 'today']);
-    Route::post('/workout-sessions/start', [WorkoutSessionController::class, 'start']);
-    Route::post('/workout-sessions/generate', [WorkoutGeneratorController::class, 'generate']);
-    Route::post('/workout-sessions/{session}/confirm', [WorkoutGeneratorController::class, 'confirm']);
-    Route::post('/workout-sessions/{session}/regenerate', [WorkoutGeneratorController::class, 'regenerate']);
-    Route::get('/workout-sessions/{session}', [WorkoutSessionController::class, 'show']);
-    Route::post('/workout-sessions/{session}/complete', [WorkoutSessionController::class, 'complete']);
-    Route::delete('/workout-sessions/{session}/cancel', [WorkoutSessionController::class, 'cancel']);
+        // Workout Template Exercise Management
+        Route::post('/workout-templates/{workoutTemplate}/exercises', [WorkoutTemplateController::class, 'addExercise']);
+        Route::delete('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'removeExercise']);
+        Route::put('/workout-templates/{workoutTemplate}/exercises/{exercise}', [WorkoutTemplateController::class, 'updateExercise']);
+        Route::patch('/workout-templates/{workoutTemplate}/exercises/{pivot}/swap', [WorkoutTemplateController::class, 'swapExercise']);
+        Route::post('/workout-templates/{workoutTemplate}/order', [WorkoutTemplateController::class, 'updateOrder']);
 
-    // Workout Session Set Logs
-    Route::post('/workout-sessions/{session}/sets', [WorkoutSessionController::class, 'logSet']);
-    Route::put('/workout-sessions/{session}/sets/{setLog}', [WorkoutSessionController::class, 'updateSet']);
-    Route::delete('/workout-sessions/{session}/sets/{setLog}', [WorkoutSessionController::class, 'deleteSet']);
+        // Weekly Workout Planner
+        Route::get('/planner/weekly', [WorkoutPlannerController::class, 'index']);
+        Route::post('/planner/assign', [WorkoutPlannerController::class, 'assign']);
+        Route::post('/planner/unassign', [WorkoutPlannerController::class, 'unassign']);
 
-    // Workout Session Exercise Management
-    Route::post('/workout-sessions/{session}/exercises', [WorkoutSessionController::class, 'addExercise']);
-    Route::delete('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'removeExercise']);
-    Route::put('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'updateExercise']);
-    Route::patch('/workout-sessions/{session}/exercises/{sessionExercise}/swap', [WorkoutSessionController::class, 'swapExercise']);
-    Route::post('/workout-sessions/{session}/exercises/reorder', [WorkoutSessionController::class, 'reorderExercises']);
+        // Workout Sessions
+        Route::get('/workout-sessions/calendar', [WorkoutSessionController::class, 'calendar']);
+        Route::get('/workout-sessions/today', [WorkoutSessionController::class, 'today']);
+        Route::post('/workout-sessions/start', [WorkoutSessionController::class, 'start']);
+        Route::post('/workout-sessions/generate', [WorkoutGeneratorController::class, 'generate']);
+        Route::post('/workout-sessions/{session}/confirm', [WorkoutGeneratorController::class, 'confirm']);
+        Route::post('/workout-sessions/{session}/regenerate', [WorkoutGeneratorController::class, 'regenerate']);
+        Route::get('/workout-sessions/{session}', [WorkoutSessionController::class, 'show']);
+        Route::post('/workout-sessions/{session}/complete', [WorkoutSessionController::class, 'complete']);
+        Route::delete('/workout-sessions/{session}/cancel', [WorkoutSessionController::class, 'cancel']);
+
+        // Workout Session Set Logs
+        Route::post('/workout-sessions/{session}/sets', [WorkoutSessionController::class, 'logSet']);
+        Route::put('/workout-sessions/{session}/sets/{setLog}', [WorkoutSessionController::class, 'updateSet']);
+        Route::delete('/workout-sessions/{session}/sets/{setLog}', [WorkoutSessionController::class, 'deleteSet']);
+
+        // Workout Session Exercise Management
+        Route::post('/workout-sessions/{session}/exercises', [WorkoutSessionController::class, 'addExercise']);
+        Route::delete('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'removeExercise']);
+        Route::put('/workout-sessions/{session}/exercises/{exercise}', [WorkoutSessionController::class, 'updateExercise']);
+        Route::patch('/workout-sessions/{session}/exercises/{sessionExercise}/swap', [WorkoutSessionController::class, 'swapExercise']);
+        Route::post('/workout-sessions/{session}/exercises/reorder', [WorkoutSessionController::class, 'reorderExercises']);
+
+    }); // end RequiresSubscription
 });

@@ -52,14 +52,29 @@ class DeleteUserTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $user->id, 'deleted_at' => null]);
     }
 
-    public function test_delete_fails_without_password(): void
+    /**
+     * The mobile app confirms deletion with a typed word, not the password
+     * (2026-10-02): the bearer token already says who is asking, and a social
+     * account has no password to type. Sending none deletes the account.
+     */
+    public function test_delete_succeeds_without_password(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')->deleteJson('/api/user', []);
 
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['password']);
+        $response->assertNoContent();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_a_social_only_account_deletes_without_a_password(): void
+    {
+        $user = User::factory()->create(['password' => null]);
+
+        $this->actingAs($user, 'sanctum')->deleteJson('/api/user', [])->assertNoContent();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
     }
 
     public function test_delete_requires_authentication(): void

@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'user-plan' => \App\Http\Middleware\EnsureUserPlan::class,
+        ]);
+
         // Mail clients POST here for one-click unsubscribe, with no session and
         // no token; the signed URL is what authenticates the request.
         $middleware->validateCsrfTokens(except: [

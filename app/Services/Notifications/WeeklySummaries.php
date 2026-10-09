@@ -69,10 +69,7 @@ final class WeeklySummaries
                         ->where(self::trainedInWindow($now->setTimezone(LocalHour::home()))));
                 }
             })
-            ->where(fn (Builder $query) => $query
-                ->whereNull('notification_settings')
-                ->orWhereNull('notification_settings->'.WeeklySummary::SETTING)
-                ->orWhere('notification_settings->'.WeeklySummary::SETTING, true))
+            ->notificationSettingOn(WeeklySummary::SETTING, WeeklySummary::DEFAULT)
             ->get();
 
         if ($users->isEmpty()) {

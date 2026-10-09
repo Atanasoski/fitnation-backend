@@ -23,7 +23,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_user_can_swap_exercise_in_workout_template(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $plan = Plan::factory()->create(['user_id' => $user->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
@@ -62,7 +62,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_template_exercise_preserves_all_other_pivot_fields(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $plan = Plan::factory()->create(['user_id' => $user->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
@@ -97,7 +97,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_template_exercise_returns_404_when_pivot_belongs_to_different_template(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $plan = Plan::factory()->create(['user_id' => $user->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
         $otherTemplate = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
@@ -126,8 +126,8 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_template_exercise_returns_403_when_user_does_not_own_template(): void
     {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
+        $owner = User::factory()->entitled()->create();
+        $other = User::factory()->entitled()->create();
 
         $plan = Plan::factory()->create(['user_id' => $owner->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
@@ -151,7 +151,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_template_exercise_requires_valid_exercise_id(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $plan = Plan::factory()->create(['user_id' => $user->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
@@ -173,7 +173,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_template_exercise_requires_exercise_id_field(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
         $plan = Plan::factory()->create(['user_id' => $user->id]);
         $template = WorkoutTemplate::factory()->create(['plan_id' => $plan->id]);
 
@@ -216,7 +216,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_user_can_swap_exercise_in_workout_session(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -258,7 +258,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_session_exercise_preserves_all_other_fields(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -296,7 +296,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_session_exercise_returns_404_when_row_belongs_to_different_session(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -331,8 +331,8 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_session_exercise_returns_403_when_user_does_not_own_session(): void
     {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
+        $owner = User::factory()->entitled()->create();
+        $other = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $owner->id,
@@ -358,7 +358,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_session_exercise_requires_valid_exercise_id(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -383,7 +383,7 @@ class SwapExerciseTest extends TestCase
 
     public function test_swap_session_exercise_requires_exercise_id_field(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->entitled()->create();
 
         $session = WorkoutSession::factory()->create([
             'user_id' => $user->id,

@@ -2,158 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Partner;
-use App\Models\User;
-use App\Models\WorkoutSession;
-use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 
 class DashboardController extends Controller
 {
-    public function index()
-    {
-        $user = auth()->user();
-
-        if ($user->hasRole('admin')) {
-            return $this->adminDashboard();
-        }
-
-        if ($user->hasRole('partner_admin')) {
-            return $this->partnerDashboard();
-        }
-
-        // Users should not access web dashboard - use mobile app only
-        abort(403, 'This portal is for gym administrators only. Please use the Fit Nation mobile app.');
-    }
-
     /**
-     * Admin dashboard with platform-wide metrics.
+     * The web panel is for super admins: they land on Overview. Anyone else
+     * uses the mobile app.
      */
-    private function adminDashboard()
+    public function index(): RedirectResponse
     {
-        // Platform stats
-        $totalPartners = Partner::count();
-        $activePartners = Partner::where('is_active', true)->count();
-        $totalUsers = User::count();
+        abort_unless(auth()->user()->hasRole('admin'), 403, 'This portal is for gym administrators only. Please use the Fit Nation mobile app.');
 
-        // Partners with metrics
-        $partners = Partner::withCount([
-            'users',
-            'users as active_users_count' => function ($query) {
-                $query->whereHas('workoutSessions', function ($q) {
-                    $q->whereBetween('performed_at', [
-                        Carbon::now()->startOfWeek(),
-                        Carbon::now()->endOfWeek(),
-                    ]);
-                });
-            },
-        ])
-            ->with(['identity', 'users' => function ($query) {
-                $query->latest()->take(1);
-            }])
-            ->withMax('users', 'created_at')
-            ->get()
-            ->map(function ($partner) {
-                $partner->workouts_this_week = WorkoutSession::whereHas('user', function ($query) use ($partner) {
-                    $query->where('partner_id', $partner->id);
-                })->whereBetween('performed_at', [
-                    Carbon::now()->startOfWeek(),
-                    Carbon::now()->endOfWeek(),
-                ])->count();
-
-                return $partner;
-            });
-
-        // Recent activity
-        $recentUsers = User::with('partner')
-            ->latest()
-            ->take(10)
-            ->get();
-
-        // Partner Admin Logins - Show recent partner admin logins
-        $partnerActivity = User::with(['partner.identity', 'roles'])
-            ->whereHas('roles', function ($query) {
-                $query->where('slug', 'partner_admin');
-            })
-            ->whereNotNull('last_login_at')
-            ->orderByDesc('last_login_at')
-            ->take(10)
-            ->get();
-
-        return view('dashboard.admin', compact(
-            'totalPartners',
-            'activePartners',
-            'totalUsers',
-            'partners',
-            'recentUsers',
-            'partnerActivity'
-        ));
-    }
-
-    /**
-     * Partner admin dashboard with gym-specific metrics.
-     */
-    private function partnerDashboard()
-    {
-        $user = auth()->user();
-        $partner = $user->partner;
-
-        if (! $partner) {
-            abort(403, 'No partner associated with your account.');
-        }
-
-        // Gym stats - exclude admin and partner_admin users from user counts
-        $totalMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
-            ->count();
-
-        $activeMembersThisWeek = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
-            ->whereHas('workoutSessions', function ($query) {
-                $query->whereBetween('performed_at', [
-                    Carbon::now()->startOfWeek(),
-                    Carbon::now()->endOfWeek(),
-                ]);
-            })
-            ->count();
-
-        // Top active users
-        $topMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
-            ->withCount(['workoutSessions' => function ($query) {
-                $query->whereBetween('performed_at', [
-                    Carbon::now()->startOfWeek(),
-                    Carbon::now()->endOfWeek(),
-                ]);
-            }])
-            ->get()
-            ->filter(function ($user) {
-                return $user->workout_sessions_count > 0;
-            })
-            ->sortByDesc('workout_sessions_count')
-            ->take(5)
-            ->values();
-
-        // Recent users
-        $recentMembers = $partner->users()
-            ->whereDoesntHave('roles', function ($query) {
-                $query->whereIn('slug', ['admin', 'partner_admin']);
-            })
-            ->latest()
-            ->take(10)
-            ->get();
-
-        return view('dashboard.partner', compact(
-            'partner',
-            'totalMembers',
-            'activeMembersThisWeek',
-            'topMembers',
-            'recentMembers'
-        ));
+        return redirect()->route('admin.overview');
     }
 }

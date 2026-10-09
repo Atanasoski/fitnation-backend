@@ -21,11 +21,13 @@ use Illuminate\Support\Collection;
  * showing it under both is double-counting. That fallback retires with the
  * migration making the column NOT NULL.
  *
- * That rule lives here and nowhere else, in both the forms callers need: an
- * in-memory partition of a loaded session (setsFor) and a query constraint
- * (constrain). It answers the duplicate-row question itself, once per session,
- * from the rows it holds — there is no flag for a caller to pass wrongly, which
- * is how the staff-facing view came to disagree with the API.
+ * That rule lives here and nowhere else, in the forms callers need: an
+ * in-memory partition of a loaded session (setsFor), a query constraint for
+ * one row (constrain), and a correlated one for many rows at once
+ * (constrainToOuterRow). It answers the duplicate-row question itself — from
+ * the rows it holds, or in SQL for the correlated form — there is no flag for
+ * a caller to pass wrongly, which is how the staff-facing view came to
+ * disagree with the API.
  */
 final class SetOwnership
 {
@@ -139,6 +141,31 @@ final class SetOwnership
                 );
             }
         });
+    }
+
+    /**
+     * Constrain a set-log query to the sets owned by the
+     * workout_session_exercises row of the outer query — the same rule as
+     * constrain(), as a correlated subquery, for aggregates over many
+     * sessions at once such as "rows with no set log".
+     *
+     * @template TQuery of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     *
+     * @param  TQuery  $query  over workout_session_set_logs
+     * @return TQuery
+     */
+    public static function constrainToOuterRow($query)
+    {
+        return $query->where(fn ($scoped) => $scoped
+            ->whereColumn('workout_session_set_logs.workout_session_exercise_id', 'workout_session_exercises.id')
+            ->orWhere(fn ($legacy) => $legacy
+                ->whereNull('workout_session_set_logs.workout_session_exercise_id')
+                ->whereColumn('workout_session_set_logs.workout_session_id', 'workout_session_exercises.workout_session_id')
+                ->whereColumn('workout_session_set_logs.exercise_id', 'workout_session_exercises.exercise_id')
+                // Only the sole row for its exercise reaches for legacy sets.
+                ->whereRaw('(select count(*) from workout_session_exercises as siblings'
+                    .' where siblings.workout_session_id = workout_session_exercises.workout_session_id'
+                    .' and siblings.exercise_id = workout_session_exercises.exercise_id) = 1')));
     }
 
     /**

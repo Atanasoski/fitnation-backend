@@ -1069,6 +1069,25 @@ class RevenueCatWebhookTest extends TestCase
             ->assertJsonPath('user.entitlements', ['app_access']);
     }
 
+    public function test_a_product_change_on_an_expired_subscription_leaves_it_expired(): void
+    {
+        $user = $this->subscriberEndingTomorrow();
+        $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'type' => 'EXPIRATION',
+            'event_timestamp_ms' => now()->subSeconds(30)->getTimestampMs(),
+        ]))->assertOk();
+
+        // Even one that reports a future expiry: only a purchase or renewal reopens it.
+        $this->postWebhook($this->productChange($user))->assertOk();
+
+        $this->assertSame(self::YEARLY, Subscription::where('user_id', $user->id)->value('product_id'));
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/user')
+            ->assertJsonPath('user.subscription.status', 'expired')
+            ->assertJsonPath('user.entitlements', []);
+        $this->actingAs($user->fresh(), 'sanctum')->getJson('/api/muscle-groups')->assertForbidden();
+    }
+
     public function test_a_cancellation_records_when_it_happened_not_when_it_was_processed(): void
     {
         $user = User::factory()->create();

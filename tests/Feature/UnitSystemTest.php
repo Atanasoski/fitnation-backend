@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
+use App\Models\EquipmentType;
 use App\Models\Exercise;
 use App\Models\MuscleGroup;
 use App\Models\Plan;
@@ -423,5 +424,93 @@ class UnitSystemTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('unit_system');
+    }
+
+    /**
+     * Reported 2026-10-12: after a tough 20 lb dumbbell session the app offered
+     * "Use 20 lbs / Keep 20". The 2 kg step down (8 kg = 17.6 lb) snapped back
+     * to 20 lb; the offer must read one 5 lb step lower.
+     */
+    public function test_imperial_lowered_weight_reads_one_step_below_when_the_kg_step_snaps_onto_the_target(): void
+    {
+        // 20 lb is stored as 9.1 kg.
+        $row = $this->rowAfterAToughSession(UnitSystem::Imperial, 'DUMBBELL', 9.1);
+
+        $this->assertSame('below_min', $row['progression_status']);
+        $this->assertSame(20, $row['target_weight']);
+        $this->assertSame(15, $row['target_weight_lowered']);
+    }
+
+    public function test_imperial_lowered_weight_keeps_the_equipment_step_when_it_already_reads_lower(): void
+    {
+        // 100 lb is stored as 45.4 kg; 2.5 kg lower is 42.5 kg, which reads 95 lb.
+        $row = $this->rowAfterAToughSession(UnitSystem::Imperial, 'BARBELL', 45.4);
+
+        $this->assertSame(100, $row['target_weight']);
+        $this->assertSame(95, $row['target_weight_lowered']);
+    }
+
+    public function test_metric_lowered_weight_is_the_equipment_step_unchanged(): void
+    {
+        $row = $this->rowAfterAToughSession(UnitSystem::Metric, 'DUMBBELL', 9.1);
+
+        $this->assertSame(9.1, $row['target_weight']);
+        $this->assertSame(8, $row['target_weight_lowered']);
+    }
+
+    /**
+     * A live session's row for an exercise whose last completed session was
+     * three sets of 5 at the given weight, short of the 8-rep minimum.
+     *
+     * @return array<string, mixed>
+     */
+    private function rowAfterAToughSession(UnitSystem $unitSystem, string $equipmentCode, float $lastWeightKg): array
+    {
+        $user = User::factory()->entitled()->create();
+        $user->profile->update(['unit_system' => $unitSystem]);
+
+        $equipmentType = EquipmentType::firstOrCreate(['code' => $equipmentCode], ['name' => $equipmentCode, 'display_order' => 1]);
+        $exercise = Exercise::factory()->create(['equipment_type_id' => $equipmentType->id]);
+
+        $history = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => now()->subWeek(),
+            'completed_at' => now()->subWeek()->addHour(),
+            'status' => WorkoutSessionStatus::Completed,
+        ]);
+
+        foreach ([1, 2, 3] as $setNumber) {
+            SetLog::create([
+                'workout_session_id' => $history->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => $setNumber,
+                'weight' => $lastWeightKg,
+                'reps' => 5,
+                'rest_seconds' => 90,
+            ]);
+        }
+
+        $session = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => now(),
+            'completed_at' => null,
+            'status' => WorkoutSessionStatus::Active,
+        ]);
+
+        $session->workoutSessionExercises()->create([
+            'exercise_id' => $exercise->id,
+            'order' => 0,
+            'target_sets' => 3,
+            'min_target_reps' => 8,
+            'max_target_reps' => 12,
+            'target_weight' => 0,
+            'rest_seconds' => 90,
+        ]);
+
+        return $this
+            ->actingAs($user, 'sanctum')
+            ->getJson("/api/workout-sessions/{$session->id}")
+            ->assertOk()
+            ->json('data.exercises.0.session_exercise');
     }
 }

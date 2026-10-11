@@ -2,8 +2,11 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Enums\UnitSystem;
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
+use App\Services\MeasuredFields;
+use App\Services\UnitConversionService;
 use App\Services\WorkoutSession\SessionExerciseDetail;
 use App\Services\WorkoutSession\SessionProgression;
 use Illuminate\Http\Request;
@@ -123,7 +126,7 @@ class WorkoutSessionExerciseResource extends JsonResource
             'target_weight' => $this->formatMeasured($targets['target_weight'], 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
             // Same measured kind as target_weight: the equipment step and one step below the target.
             'weight_step' => $this->formatMeasured($targets['weight_step'] ?? null, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
-            'target_weight_lowered' => $this->formatMeasured($targets['target_weight_lowered'] ?? null, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
+            'target_weight_lowered' => $this->formatLoweredWeight($targets, $user?->unitSystem()),
             'total_reps_previous' => $targets['total_reps_previous'],
             'total_reps_target' => $targets['total_reps_target'],
             'rest_seconds' => $targets['rest_seconds'],
@@ -161,5 +164,37 @@ class WorkoutSessionExerciseResource extends JsonResource
             );
 
         return [$targets, $status];
+    }
+
+    /**
+     * One step below the target, as the user reads it.
+     *
+     * Imperial display snaps Training Weights to 5 lb, so the metric equipment
+     * step behind target_weight_lowered can round back onto the target itself:
+     * a dumbbell step is 2 kg (4.4 lb), and a 20 lb target offered "Use 20 lbs
+     * / Keep 20". When the two read the same, the step is taken from the
+     * displayed target instead: the displayed equipment step, never less than
+     * one display step. Metric is never snapped, so it passes through.
+     *
+     * @param  array<string, mixed>  $targets
+     */
+    private function formatLoweredWeight(array $targets, ?UnitSystem $unitSystem): float|int|null
+    {
+        $format = fn ($value) => $this->formatMeasured($value, 'workout_session_exercises', 'target_weight', $unitSystem);
+
+        $lowered = $format($targets['target_weight_lowered'] ?? null);
+        $target = $format($targets['target_weight']);
+
+        if ($unitSystem !== UnitSystem::Imperial || $lowered === null || $target === null || $lowered < $target) {
+            return $lowered;
+        }
+
+        $kind = MeasuredFields::kindFor('workout_session_exercises', 'target_weight');
+        $stepped = $target - max((float) ($format($targets['weight_step'] ?? null) ?? 0), $kind->imperialStep());
+
+        // Back through storage so the value is snapped and written like every other weight.
+        return $stepped > 0
+            ? $format(app(UnitConversionService::class)->toStorage($stepped, $kind, $unitSystem))
+            : null;
     }
 }

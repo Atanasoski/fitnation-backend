@@ -17,12 +17,12 @@ class PartnerFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->company();
+        $name = fake()->unique()->company();
 
         return [
             'name' => $name,
             'slug' => \Illuminate\Support\Str::slug($name),
-            'domain' => fake()->optional()->domainName(),
+            'domain' => fake()->boolean() ? fake()->unique()->domainName() : null,
             'is_active' => true,
         ];
     }

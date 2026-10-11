@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WorkoutGeneratorController;
 use App\Http\Controllers\Api\WorkoutPlannerController;
@@ -52,6 +53,11 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // User endpoints — no subscription required (app reads these to determine access)
     Route::get('/user', [UserController::class, 'show']);
     Route::delete('/user', [UserController::class, 'destroy']);
+
+    // Subscription sync — no subscription required: it is how a user blocked
+    // by a late webhook gets their paid access recorded. Throttled per user.
+    Route::post('/subscription/sync', [SubscriptionController::class, 'sync'])
+        ->middleware('throttle:10,1');
 
     // Onboarding — no subscription required (happens before paywall)
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);

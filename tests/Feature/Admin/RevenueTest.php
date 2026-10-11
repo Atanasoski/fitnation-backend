@@ -10,7 +10,7 @@ use App\Enums\SubscriptionStore;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\Admin\AccessSources;
+use App\Services\Access\AccessSources;
 use App\Services\Admin\Revenue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

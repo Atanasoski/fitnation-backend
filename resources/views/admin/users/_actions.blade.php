@@ -27,6 +27,16 @@
             </form>
         @endif
 
+        @if ($user->isOnSignupTrial())
+            <form method="POST" action="{{ route('admin.users.signup-trial.destroy', $user) }}" class="mt-2 space-y-2"
+                onsubmit="return confirm('End the Signup Trial now? The user will not get another one.')">
+                @csrf
+                @method('DELETE')
+                <input type="text" name="reason" maxlength="1000" placeholder="Reason (optional)" class="{{ $input }}" aria-label="Reason for ending the trial">
+                <button type="submit" class="{{ $secondary }} w-full">End Signup Trial now</button>
+            </form>
+        @endif
+
         <form method="POST" action="{{ route('admin.users.partner.update', $user) }}" class="mt-4 space-y-2 border-t border-gray-100 pt-4 dark:border-gray-800"
             onsubmit="return confirm('Move this user to the chosen partner?')">
             @csrf

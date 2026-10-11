@@ -250,7 +250,11 @@ interface GetUserResponse {
       "expires_at": "2026-07-20T12:00:00.000000Z",
       "is_trial": false,
       "is_sponsored_by_gym": false,
-      "grace_period_ends_at": null
+      "grace_period_ends_at": null,
+      "free_access_kind": null,
+      "access_source": "subscribed",
+      "enforced": true,
+      "signup_trial_days": 7
     },
     "email_verified_at": "2026-06-20T10:00:00.000000Z",
     "onboarding_completed_at": "2026-06-20T10:05:00.000000Z",
@@ -373,9 +377,9 @@ App access is controlled by **entitlements**. A user has access when **any** of 
 
 1. **Active paid subscription** — purchased through the App Store / Play Store and synced via RevenueCat.
 2. **Sponsoring gym (partner)** — the user's partner is on a `sponsor` plan, so the gym pays on the member's behalf (multi-tenant: some gyms cover their members, others don't).
-3. **Active grace period** — a time-limited grant (e.g. a launch grace window) set on the user.
+3. **Free access until a date** (`subscription.grace_period_ends_at` in the future) — either the **Signup Trial** (`free_access_kind: "signup_trial"`: `signup_trial_days` free days every new user gets once, when onboarding completes) or **Complimentary Access** (`free_access_kind: "complimentary"`: granted by an admin, including the launch grace). An admin grant over a running Signup Trial turns it into Complimentary Access.
 
-There is no client-facing subscription purchase API — purchases happen in-app through RevenueCat's SDK, and the backend is updated asynchronously via webhook. **The frontend never writes subscription state; it only reads it** from `GET /api/user`.
+There is no client-facing subscription purchase API — purchases happen in-app through RevenueCat's SDK, and the backend is updated asynchronously via webhook. **The frontend never writes subscription state; it only reads it** from `GET /api/user`, or asks the backend to re-read it from RevenueCat with [`POST /api/subscription/sync`](#sync-subscription-from-revenuecat).
 
 ### How to gate the UI
 
@@ -400,6 +404,7 @@ These remain accessible to authenticated users without app access, so the app ca
 | Method | Endpoint | Why |
 |--------|----------|-----|
 | GET | `/api/user` | Read access/entitlement state |
+| POST | `/api/subscription/sync` | Repairs access for a user blocked by a late webhook |
 | DELETE | `/api/user` | Account deletion must always be possible |
 | POST | `/api/logout` | — |
 | POST | `/api/email/verification-notification` | Email verification happens before paywall |
@@ -422,8 +427,23 @@ interface SubscriptionSummary {
   expires_at: string | null;           // ISO 8601 — when the current period ends
   is_trial: boolean;                    // true while in an active trial period
   is_sponsored_by_gym: boolean;         // true when the user's gym covers access
-  grace_period_ends_at: string | null;  // ISO 8601 — non-null while a grace grant is active
+  grace_period_ends_at: string | null;  // ISO 8601 — until-date of free access (either kind); may be in the past
+  free_access_kind: FreeAccessKind | null; // why the user has (or had) free access; null when grace_period_ends_at is null
+  access_source: AccessSource;          // why the user may use the app, read ignoring enforcement
+  enforced: boolean;                    // whether subscriptions are enforced (SUBSCRIPTIONS_ENFORCED)
+  signup_trial_days: number;            // configured Signup Trial length in days; 0 = no Signup Trial
 }
+
+type FreeAccessKind =
+  | 'signup_trial'   // the free days every new user gets once, when onboarding completes
+  | 'complimentary'; // access an admin granted by hand (also the launch grace)
+
+type AccessSource =
+  | 'subscribed' | 'trial' | 'cancelled' | 'billing_issue' | 'paused'  // a subscription that grants access ('trial' = store trial)
+  | 'sponsored'      // the user's gym pays
+  | 'signup_trial'   // free_access_kind 'signup_trial', grace_period_ends_at still ahead
+  | 'complimentary'  // free_access_kind 'complimentary', grace_period_ends_at still ahead
+  | 'none';          // nothing grants access — who the paywall stops once enforced
 
 type SubscriptionStatus =
   | 'active'         // paid and current
@@ -437,6 +457,34 @@ type SubscriptionStatus =
 - A `status` of `cancelled` still means the user **has access** until `expires_at` — do not gate on `status` directly; gate on `entitlements`.
 - `is_sponsored_by_gym: true` means there may be **no personal subscription** — `status` can be `null` while the user still has full access. This is expected for sponsored-gym members.
 - A refund sets `status` to `expired` and revokes access immediately.
+- Use `access_source` to say *why* the user has access (e.g. `signup_trial` → "Free trial · N days left" from `grace_period_ends_at`; `complimentary` → "Free access until {date}"). It is the same whether or not subscriptions are enforced; while `enforced` is `false` everyone is entitled anyway, so don't show a countdown.
+- `free_access_kind` and `grace_period_ends_at` are reported as stored: after the date passes they still say what the user had (e.g. a Signup Trial that ended), while `access_source` moves on.
+- `signup_trial_days` is the configured length (`SUBSCRIPTIONS_SIGNUP_TRIAL_DAYS`), reported to every user so onboarding can say "N days free"; `0` means new users get no Signup Trial.
+
+### Sync subscription from RevenueCat
+```
+POST /api/subscription/sync
+```
+*Requires authentication. Does **not** require a subscription. Throttled to 10 requests per minute per user (`429` beyond).*
+
+Re-reads the user's subscriber from the RevenueCat REST API (app user id = `users.id`), takes the subscription behind the `app_access` entitlement and records it on the backend — the same way the webhook would. Call it after a purchase or restore, and when a request answers `403 subscription_required` while RevenueCat says the user has `app_access`. No request body.
+
+The result is treated as current: a webhook for an older event that arrives afterwards does not undo it. Sandbox purchases are ignored in production. When RevenueCat reports no `app_access` entitlement (or a store we do not sell through) nothing is changed.
+
+**Response `200`:** the same payload as `GET /api/user`.
+```typescript
+interface SyncSubscriptionResponse {
+  user: UserResource;   // read entitlements / subscription as usual
+}
+```
+
+**Errors** (nothing is changed on the backend in either case):
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| `500` | `subscription_sync_not_configured` | The server has no RevenueCat secret API key (`REVENUECAT_SECRET_API_KEY`). Operator error. |
+| `502` | `subscription_sync_failed` | RevenueCat could not be reached or answered an error. Safe to retry later. |
+| `429` | — | Throttled. |
 
 ---
 
@@ -2587,8 +2635,23 @@ interface SubscriptionSummary {
   expires_at: string | null;           // ISO 8601 — when the current period ends
   is_trial: boolean;                    // true while in an active trial period
   is_sponsored_by_gym: boolean;         // true when the user's gym covers access
-  grace_period_ends_at: string | null;  // ISO 8601 — non-null while a grace grant is active
+  grace_period_ends_at: string | null;  // ISO 8601 — until-date of free access (either kind); may be in the past
+  free_access_kind: FreeAccessKind | null; // why the user has (or had) free access; null when grace_period_ends_at is null
+  access_source: AccessSource;          // why the user may use the app, read ignoring enforcement
+  enforced: boolean;                    // whether subscriptions are enforced (SUBSCRIPTIONS_ENFORCED)
+  signup_trial_days: number;            // configured Signup Trial length in days; 0 = no Signup Trial
 }
+
+type FreeAccessKind =
+  | 'signup_trial'   // the free days every new user gets once, when onboarding completes
+  | 'complimentary'; // access an admin granted by hand (also the launch grace)
+
+type AccessSource =
+  | 'subscribed' | 'trial' | 'cancelled' | 'billing_issue' | 'paused'  // a subscription that grants access ('trial' = store trial)
+  | 'sponsored'      // the user's gym pays
+  | 'signup_trial'   // free_access_kind 'signup_trial', grace_period_ends_at still ahead
+  | 'complimentary'  // free_access_kind 'complimentary', grace_period_ends_at still ahead
+  | 'none';          // nothing grants access — who the paywall stops once enforced
 
 type SubscriptionStatus =
   | 'active'

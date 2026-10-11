@@ -49,6 +49,13 @@ return [
         'android_client_id'  => env('GOOGLE_ANDROID_CLIENT_ID'),
     ],
 
+    'revenuecat' => [
+        // Secret (server-side) REST API key, used by POST /api/subscription/sync.
+        // Distinct from REVENUECAT_WEBHOOK_SECRET, which RevenueCat sends to us.
+        'secret_api_key' => env('REVENUECAT_SECRET_API_KEY'),
+        'base_url' => 'https://api.revenuecat.com/v1',
+    ],
+
     'apple' => [
         'bundle_id'  => env('APPLE_BUNDLE_ID', 'com.fitnation.app'),
         'service_id' => env('APPLE_SERVICE_ID'), // web Service ID, e.g. com.fitnation.app.web

@@ -63,6 +63,45 @@ class RequiresSubscriptionMiddlewareTest extends TestCase
             ->assertOk();
     }
 
+    public function test_a_deactivated_sponsoring_gym_no_longer_opens_the_gate_until_reactivated(): void
+    {
+        $partner = Partner::factory()->sponsor()->inactive()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson(self::GATED_ROUTE)
+            ->assertForbidden()
+            ->assertJsonPath('code', 'subscription_required');
+
+        $partner->update(['is_active' => true]);
+
+        $this->actingAs($user->fresh(), 'sanctum')
+            ->getJson(self::GATED_ROUTE)
+            ->assertOk();
+    }
+
+    public function test_the_user_endpoint_reports_a_deactivated_sponsoring_gym_as_no_sponsorship(): void
+    {
+        $partner = Partner::factory()->sponsor()->inactive()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.entitlements', [])
+            ->assertJsonPath('user.subscription.is_sponsored_by_gym', false)
+            ->assertJsonPath('user.subscription.access_source', 'none');
+
+        $partner->update(['is_active' => true]);
+
+        $this->actingAs($user->fresh(), 'sanctum')
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('user.entitlements', ['app_access'])
+            ->assertJsonPath('user.subscription.is_sponsored_by_gym', true)
+            ->assertJsonPath('user.subscription.access_source', 'sponsored');
+    }
+
     public function test_billing_issue_subscription_still_opens_the_gate(): void
     {
         $user = User::factory()->create();

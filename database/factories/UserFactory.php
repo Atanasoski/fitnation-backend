@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\FreeAccessKind;
 use App\Models\UserProfile;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -62,6 +63,7 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'grace_period_ends_at' => now()->addDays(30),
+            'free_access_kind' => FreeAccessKind::Complimentary,
         ]);
     }
 }

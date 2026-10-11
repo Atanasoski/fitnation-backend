@@ -185,6 +185,7 @@ class OverviewTest extends TestCase
         Partner::factory()->create(['plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2026-10-06 00:00:00']);
         Partner::factory()->create(['plan' => PartnerPlan::Sponsor, 'plan_expires_at' => null]);
         Partner::factory()->create(['plan' => PartnerPlan::Free, 'plan_expires_at' => '2026-10-10 00:00:00']);
+        Partner::factory()->inactive()->create(['plan' => PartnerPlan::Sponsor, 'plan_expires_at' => '2026-10-17 00:00:00']);
 
         $this->assertSame([
             'failed_jobs' => 2,

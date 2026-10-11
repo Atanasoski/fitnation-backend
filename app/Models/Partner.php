@@ -60,39 +60,45 @@ class Partner extends Model
     }
 
     /**
-     * House if this is the configured House Partner, Sponsoring if it is on
-     * the sponsor plan (whether or not the sponsorship has run out), else
-     * plain.
+     * House if this is the configured House Partner, Sponsoring if it is an
+     * active partner on the sponsor plan (whether or not the sponsorship has
+     * run out; who actually sponsors today is isSponsoringMembers()), else
+     * plain. A deactivated partner sponsors no one, so it is never called a
+     * Sponsoring Partner (CONTEXT.md).
      */
     public function kind(): PartnerKind
     {
         return match (true) {
             $this->isHouse() => PartnerKind::House,
-            $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
+            $this->is_active && $this->plan === PartnerPlan::Sponsor => PartnerKind::Sponsoring,
             default => PartnerKind::Plain,
         };
     }
 
     /**
-     * A Sponsoring Partner whose sponsorship has not run out: its members have
-     * access without a subscription. scopeSponsoringMembers() is the same rule
-     * in SQL; keep the two together.
-     */
-    /**
-     * Sponsoring Partners whose sponsorship runs out after now and within
-     * $days days.
+     * Active Sponsoring Partners whose sponsorship runs out after now and
+     * within $days days. A deactivated partner sponsors no one, so it has
+     * nothing left to run out.
      */
     public function scopeSponsorshipExpiringWithin(Builder $query, int $days): Builder
     {
         return $query
+            ->where('is_active', true)
             ->where('plan', PartnerPlan::Sponsor)
             ->where('plan_expires_at', '>', now())
             ->where('plan_expires_at', '<=', now()->addDays($days));
     }
 
+    /**
+     * An active Sponsoring Partner whose sponsorship has not run out: its
+     * members have access without a subscription. A deactivated partner
+     * sponsors no one, whatever its plan. scopeSponsoringMembers() is the same
+     * rule in SQL; keep the two together.
+     */
     public function isSponsoringMembers(): bool
     {
-        return $this->plan === PartnerPlan::Sponsor
+        return $this->is_active
+            && $this->plan === PartnerPlan::Sponsor
             && ($this->plan_expires_at === null || $this->plan_expires_at > now());
     }
 
@@ -103,6 +109,7 @@ class Partner extends Model
     public function scopeSponsoringMembers(Builder $query): Builder
     {
         return $query
+            ->where('partners.is_active', true)
             ->where('partners.plan', PartnerPlan::Sponsor)
             ->where(fn (Builder $q) => $q
                 ->whereNull('partners.plan_expires_at')

@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * What a partner is to the business: the House Partner (Fit Nation itself), a
- * Sponsoring Partner (on the sponsor plan), or a plain partner. See
+ * Sponsoring Partner (active, on the sponsor plan), or a plain partner. See
  * Partner::kind().
  */
 enum PartnerKind: string

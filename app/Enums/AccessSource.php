@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * Why a user may use the app (CONTEXT.md, Access Source). The rule that
- * assigns one lives in App\Services\Admin\AccessSources.
+ * assigns one lives in App\Services\Access\AccessSources.
  */
 enum AccessSource: string
 {
@@ -14,6 +14,7 @@ enum AccessSource: string
     case BillingIssue = 'billing_issue';
     case Paused = 'paused';
     case Sponsored = 'sponsored';
+    case SignupTrial = 'signup_trial';
     case Complimentary = 'complimentary';
     case None = 'none';
 
@@ -22,6 +23,7 @@ enum AccessSource: string
         return match ($this) {
             self::Cancelled => 'Cancelled, paid until',
             self::BillingIssue => 'Billing issue',
+            self::SignupTrial => 'Signup Trial',
             default => ucfirst($this->value),
         };
     }

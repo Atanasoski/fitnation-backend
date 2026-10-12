@@ -3,6 +3,7 @@
 namespace App\Webhooks\RevenueCat;
 
 use App\Models\User;
+use App\Services\Subscription\SandboxAllowList;
 use App\Services\Subscription\SubscriptionRecord;
 use App\Services\Subscription\SubscriptionState;
 use Illuminate\Support\Carbon;
@@ -49,9 +50,10 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
             return;
         }
 
-        // Skip sandbox events in production to avoid polluting real subscription data.
+        // Skip sandbox events in production to avoid polluting real subscription
+        // data, unless they belong to App Review's accounts (SandboxAllowList).
         $environment = strtolower($event['environment'] ?? 'production');
-        if ($environment === 'sandbox' && app()->isProduction()) {
+        if ($environment === 'sandbox' && app()->isProduction() && ! $this->sandboxAllowed($event)) {
             Log::info('Skipping RevenueCat sandbox event in production', [
                 'type' => $event['type'],
                 'webhook_call_id' => $this->webhookCall->id,
@@ -236,6 +238,33 @@ class ProcessRevenueCatWebhook extends ProcessWebhookJob
     public function failed(Throwable $exception): void
     {
         $this->webhookCall?->saveException($exception);
+    }
+
+    /**
+     * Whether a sandbox event may be applied in production: only when every
+     * account it touches is on the {@see SandboxAllowList} — the user it
+     * resolves to and, for a TRANSFER, also each user it takes rows from.
+     * Dev and production share numeric user IDs in one RevenueCat project, so
+     * a sandbox TRANSFER's source could name an unrelated production user.
+     */
+    private function sandboxAllowed(array $event): bool
+    {
+        if (SandboxAllowList::isEmpty()) {
+            return false;
+        }
+
+        if ($event['type'] === 'TRANSFER') {
+            $target = $this->firstRegistered($this->numericIds((array) ($event['transferred_to'] ?? [])));
+
+            return $target !== null && SandboxAllowList::covers(
+                $target->id,
+                ...$this->numericIds((array) ($event['transferred_from'] ?? [])),
+            );
+        }
+
+        $user = $this->resolveUser($event);
+
+        return $user !== null && SandboxAllowList::covers($user->id);
     }
 
     /**

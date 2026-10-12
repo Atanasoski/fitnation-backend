@@ -221,6 +221,11 @@ once enforcement is on:
   There are no real production users to strand.
 - **Accepting sandbox purchases in production.** App Review is handled by giving the
   review account long Complimentary Access instead.
+  **Reversed 2026-10-12:** Complimentary Access hides the paywall, so Apple's reviewer
+  could not reach the purchase. Production now applies sandbox purchases, in the
+  webhook and the sync, for the user IDs in `SUBSCRIPTIONS_SANDBOX_USER_IDS` only
+  (`SandboxAllowList`). Put the Apple review account's ID there and give it no free
+  access. Every other sandbox purchase is still ignored in production.
 - Backend-only access (dropping the RevenueCat side of the app's gate).
 - Lifetime / non-renewing products.
 - Row locking for concurrent webhook processing (run one worker on that queue).
@@ -234,6 +239,8 @@ once enforcement is on:
   - Create the RevenueCat secret API key and set `REVENUECAT_SECRET_API_KEY` on
     both backends.
   - Give the App Review account long Complimentary Access before submitting.
+    Since 2026-10-12 that holds for Google Play's review account only. Apple's review
+    account gets no free access, and its user ID goes in `SUBSCRIPTIONS_SANDBOX_USER_IDS`.
   - Before enabling enforcement: confirm the House Partner is not on the sponsor
     plan, then flip `SUBSCRIPTIONS_ENFORCED`, `config:cache`, restart workers.
 - The column holding the until-date is still called `grace_period_ends_at`.

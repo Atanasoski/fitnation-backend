@@ -29,6 +29,7 @@ run agents inventing seven different module shapes.
 | [025](025-remove-partner-admin-panel.md) | Remove the partner-admin panel, library-programs UI, invitations and web registration; web login admin-only; `partner_admin` role kept dormant (tickets 01–03) | cleanup | old `UserController`, `DashboardController`, `PartnerController`, `PlanController`, `ExerciseController` partner methods, `MenuHelper`, invitations, `RegisteredUserController` |
 | [026](026-subscription-hardening.md) | Subscription hardening before enforcement — RevenueCat sync endpoint, webhook fixes, Signup Trial vs Complimentary, active-only sponsoring, mobile purchase flow / 403 recovery / trial copy (tickets 01–13 done on `fix/subscription-hardening` in back-end and front-end; PRs into `dev` pending) | feature | `App\Services\Subscription`, `App\Services\Access`, `ProcessRevenueCatWebhook`, `UserResource`; mobile purchase flow, gate, copy |
 | [027](027-subscription-rare-edges.md) | Subscription rare edge cases left by 026 — Play pause verify, TRANSFER staleness, mobile refusal not persisted (backlog, unscheduled) | low | webhook TRANSFER, sync pause mapping, mobile gate |
+| [028](028-lbs-progression-steps.md) | Progression steps in lbs for imperial users — kg steps snapped to 5 lb read the same or uneven (lowered weight patched in `20fdb82`); needs a decision on ADR-0001 | medium | `ProgressionCalculatorService`, `WorkoutSessionExerciseResource` |
 
 ## Done
 

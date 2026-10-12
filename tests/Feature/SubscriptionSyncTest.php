@@ -191,6 +191,37 @@ class SubscriptionSyncTest extends TestCase
     public function test_a_sandbox_subscription_is_ignored_in_production(): void
     {
         $user = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => []]);
+        $this->fakeRevenueCat($this->subscriber(['is_sandbox' => true]));
+        $this->app['env'] = 'production';
+
+        $response = $this->sync($user);
+
+        $this->app['env'] = 'testing';
+        $response->assertOk()->assertJsonPath('user.subscription.status', null);
+        $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_a_sandbox_subscription_is_recorded_in_production_for_a_listed_user(): void
+    {
+        $reviewer = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => [$reviewer->id]]);
+        $this->fakeRevenueCat($this->subscriber(['is_sandbox' => true]));
+        $this->app['env'] = 'production';
+
+        $response = $this->sync($reviewer);
+
+        $this->app['env'] = 'testing';
+        $response->assertOk()
+            ->assertJsonPath('user.subscription.status', 'active')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+        $this->assertSame('sandbox', Subscription::where('user_id', $reviewer->id)->value('environment'));
+    }
+
+    public function test_a_sandbox_subscription_is_ignored_in_production_for_an_unlisted_user(): void
+    {
+        $user = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => [User::factory()->create()->id]]);
         $this->fakeRevenueCat($this->subscriber(['is_sandbox' => true]));
         $this->app['env'] = 'production';
 

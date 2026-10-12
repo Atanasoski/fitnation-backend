@@ -152,6 +152,7 @@ class RevenueCatWebhookTest extends TestCase
     public function test_sandbox_event_is_skipped_in_production(): void
     {
         $user = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => []]);
         $this->app['env'] = 'production';
 
         $response = $this->postWebhook($this->eventPayload([
@@ -163,6 +164,72 @@ class RevenueCatWebhookTest extends TestCase
 
         $response->assertOk();
         $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_sandbox_event_is_applied_in_production_for_a_listed_user(): void
+    {
+        $reviewer = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => [$reviewer->id]]);
+        $this->app['env'] = 'production';
+
+        $response = $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $reviewer->id,
+            'environment' => 'SANDBOX',
+        ]));
+
+        $this->app['env'] = 'testing';
+
+        $response->assertOk();
+        $this->assertSame('sandbox', Subscription::where('user_id', $reviewer->id)->value('environment'));
+        $this->assertTrue($reviewer->fresh()->hasAppAccess());
+    }
+
+    public function test_sandbox_event_is_skipped_in_production_for_an_unlisted_user(): void
+    {
+        $user = User::factory()->create();
+        config(['subscriptions.sandbox_user_ids' => [User::factory()->create()->id]]);
+        $this->app['env'] = 'production';
+
+        $response = $this->postWebhook($this->eventPayload([
+            'app_user_id' => (string) $user->id,
+            'environment' => 'SANDBOX',
+        ]));
+
+        $this->app['env'] = 'testing';
+
+        $response->assertOk();
+        $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_sandbox_transfer_in_production_moves_rows_only_between_listed_users(): void
+    {
+        $reviewer = User::factory()->create();
+        $second = User::factory()->create();
+        $unlisted = User::factory()->create();
+        $reviewers = Subscription::factory()->sandbox()->create(['user_id' => $reviewer->id]);
+        $real = Subscription::factory()->create(['user_id' => $unlisted->id]);
+        config(['subscriptions.sandbox_user_ids' => [$reviewer->id, $second->id]]);
+        $transfer = fn (User $from) => [
+            'api_version' => '1.0',
+            'event' => [
+                'type' => 'TRANSFER',
+                'id' => (string) Str::uuid(),
+                'environment' => 'SANDBOX',
+                'transferred_from' => [(string) $from->id],
+                'transferred_to' => [(string) $second->id],
+                'event_timestamp_ms' => now()->getTimestampMs(),
+            ],
+        ];
+        $this->app['env'] = 'production';
+
+        // A source off the list could be an unrelated production user: nothing moves.
+        $this->runJob($transfer($unlisted));
+        $this->runJob($transfer($reviewer));
+
+        $this->app['env'] = 'testing';
+
+        $this->assertSame($unlisted->id, $real->fresh()->user_id);
+        $this->assertSame($second->id, $reviewers->fresh()->user_id);
     }
 
     public function test_unknown_event_type_is_logged_and_ignored(): void

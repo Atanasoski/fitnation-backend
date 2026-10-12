@@ -35,4 +35,24 @@ return [
 
     'signup_trial_days' => (int) env('SUBSCRIPTIONS_SIGNUP_TRIAL_DAYS', 7),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sandbox purchases in production
+    |--------------------------------------------------------------------------
+    |
+    | Production ignores RevenueCat sandbox purchases, in the webhook and the
+    | sync, so a test purchase never unlocks a real account. These user IDs
+    | are the exception: App Review buys with a sandbox account, so the review
+    | account's ID goes here, or its purchase unlocks nothing. Accepting every
+    | sandbox purchase is not an option: dev and production share one
+    | RevenueCat project with numeric user IDs, so dev user 4's test purchase
+    | would unlock production user 4. See SandboxAllowList. Comma-separated.
+    |
+    */
+
+    'sandbox_user_ids' => array_values(array_filter(array_map(
+        'intval',
+        explode(',', (string) env('SUBSCRIPTIONS_SANDBOX_USER_IDS', '')),
+    ))),
+
 ];

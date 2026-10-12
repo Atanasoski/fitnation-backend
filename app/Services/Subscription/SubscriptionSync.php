@@ -23,8 +23,8 @@ use Illuminate\Support\Facades\Log;
  * It never guesses. Without the secret API key, or when RevenueCat cannot be
  * read, it throws {@see SubscriptionSyncFailed} and writes nothing. When the
  * subscriber has nothing we can apply (no `app_access` entitlement, a store
- * we do not sell through, a sandbox purchase in production) the row is left
- * as it is.
+ * we do not sell through, a sandbox purchase in production by an account not
+ * on the {@see SandboxAllowList}) the row is left as it is.
  */
 final class SubscriptionSync
 {
@@ -39,7 +39,7 @@ final class SubscriptionSync
             return;
         }
 
-        if (($subscription['is_sandbox'] ?? false) && app()->isProduction()) {
+        if (($subscription['is_sandbox'] ?? false) && app()->isProduction() && ! SandboxAllowList::covers($user->id)) {
             Log::info('Subscription sync: skipping sandbox subscription in production', ['user_id' => $user->id]);
 
             return;

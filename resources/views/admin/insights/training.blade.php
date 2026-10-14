@@ -158,7 +158,7 @@
             <div class="h-44" x-data="insightChart(@js($nudgeChart))"></div>
             <div class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-white/5 dark:text-gray-400">
                 Weekly Summary: <b class="font-semibold text-gray-800 dark:text-white/90">{{ number_format($weeklySummary['off']) }} of {{ number_format($weeklySummary['eligible']) }}</b>
-                onboarded app users have it turned off.
+                onboarded app users{{ $partner ? ' at '.$partner->name : '' }} have it turned off.
             </div>
         </x-admin.insight-card>
 
@@ -167,7 +167,7 @@
             question="Who are our users?"
             :headline="number_format($who['users'])"
             sentence="onboarded app users"
-            footnote="All app users who finished onboarding, whatever the range. Age band from the age given at onboarding; “Not set” = no answer."
+            :footnote="'All app users'.($partner ? ' at '.$partner->name : '').' who finished onboarding, whatever the range. Age band from the age given at onboarding; “Not set” = no answer.'"
         >
             <div class="grid gap-5 sm:grid-cols-2">
                 @foreach (['Goal' => $who['goal'], 'Experience' => $who['experience'], 'Gender' => $who['gender'], 'Age' => $who['age']] as $title => $rows)

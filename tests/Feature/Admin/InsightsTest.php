@@ -9,6 +9,7 @@ use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
+use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\SetLog;
@@ -362,6 +363,35 @@ class InsightsTest extends TestCase
         $this->assertSame([
             'Under 18' => 1, '18–24' => 2, '25–34' => 1, '35–44' => 0, '45–54' => 0, '55+' => 0, 'Not set' => 1,
         ], array_column($who['age'], 'users', 'label'));
+    }
+
+    public function test_a_partner_narrows_every_answer_to_its_members_and_caches_apart(): void
+    {
+        $gym = Partner::factory()->create();
+        $other = Partner::factory()->create();
+        // Range of 30 days: 7 Sep 12:00 → now. One member of each partner, alike.
+        foreach ([$gym, $other] as $partner) {
+            $member = $this->member('2026-09-20 12:00:00');
+            $member->update(['partner_id' => $partner->id]);
+            $member->profile->update(['training_days_per_week' => 3, 'fitness_goal' => FitnessGoal::Strength]);
+            $this->workoutSession($member, WorkoutSessionStatus::Completed, '2026-09-21 12:00:00');
+            $this->nudged($member, 3, '2026-10-01 10:00:00');
+            $veteran = $this->planner(4, '2026-01-01 12:00:00');
+            $veteran->update(['partner_id' => $partner->id]);
+        }
+
+        $everyone = Insights::summary(30);
+        $atGym = Insights::summary(30, $gym);
+
+        $this->assertSame(2, $everyone['retention']['signups']);
+        $this->assertSame(1, $atGym['retention']['signups']);
+        $this->assertSame(1, $atGym['first_workout']['signups']);
+        $this->assertSame(1, $atGym['generator']['other']['sessions']);
+        $this->assertSame(1, $atGym['planned_vs_actual']['users']);
+        $this->assertSame(1, $atGym['nudges']['steps'][0]['sent']);
+        $this->assertSame(['eligible' => 2, 'off' => 0], $atGym['nudges']['weekly_summary']);
+        $this->assertSame(2, $atGym['who']['users']);
+        $this->assertSame(4, $everyone['who']['users']);
     }
 
     private function member(string $signedUpAt): User

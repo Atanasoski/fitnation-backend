@@ -6,6 +6,7 @@ use App\Enums\AccessSource;
 use App\Enums\SubscriptionPeriod;
 use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStore;
+use App\Models\Partner;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Access\AccessSources;
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\Cache;
 /**
  * The super-admin Revenue tab: money and subscribers from the current state
  * of `subscriptions` — rows hold only their latest state, so there are no
- * trends here. Production rows of app users (User::appUsers()) only.
+ * trends here. Production rows of app users (User::appUsers()) only. Given a
+ * partner, every number — sandbox_excluded too — is about that partner's
+ * current members (`users.partner_id`), not its Acquisition Partner: a
+ * subscriber who moved gyms counts at the new one.
  *
  * - sandbox_excluded — every sandbox row, whoever's (testers are often
  *   staff): the test purchases kept out of every other number.
@@ -39,7 +43,7 @@ use Illuminate\Support\Facades\Cache;
  * - unknown_price — paying subscriptions with no price: counted in paying,
  *   contributing nothing to revenue.
  *
- * Live queries, cached for CACHE_SECONDS — no snapshot tables or scheduled jobs.
+ * Live queries, cached for CACHE_SECONDS per partner — no snapshot tables or scheduled jobs.
  */
 final class Revenue
 {
@@ -59,27 +63,31 @@ final class Revenue
      *     unknown_price: int,
      * }
      */
-    public static function summary(): array
+    public static function summary(?Partner $partner = null): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_SECONDS, fn () => self::compute());
+        $key = self::CACHE_KEY.'.'.($partner?->id ?? 'all');
+
+        return Cache::remember($key, self::CACHE_SECONDS, fn () => self::compute($partner));
     }
 
-    private static function compute(): array
+    private static function compute(?Partner $partner): array
     {
         $production = fn () => Subscription::query()
             ->where('environment', 'production')
-            ->whereHas('user', fn (Builder $users) => $users->appUsers());
+            ->whereHas('user', fn (Builder $users) => $users->appUsers()->atPartner($partner));
         $paying = $production()->active()->where('period_type', '!=', SubscriptionPeriodType::Trial)->get(['product_id', 'store', 'price']);
 
         return [
-            'sandbox_excluded' => Subscription::query()->where('environment', 'sandbox')->count(),
+            'sandbox_excluded' => Subscription::query()->where('environment', 'sandbox')
+                ->when($partner, fn (Builder $sandbox) => $sandbox->whereHas('user', fn (Builder $users) => $users->atPartner($partner)))
+                ->count(),
             'paying' => [
                 'total' => $paying->count(),
                 'monthly' => self::onPeriod($paying, SubscriptionPeriod::Monthly)->count(),
                 'yearly' => self::onPeriod($paying, SubscriptionPeriod::Yearly)->count(),
             ],
             'trials' => $production()->active()->where('period_type', SubscriptionPeriodType::Trial)->count(),
-            'billing_issue' => AccessSources::constrain(User::query()->appUsers(), AccessSource::BillingIssue)->count(),
+            'billing_issue' => AccessSources::constrain(User::query()->appUsers()->atPartner($partner), AccessSource::BillingIssue)->count(),
             'expected_monthly_usd' => self::monthlyUsd($paying),
             'by_store_and_plan' => collect(SubscriptionStore::cases())->mapWithKeys(fn (SubscriptionStore $store) => [
                 $store->value => collect(SubscriptionPeriod::cases())->mapWithKeys(fn (SubscriptionPeriod $period) => [

@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\AccessSource;
 use App\Enums\SubscriptionPeriodType;
 use App\Enums\SubscriptionStore;
+use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
@@ -167,6 +168,32 @@ class RevenueTest extends TestCase
             'monthly' => ['converted' => 2, 'lapsed_trial' => 1, 'still_in_trial' => 1, 'rate' => 67],
             'yearly' => ['converted' => 1, 'lapsed_trial' => 3, 'still_in_trial' => 0, 'rate' => 25],
         ], Revenue::summary()['conversion']);
+    }
+
+    public function test_a_partner_narrows_every_number_to_its_current_members(): void
+    {
+        $gym = Partner::factory()->create();
+        $other = Partner::factory()->create();
+        foreach ([$gym, $other] as $partner) {
+            $member = fn () => User::factory()->create(['partner_id' => $partner->id]);
+            Subscription::factory()->create(['user_id' => $member(), 'price' => 9.99]);
+            Subscription::factory()->trial()->create(['user_id' => $member()]);
+            Subscription::factory()->billingIssue()->create(['user_id' => $member(), 'price' => 9.99]);
+            Subscription::factory()->sandbox()->create(['user_id' => $member()]);
+        }
+        // Acquired through the gym, now at the other partner: counts for the other.
+        Subscription::factory()->create(['user_id' => User::factory()->create(['partner_id' => $other->id]), 'partner_id' => $gym->id, 'price' => 9.99]);
+
+        $everyone = Revenue::summary();
+        $atGym = Revenue::summary($gym);
+
+        $this->assertSame(5, $everyone['paying']['total']);
+        $this->assertSame(['total' => 2, 'monthly' => 2, 'yearly' => 0], $atGym['paying']);
+        $this->assertSame(1, $atGym['trials']);
+        $this->assertSame(1, $atGym['billing_issue']);
+        $this->assertSame(1, $atGym['sandbox_excluded']);
+        $this->assertSame(19.98, $atGym['expected_monthly_usd']);
+        $this->assertSame(1, $atGym['conversion']['monthly']['still_in_trial']);
     }
 
     public function test_a_plan_without_finished_trials_has_no_rate(): void

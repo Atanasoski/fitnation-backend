@@ -345,6 +345,17 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Current members of $partner (`users.partner_id`); everyone when null.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAtPartner(Builder $query, ?Partner $partner): Builder
+    {
+        return $query->when($partner, fn (Builder $users) => $users->where('users.partner_id', $partner->id));
+    }
+
+    /**
      * Users with at least one Completed Session finished between $from and
      * $to — "active this week" on the Overview and the Partners list.
      *

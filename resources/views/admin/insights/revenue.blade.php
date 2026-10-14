@@ -27,7 +27,7 @@
 @section('tab')
     <div class="space-y-5">
         <p class="text-right text-theme-xs text-gray-500 dark:text-gray-400">
-            Current state of production subscriptions · Sandbox excluded ({{ number_format($revenue['sandbox_excluded']) }})
+            Current state of production subscriptions{{ $partner ? ' of '.$partner->name.'’s current members' : '' }} · Sandbox excluded ({{ number_format($revenue['sandbox_excluded']) }})
         </p>
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -46,7 +46,7 @@
                 <div class="{{ $value }}">{{ number_format($revenue['trials']) }}</div>
                 <div class="{{ $note }}">7-day trial, both plans</div>
             </div>
-            <a href="{{ route('admin.users.index', ['access' => \App\Enums\AccessSource::BillingIssue->value]) }}"
+            <a href="{{ route('admin.users.index', ['access' => \App\Enums\AccessSource::BillingIssue->value, 'partner' => $partner?->id]) }}"
                 class="{{ $tile }} block hover:border-orange-500 dark:hover:border-orange-500">
                 <div class="{{ $label }}">Billing issue</div>
                 <div class="mt-1 font-display text-2xl font-semibold text-orange-600 dark:text-orange-400">{{ number_format($revenue['billing_issue']) }}</div>

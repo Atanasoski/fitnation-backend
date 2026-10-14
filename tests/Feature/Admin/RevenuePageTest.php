@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Enums\SubscriptionStore;
+use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
@@ -46,6 +47,22 @@ class RevenuePageTest extends TestCase
             ->assertSee('1 paying subscription has no price')
             ->assertSeeInOrder(['Trial → paid', 'Monthly', '100%', '2 of 2 finished trials'])
             ->assertSee('Not in this version');
+    }
+
+    public function test_a_partner_filter_narrows_the_tab_and_its_billing_issue_link(): void
+    {
+        $gym = Partner::factory()->create(['name' => 'Iron Temple']);
+        Subscription::factory()->billingIssue()->create(['user_id' => User::factory()->create(['partner_id' => $gym->id])]);
+        Subscription::factory()->billingIssue()->count(2)->create();
+
+        $this->actingAs($this->admin())
+            ->get("/admin/insights/revenue?partner={$gym->id}")
+            ->assertOk()
+            ->assertSee('<option value="'.$gym->id.'" selected>Iron Temple</option>', false)
+            ->assertSee('Current state of production subscriptions of Iron Temple’s current members')
+            ->assertSeeInOrder(['Billing issue', '1'])
+            ->assertSee(e(route('admin.users.index', ['access' => 'billing_issue', 'partner' => $gym->id])), false)
+            ->assertSee(e(route('admin.insights', ['partner' => $gym->id])), false);
     }
 
     private function admin(): User

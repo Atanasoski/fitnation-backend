@@ -7,6 +7,7 @@ use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
+use App\Models\Partner;
 use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
@@ -61,8 +62,10 @@ use Illuminate\Support\Facades\Cache;
  *   shares add up. Ignores the range: it describes everyone.
  *
  * Every people count is of app users (User::appUsers()): staff never count.
+ * Given a partner, every answer — `who` and `weekly_summary` too — is about
+ * that partner's current members (`users.partner_id`) only.
  * Training is read through WorkoutSession::completed(), never a second
- * definition. Live queries, cached for CACHE_SECONDS per range — no snapshot
+ * definition. Live queries, cached for CACHE_SECONDS per range and partner — no snapshot
  * tables or scheduled jobs.
  */
 final class Insights
@@ -166,37 +169,43 @@ final class Insights
      *     },
      * }
      */
-    public static function summary(int $days): array
+    public static function summary(int $days, ?Partner $partner = null): array
     {
-        return Cache::remember(self::CACHE_KEY.'.'.$days, self::CACHE_SECONDS, fn () => self::compute($days));
+        $key = self::CACHE_KEY.'.'.$days.'.'.($partner?->id ?? 'all');
+
+        return Cache::remember($key, self::CACHE_SECONDS, fn () => self::compute($days, $partner));
     }
 
-    private static function compute(int $days): array
+    private static function compute(int $days, ?Partner $partner): array
     {
         $now = CarbonImmutable::now();
         $from = $now->subDays($days);
 
+        // The app users every answer is about: everyone, or $partner's members.
+        $appUsers = fn (): Builder => User::query()->appUsers()->atPartner($partner);
+
         return [
             'days' => $days,
-            'retention' => self::retention($from, $now),
-            'first_workout' => self::firstWorkout($from, $now, $days),
-            'generator' => self::generator($from, $now),
-            'skipped' => self::skipped($from, $now),
-            'planned_vs_actual' => self::plannedVsActual($from, $now, $days),
+            'retention' => self::retention($appUsers, $from, $now),
+            'first_workout' => self::firstWorkout($appUsers, $from, $now, $days),
+            'generator' => self::generator($appUsers, $from, $now),
+            'skipped' => self::skipped($appUsers, $from, $now),
+            'planned_vs_actual' => self::plannedVsActual($appUsers, $from, $now, $days),
             'nudges' => [
-                'steps' => self::nudgeSteps($from, $now),
-                'weekly_summary' => self::weeklySummary(),
+                'steps' => self::nudgeSteps($appUsers, $from, $now),
+                'weekly_summary' => self::weeklySummary($appUsers),
             ],
-            'who' => self::who(),
+            'who' => self::who($appUsers),
         ];
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{users: int, goal: list<array{label: string, users: int, share: int}>, experience: list<array{label: string, users: int, share: int}>, gender: list<array{label: string, users: int, share: int}>, age: list<array{label: string, users: int, share: int}>}
      */
-    private static function who(): array
+    private static function who(\Closure $appUsers): array
     {
-        $onboarded = User::query()->appUsers()
+        $onboarded = $appUsers()
             ->whereNotNull('users.onboarding_completed_at')
             ->leftJoin('user_profiles', 'user_profiles.user_id', '=', 'users.id');
 
@@ -245,12 +254,13 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return list<array{step: int, sent: int, trained: int, share: int}>
      */
-    private static function nudgeSteps(CarbonImmutable $from, CarbonImmutable $now): array
+    private static function nudgeSteps(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now): array
     {
         $sentInRange = SentRecord::query(InactivityNudge::class)
-            ->whereIn('notifiable_id', User::query()->appUsers()->select('users.id'))
+            ->whereIn('notifiable_id', $appUsers()->select('users.id'))
             ->whereBetween('created_at', [$from, $now]);
         $records = $sentInRange->clone()->get(['notifiable_id', 'data', 'created_at']);
 
@@ -280,11 +290,12 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{eligible: int, off: int}
      */
-    private static function weeklySummary(): array
+    private static function weeklySummary(\Closure $appUsers): array
     {
-        $eligible = User::query()->appUsers()->whereNotNull('users.onboarding_completed_at');
+        $eligible = $appUsers()->whereNotNull('users.onboarding_completed_at');
 
         return [
             'eligible' => $eligible->clone()->count(),
@@ -293,11 +304,12 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{users: int, share: int|null, groups: list<array{planned: int, users: int, per_week: float}>}
      */
-    private static function plannedVsActual(CarbonImmutable $from, CarbonImmutable $now, int $days): array
+    private static function plannedVsActual(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now, int $days): array
     {
-        $users = User::query()->appUsers()
+        $users = $appUsers()
             ->join('user_profiles', 'user_profiles.user_id', '=', 'users.id')
             ->whereNotNull('user_profiles.training_days_per_week')
             ->where('users.onboarding_completed_at', '<', $from)
@@ -330,11 +342,12 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{generated: array{sessions: int, completed: int, swapped: int, cancelled: int}, other: array{sessions: int, completed: int, swapped: int, cancelled: int}}
      */
-    private static function generator(CarbonImmutable $from, CarbonImmutable $now): array
+    private static function generator(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now): array
     {
-        $sessions = self::appUserSessions()->whereBetween('workout_sessions.created_at', [$from, $now]);
+        $sessions = self::appUserSessions($appUsers)->whereBetween('workout_sessions.created_at', [$from, $now]);
 
         $cancelled = $sessions->clone()->where('workout_sessions.status', WorkoutSessionStatus::Cancelled);
         $swapped = $cancelled->clone()->whereExists(fn ($replacement) => $replacement
@@ -369,21 +382,23 @@ final class Insights
     }
 
     /**
-     * Sessions of app users: staff training never counts.
+     * Sessions of the app users the answer is about: staff training never counts.
      *
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return Builder<WorkoutSession>
      */
-    private static function appUserSessions(): Builder
+    private static function appUserSessions(\Closure $appUsers): Builder
     {
-        return WorkoutSession::query()->whereIn('workout_sessions.user_id', User::query()->appUsers()->select('users.id'));
+        return WorkoutSession::query()->whereIn('workout_sessions.user_id', $appUsers()->select('users.id'));
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return list<array{exercise_id: int, name: string, included: int, skipped: int, rate: int}>
      */
-    private static function skipped(CarbonImmutable $from, CarbonImmutable $now): array
+    private static function skipped(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now): array
     {
-        $sessions = self::appUserSessions()
+        $sessions = self::appUserSessions($appUsers)
             ->completed()
             ->whereBetween('workout_sessions.completed_at', [$from, $now])
             ->select('workout_sessions.id');
@@ -414,12 +429,13 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{signups: int, median_hours: float|null, previous_median_hours: float|null, buckets: list<array{label: string, users: int}>}
      */
-    private static function firstWorkout(CarbonImmutable $from, CarbonImmutable $now, int $days): array
+    private static function firstWorkout(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now, int $days): array
     {
-        $hours = self::hoursToFirstWorkout(fn (Builder $users) => $users->whereBetween('users.created_at', [$from, $now]));
-        $previous = self::hoursToFirstWorkout(fn (Builder $users) => $users
+        $hours = self::hoursToFirstWorkout($appUsers, fn (Builder $users) => $users->whereBetween('users.created_at', [$from, $now]));
+        $previous = self::hoursToFirstWorkout($appUsers, fn (Builder $users) => $users
             ->where('users.created_at', '>=', $from->subDays($days))
             ->where('users.created_at', '<', $from));
 
@@ -441,15 +457,16 @@ final class Insights
     }
 
     /**
-     * Hours from signup to the first Completed Session for each app user the
-     * constraint selects; null when they have none yet.
+     * Hours from signup to the first Completed Session for each of $appUsers
+     * the constraint selects; null when they have none yet.
      *
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @param  \Closure(Builder<User>): Builder<User>  $signups
      * @return Collection<int, float|null>
      */
-    private static function hoursToFirstWorkout(\Closure $signups): Collection
+    private static function hoursToFirstWorkout(\Closure $appUsers, \Closure $signups): Collection
     {
-        return $signups(User::query()->appUsers())
+        return $signups($appUsers())
             ->withMin(['workoutSessions as first_completed_at' => fn (Builder $sessions) => $sessions->completed()], 'completed_at')
             ->get(['users.id', 'users.created_at'])
             ->map(fn (User $user) => $user->first_completed_at === null
@@ -478,11 +495,12 @@ final class Insights
     }
 
     /**
+     * @param  \Closure(): Builder<User>  $appUsers  the app users the answer is about
      * @return array{signups: int, weeks: array<int, array{share: int, retained: int, eligible: int, reached: bool}>}
      */
-    private static function retention(CarbonImmutable $from, CarbonImmutable $now): array
+    private static function retention(\Closure $appUsers, CarbonImmutable $from, CarbonImmutable $now): array
     {
-        $signups = User::query()->appUsers()
+        $signups = $appUsers()
             ->whereBetween('users.created_at', [$from, $now])
             ->pluck('users.created_at', 'users.id')
             ->map(fn ($createdAt) => CarbonImmutable::parse($createdAt));

@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\FitnessGoal;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
+use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\User;
@@ -118,6 +119,34 @@ class InsightsPageTest extends TestCase
             ->assertOk()
             ->assertSee('nobody who onboarded before the last 7 days has planned training days')
             ->assertSee('no day-3 Inactivity Nudge was sent in the last 7 days');
+    }
+
+    public function test_a_partner_filter_narrows_the_tab_and_carries_through_the_range_and_tabs(): void
+    {
+        $gym = Partner::factory()->create(['name' => 'Iron Temple']);
+        $this->member('2026-10-06 12:00:00')->update(['partner_id' => $gym->id]);
+        $this->member('2026-10-06 12:00:00');
+
+        $this->actingAs($this->admin())
+            ->get("/admin/insights?range=7&partner={$gym->id}")
+            ->assertOk()
+            ->assertSee('<option value="'.$gym->id.'" selected>Iron Temple</option>', false)
+            ->assertSee('1 signups in the last 7 days')
+            ->assertSee('All app users at Iron Temple who finished onboarding')
+            ->assertSee(e(route('admin.insights', ['range' => 30, 'partner' => $gym->id])), false)
+            ->assertSee(e(route('admin.insights.revenue', ['partner' => $gym->id])), false);
+    }
+
+    public function test_an_unknown_partner_shows_everyone(): void
+    {
+        $this->member('2026-10-06 12:00:00');
+        $this->member('2026-10-06 12:00:00');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/insights?range=7&partner=999')
+            ->assertOk()
+            ->assertSee('<option value="" selected>All partners</option>', false)
+            ->assertSee('2 signups in the last 7 days');
     }
 
     private function member(string $signedUpAt): User

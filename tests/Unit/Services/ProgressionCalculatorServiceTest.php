@@ -232,12 +232,12 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_a_configured_ratio_gives_loaded_core_work_a_starting_weight(): void
     {
         $user = $this->userWeighing(80, Gender::Male);
-        $crunch = $this->createExercise('TRUNK_FLEXION', 'CABLE');
-        $crunch->update(['name' => 'CABLE CRUNCH']);
+        $crunch = $this->createExercise('TRUNK_FLEXION', 'MACHINE');
+        $crunch->update(['name' => 'AB CRUNCH MACHINE']);
 
-        // Matched case-insensitively. 80 × 0.30 = 24 → 2.5kg cable steps = 25kg;
+        // Matched case-insensitively. 80 × 0.25 = 20 → 5kg machine steps = 20kg;
         // TRUNK_FLEXION's own multiplier is 0, so it used to start at nothing.
-        $this->assertEquals(25.0, $this->service->calculateTargets($crunch, $user, TrainingExperience::Intermediate)['target_weight']);
+        $this->assertEquals(20.0, $this->service->calculateTargets($crunch, $user, TrainingExperience::Intermediate)['target_weight']);
     }
 
     public function test_a_configured_ratio_still_scales_with_gender_and_experience(): void

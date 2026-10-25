@@ -104,17 +104,12 @@ return [
         'Renegade Row' => 0.15,
         'Dumbbell T-Plank Row' => 0.13,
 
-        // Carries and shrugs heavier than CARRY's 0.35 × dumbbell 0.45
-        'Dumbbell Shrug' => 0.30,
+        // A carry heavier than CARRY's 0.35 × dumbbell 0.45
         "Farmer's Walk" => 0.30,
-        'Dumbbell Farmers Carry' => 0.30,
 
         // Loaded core work (the core patterns' multiplier is zero)
-        'Cable Crunch' => 0.30,
         'Ab Crunch Machine' => 0.25,
         'Cable Woodchoppers' => 0.15,
-        'Cable Core Rotation' => 0.12,
-        'Dumbbell Side Bend' => 0.20,
         'Landmine Rotation' => 0.10,
         'Standing Landmine Rotation' => 0.10,
         'Half-Kneeling Landmine Rotation' => 0.10,

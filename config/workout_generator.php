@@ -34,11 +34,30 @@ return [
         'CALF_RAISE',
         'REAR_DELT_FLY',
         'FACE_PULL',
+        'SHOULDER_RAISE',
         'PULLOVER_STRAIGHT_ARM',
         'HIP_ABDUCTION',
         'BACK_EXTENSION',
         'TRUNK_FLEXION',
         'ROTATION',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Selection Aliases
+    |--------------------------------------------------------------------------
+    |
+    | A movement pattern the generator selects, orders and gives sets as if it
+    | were another. Lateral and front raises were filed as PRESS until
+    | 2026-10-25, when they got SHOULDER_RAISE so their starting weight stops
+    | being a bench press's. This alias keeps push days as they were: a raise
+    | on about 80% of them, with a compound's sets. Without it, raises become
+    | isolation work (2-3 sets, later in the session) on about half as many
+    | push days. That is a programming decision of its own.
+    |
+    */
+    'selection_aliases' => [
+        'SHOULDER_RAISE' => 'PRESS',
     ],
 
     /*

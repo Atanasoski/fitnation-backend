@@ -526,6 +526,7 @@ class ProgressionCalculatorService
             'KNEE_FLEXION' => 0.30,                   // Leg curl
             'CALF_RAISE' => 0.7,
             'REAR_DELT_FLY', 'FACE_PULL' => 0.12,
+            'SHOULDER_RAISE' => 0.12,                 // Lateral and front raises
             'HIP_ABDUCTION' => 0.20,
             'CARRY' => 0.35,
 

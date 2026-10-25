@@ -43,6 +43,7 @@ class ExerciseClassificationSeeder extends Seeder
         'FLY' => 'UPPER_PUSH',
         'PUSHUP' => 'UPPER_PUSH',
         'DIP' => 'UPPER_PUSH',
+        'SHOULDER_RAISE' => 'UPPER_PUSH',
         'ROW' => 'UPPER_PULL',
         'PULL_VERTICAL' => 'UPPER_PULL',
         'PULLOVER_STRAIGHT_ARM' => 'UPPER_PULL',
@@ -492,6 +493,11 @@ class ExerciseClassificationSeeder extends Seeder
         // Rear delt fly patterns
         if (Str::contains($nameLower, ['reverse fly', 'rear delt fly', 'rear delt raise'])) {
             return 'REAR_DELT_FLY';
+        }
+
+        // Shoulder raise patterns (lateral and front raises); rear-delt raises matched above
+        if (Str::contains($nameLower, ['lateral raise', 'front raise', 'side raise'])) {
+            return 'SHOULDER_RAISE';
         }
 
         // Squat patterns

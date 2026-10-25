@@ -197,6 +197,27 @@ class ProgressionCalculatorServiceTest extends TestCase
         $this->assertEquals(6.0, $targets['target_weight']);
     }
 
+    public function test_estimates_lateral_raise_weight_like_a_small_isolation_lift(): void
+    {
+        $user = User::factory()->create();
+        $user->profile()->delete();
+        UserProfile::factory()->create([
+            'user_id' => $user->id,
+            'weight' => 80,
+            'gender' => Gender::Male,
+        ]);
+
+        $dumbbell = $this->createExercise('SHOULDER_RAISE', 'DUMBBELL', 'HORIZONTAL');
+        $cable = $this->createExercise('SHOULDER_RAISE', 'CABLE', 'HORIZONTAL');
+
+        // 80 × 0.12 (shoulder raise) × 0.45 (dumbbell) = 4.32 → 2kg steps = 4kg per dumbbell.
+        // Filed as PRESS it was 80 × 0.65 × 0.45 = 23.4 → 24kg, a bench press's load.
+        $this->assertEquals(4.0, $this->service->calculateTargets($dumbbell, $user->fresh(), TrainingExperience::Intermediate)['target_weight']);
+
+        // 80 × 0.12 × 0.55 (cable) = 5.28 → 2.5kg steps = 5kg
+        $this->assertEquals(5.0, $this->service->calculateTargets($cable, $user->fresh(), TrainingExperience::Intermediate)['target_weight']);
+    }
+
     public function test_returns_zero_for_bodyweight_exercises(): void
     {
         $user = User::factory()->create();

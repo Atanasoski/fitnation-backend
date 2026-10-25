@@ -314,8 +314,9 @@ class DeterministicWorkoutGenerator
     }
 
     /**
-     * Distribute total sets among exercises: compounds get 4, isolations get 2-3.
-     * Adjusts to fit exactly into total sets.
+     * Distribute total sets among exercises: each starts at the minimum (2),
+     * then the rest go one set at a time to compounds (up to 4), then to
+     * isolations (up to 3). Sets that fit nowhere are left out.
      */
     private function distributeSets(Collection $exercises, int $totalSets, array $compoundPatterns): void
     {
@@ -323,6 +324,7 @@ class DeterministicWorkoutGenerator
             return;
         }
 
+        $minSets = config('workout_generator.min_sets_per_exercise', 2);
         $maxSetsCompound = config('workout_generator.max_sets_per_compound', 4);
         $maxSetsIsolation = config('workout_generator.max_sets_per_isolation', 3);
 
@@ -339,65 +341,34 @@ class DeterministicWorkoutGenerator
             return ! in_array($pattern, $compoundPatterns);
         });
 
-        // Assign sets: compounds first, then isolations
-        $setsAssigned = 0;
+        // Every exercise starts at the minimum, even when that runs over the time
         $setsPerExercise = [];
-
-        // Assign sets to compounds (4 sets each, up to max)
-        foreach ($compounds as $exercise) {
-            $setsToAssign = min($maxSetsCompound, $totalSets - $setsAssigned);
-            if ($setsToAssign > 0) {
-                $setsPerExercise[$exercise->id] = $setsToAssign;
-                $setsAssigned += $setsToAssign;
-            }
+        foreach ($exercises as $exercise) {
+            $setsPerExercise[$exercise->id] = $minSets;
         }
+        $remainingSets = $totalSets - ($minSets * $exercises->count());
 
-        // Assign sets to isolations (2-3 sets each, up to max)
-        foreach ($isolations as $exercise) {
-            if ($setsAssigned >= $totalSets) {
-                break;
-            }
+        // Then one set per exercise per round: compounds up to their max, then isolations
+        foreach ([[$compounds, $maxSetsCompound], [$isolations, $maxSetsIsolation]] as [$group, $maxSets]) {
+            while ($remainingSets > 0) {
+                $added = false;
+                foreach ($group as $exercise) {
+                    if ($remainingSets > 0 && $setsPerExercise[$exercise->id] < $maxSets) {
+                        $setsPerExercise[$exercise->id]++;
+                        $remainingSets--;
+                        $added = true;
+                    }
+                }
 
-            $remainingSets = $totalSets - $setsAssigned;
-            $setsToAssign = min($maxSetsIsolation, $remainingSets);
-            if ($setsToAssign > 0) {
-                $setsPerExercise[$exercise->id] = $setsToAssign;
-                $setsAssigned += $setsToAssign;
-            }
-        }
-
-        // If we still have sets remaining, distribute them starting from compounds
-        if ($setsAssigned < $totalSets) {
-            $remainingSets = $totalSets - $setsAssigned;
-            foreach ($compounds as $exercise) {
-                if ($remainingSets <= 0) {
+                if (! $added) {
                     break;
-                }
-                $currentSets = $setsPerExercise[$exercise->id] ?? 0;
-                if ($currentSets < $maxSetsCompound) {
-                    $canAdd = min($maxSetsCompound - $currentSets, $remainingSets);
-                    $setsPerExercise[$exercise->id] = $currentSets + $canAdd;
-                    $remainingSets -= $canAdd;
-                }
-            }
-
-            // Then to isolations
-            foreach ($isolations as $exercise) {
-                if ($remainingSets <= 0) {
-                    break;
-                }
-                $currentSets = $setsPerExercise[$exercise->id] ?? 0;
-                if ($currentSets < $maxSetsIsolation) {
-                    $canAdd = min($maxSetsIsolation - $currentSets, $remainingSets);
-                    $setsPerExercise[$exercise->id] = $currentSets + $canAdd;
-                    $remainingSets -= $canAdd;
                 }
             }
         }
 
         // Store sets on exercise objects for later use
         foreach ($exercises as $exercise) {
-            $exercise->target_sets = $setsPerExercise[$exercise->id] ?? 0;
+            $exercise->target_sets = $setsPerExercise[$exercise->id];
         }
     }
 

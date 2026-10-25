@@ -262,9 +262,16 @@ return [
     |--------------------------------------------------------------------------
     |
     | Maximum sets per exercise type. Compounds can have more sets than isolation.
+    | Every exercise gets at least min_sets_per_exercise. Until 2026-10-25 the
+    | sets were handed out one exercise at a time, so the last one got what was
+    | left: a 60-minute push day (20 sets) came out 4, 4, 4, 4, 3 and 1, and an
+    | exercise left with none fell back to the goal's default sets, over the
+    | time. The minimum wins over the time only below 24 minutes, where four
+    | exercises at 2 sets need more than duration ÷ 3.
     |
     */
 
+    'min_sets_per_exercise' => 2,
     'max_sets_per_compound' => 4,
     'max_sets_per_isolation' => 3,
 

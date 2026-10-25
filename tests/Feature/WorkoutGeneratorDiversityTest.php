@@ -608,6 +608,42 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $this->assertGreaterThan(3, count($result['exercises']));
     }
 
+    /**
+     * Shoulder raises have their own movement pattern so their starting weight
+     * is a raise's, but selection_aliases has the generator give them a
+     * PRESS's sets, so push days did not change when they moved off PRESS.
+     * 60 minutes is 20 sets: a compound takes 4, an isolation lift 3.
+     */
+    public function test_shoulder_raises_get_a_press_s_sets(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
+        $raise = Exercise::factory()->press()->horizontal()->create([
+            'name' => 'Dumbbell Lateral Raises',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'SHOULDER_RAISE'], ['name' => 'Shoulder Raise', 'display_order' => 50])->id,
+        ]);
+        $fly = Exercise::factory()->press()->flat()->create([
+            'name' => 'Cable Fly',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'FLY'], ['name' => 'Fly', 'display_order' => 20])->id,
+        ]);
+
+        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+
+        $sets = collect($this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 60,
+        ])['exercises'])->pluck('target_sets', 'exercise_id');
+
+        $this->assertSame(4, $sets[$raise->id]);
+        $this->assertSame(3, $sets[$fly->id]);
+    }
+
     public function test_lower_body_gets_isolation_exercises(): void
     {
         $partner = Partner::factory()->create();

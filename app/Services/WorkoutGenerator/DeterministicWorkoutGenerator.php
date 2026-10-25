@@ -242,7 +242,7 @@ class DeterministicWorkoutGenerator
                             continue;
                         }
 
-                        $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+                        $pattern = $this->selectionPattern($exercise);
                         $angle = $exercise->angle?->code ?? 'NO_ANGLE';
                         $key = "{$pattern}|{$angle}";
 
@@ -284,6 +284,18 @@ class DeterministicWorkoutGenerator
         return $selected;
     }
 
+    /**
+     * The movement pattern an exercise is selected, ordered and given sets by:
+     * its own, unless workout_generator.selection_aliases maps it to another
+     * (see the note on SHOULDER_RAISE there).
+     */
+    private function selectionPattern(Exercise $exercise): string
+    {
+        $code = $exercise->movementPattern?->code ?? 'UNKNOWN';
+
+        return config('workout_generator.selection_aliases', [])[$code] ?? $code;
+    }
+
     private function inferComplementaryRegion(Exercise $exercise, array $targetRegions, array $complementaryPatterns): ?string
     {
         $movementPattern = $exercise->movementPattern?->code;
@@ -316,13 +328,13 @@ class DeterministicWorkoutGenerator
 
         // Separate compounds and isolations
         $compounds = $exercises->filter(function ($exercise) use ($compoundPatterns) {
-            $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+            $pattern = $this->selectionPattern($exercise);
 
             return in_array($pattern, $compoundPatterns);
         });
 
         $isolations = $exercises->filter(function ($exercise) use ($compoundPatterns) {
-            $pattern = $exercise->movementPattern?->code ?? 'UNKNOWN';
+            $pattern = $this->selectionPattern($exercise);
 
             return ! in_array($pattern, $compoundPatterns);
         });
@@ -398,7 +410,7 @@ class DeterministicWorkoutGenerator
         $compoundPatterns = config('workout_generator.compound_patterns', []);
 
         return $exercises->sortBy(function ($exercise) use ($compoundPatterns) {
-            $pattern = $exercise->movementPattern?->code;
+            $pattern = $this->selectionPattern($exercise);
             $compoundPriority = in_array($pattern, $compoundPatterns) ? 0 : 1;
             $selectionPriority = (int) ($exercise->selection_priority ?? 100);
 
@@ -458,7 +470,7 @@ class DeterministicWorkoutGenerator
             }
 
             // Compound vs isolation (0 for compound, 1 for isolation)
-            $pattern = $exercise->movementPattern?->code;
+            $pattern = $this->selectionPattern($exercise);
             $compoundPriority = in_array($pattern, $compoundPatterns) ? 0 : 1;
 
             // Combine: muscle group (0-100) * 10 + compound priority (0-1)

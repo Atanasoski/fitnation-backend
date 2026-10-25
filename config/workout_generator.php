@@ -62,6 +62,76 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Starting Weight Ratios
+    |--------------------------------------------------------------------------
+    |
+    | A new exercise's starting weight is body weight × its movement pattern's
+    | multiplier × equipment and angle factors (ProgressionCalculatorService).
+    | That fits most of the catalog but not these: a kettlebell swing is a
+    | HINGE like a deadlift, a thruster a SQUAT like a back squat, a farmer's
+    | walk a CARRY like an overhead march, and the core patterns start at zero
+    | even when the exercise is loaded. Each ratio is the starting load per
+    | implement as a fraction of body weight for an intermediate man, and
+    | stands in for the pattern, equipment and angle factors; gender and
+    | experience still apply. Keyed by exercise name, case-insensitively,
+    | because the name is the one identifier that matches across environments.
+    | Example: a 175 lb intermediate man starts kettlebell swings at
+    | 79.4 kg × 0.22 = 17.5 kg, which rounds to a 16 kg kettlebell.
+    |
+    */
+    'starting_weight_ratios' => [
+        // Hinges far lighter than a deadlift (HINGE is 1.1 × body weight)
+        'Machine Glute Kickback' => 0.30,
+        'Kettlebell Swing' => 0.22,
+        'Single Arm Kettlebell Swing' => 0.16,
+        'Kettlebell Swing to Lateral Lunge' => 0.15,
+        'Kettlebell Figure Eight' => 0.16,
+        'Single Leg Deadlift' => 0.16,
+        'Single Leg Kettlebell Deadlift' => 0.22,
+        'Single-Leg Landmine Romanian Deadlift' => 0.25,
+        'Dumbbell Ground to Overhead' => 0.18,
+        'Power Snatch' => 0.20,
+
+        // Squats far lighter than a back squat (SQUAT is 1.0 × body weight)
+        'Dumbbell Thruster' => 0.15,
+        'Thruster' => 0.15,
+        'Weighted Squat Jump' => 0.07,
+        'Landmine Thruster' => 0.20,
+        'Landmine Squat to Press' => 0.20,
+
+        // Other loads the pattern overstates
+        'Single Leg Bridge Pullover' => 0.12,
+        'Renegade Row' => 0.15,
+        'Dumbbell T-Plank Row' => 0.13,
+
+        // Carries and shrugs heavier than CARRY's 0.35 × dumbbell 0.45
+        'Dumbbell Shrug' => 0.30,
+        "Farmer's Walk" => 0.30,
+        'Dumbbell Farmers Carry' => 0.30,
+
+        // Loaded core work (the core patterns' multiplier is zero)
+        'Cable Crunch' => 0.30,
+        'Ab Crunch Machine' => 0.25,
+        'Cable Woodchoppers' => 0.15,
+        'Cable Core Rotation' => 0.12,
+        'Dumbbell Side Bend' => 0.20,
+        'Landmine Rotation' => 0.10,
+        'Standing Landmine Rotation' => 0.10,
+        'Half-Kneeling Landmine Rotation' => 0.10,
+        'Kettlebell Windmill' => 0.12,
+        'Half-Kneeling Windmill' => 0.12,
+        'Standing Windmill' => 0.12,
+        'Kettlebell Figure 8' => 0.16,
+        'Kettlebell High Plank Pull Through' => 0.10,
+        'Medicine Ball Slam' => 0.08,
+        'Medicine Ball Kneeling Slam' => 0.08,
+        'Medicine Ball Half-Kneeling Side Slam' => 0.08,
+        'Medicine Ball Standing Side Slam' => 0.08,
+        'Medicine Ball Rotational Throw' => 0.08,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Set-Based Duration Calculation
     |--------------------------------------------------------------------------
     |

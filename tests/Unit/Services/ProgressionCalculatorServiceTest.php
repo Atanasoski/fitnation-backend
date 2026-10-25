@@ -218,6 +218,46 @@ class ProgressionCalculatorServiceTest extends TestCase
         $this->assertEquals(5.0, $this->service->calculateTargets($cable, $user->fresh(), TrainingExperience::Intermediate)['target_weight']);
     }
 
+    public function test_a_configured_ratio_replaces_the_movement_pattern_estimate(): void
+    {
+        $user = $this->userWeighing(80, Gender::Male);
+        $swing = $this->createExercise('HINGE', 'KETTLEBELL', 'HORIZONTAL');
+        $swing->update(['name' => 'Kettlebell Swing']);
+
+        // 80 × 0.22 (its ratio) = 17.6 → 4kg kettlebell steps = 16kg.
+        // As a plain HINGE it was 80 × 1.1 × 0.45 (kettlebell) = 39.6 → 40kg, a deadlift's load.
+        $this->assertEquals(16.0, $this->service->calculateTargets($swing, $user, TrainingExperience::Intermediate)['target_weight']);
+    }
+
+    public function test_a_configured_ratio_gives_loaded_core_work_a_starting_weight(): void
+    {
+        $user = $this->userWeighing(80, Gender::Male);
+        $crunch = $this->createExercise('TRUNK_FLEXION', 'CABLE');
+        $crunch->update(['name' => 'CABLE CRUNCH']);
+
+        // Matched case-insensitively. 80 × 0.30 = 24 → 2.5kg cable steps = 25kg;
+        // TRUNK_FLEXION's own multiplier is 0, so it used to start at nothing.
+        $this->assertEquals(25.0, $this->service->calculateTargets($crunch, $user, TrainingExperience::Intermediate)['target_weight']);
+    }
+
+    public function test_a_configured_ratio_still_scales_with_gender_and_experience(): void
+    {
+        $user = $this->userWeighing(60, Gender::Female);
+        $walk = $this->createExercise('CARRY', 'DUMBBELL');
+        $walk->update(['name' => "Farmer's Walk"]);
+
+        // 60 × 0.30 × 0.65 (female) × 0.6 (beginner) = 7.02 → 2kg dumbbell steps = 8kg per hand
+        $this->assertEquals(8.0, $this->service->calculateTargets($walk, $user, TrainingExperience::Beginner)['target_weight']);
+    }
+
+    public function test_every_starting_weight_ratio_is_a_fraction_of_body_weight(): void
+    {
+        foreach (config('workout_generator.starting_weight_ratios') as $name => $ratio) {
+            $this->assertGreaterThan(0, $ratio, $name);
+            $this->assertLessThan(1, $ratio, $name);
+        }
+    }
+
     public function test_returns_zero_for_bodyweight_exercises(): void
     {
         $user = User::factory()->create();
@@ -831,6 +871,19 @@ class ProgressionCalculatorServiceTest extends TestCase
         $exercise = $this->createExercise('PULL_UP', 'BODYWEIGHT');
 
         $this->assertNull($this->service->lowerByOneStep(10.0, $exercise));
+    }
+
+    private function userWeighing(float $kg, Gender $gender): User
+    {
+        $user = User::factory()->create();
+        $user->profile()->delete();
+        UserProfile::factory()->create([
+            'user_id' => $user->id,
+            'weight' => $kg,
+            'gender' => $gender,
+        ]);
+
+        return $user->fresh();
     }
 
     private function createExercise(string $movementCode, string $equipmentCode = 'BARBELL', ?string $angleCode = null): Exercise

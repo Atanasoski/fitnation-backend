@@ -385,13 +385,6 @@ class ProgressionCalculatorService
         $bodyWeight = (float) $profile->weight;
         $gender = $profile->gender ?? \App\Enums\Gender::Male;
 
-        $movementCode = $exercise->movementPattern?->code ?? 'UNKNOWN';
-        $equipmentCode = $exercise->equipmentType?->code ?? 'UNKNOWN';
-        $angleCode = $exercise->angle?->code ?? null;
-
-        // Base multiplier by movement pattern (as fraction of body weight)
-        $baseMultiplier = $this->getBaseMultiplier($movementCode);
-
         // Adjust for gender (females typically ~60-70% of male strength ratios)
         $genderModifier = match ($gender) {
             \App\Enums\Gender::Female => 0.65,
@@ -406,6 +399,20 @@ class ProgressionCalculatorService
             TrainingExperience::Advanced => 1.3,
         };
 
+        // An exercise its pattern misjudges has its own ratio (per implement),
+        // which stands in for the pattern, equipment and angle factors
+        $ratio = $this->startingWeightRatio($exercise);
+        if ($ratio !== null) {
+            return $this->roundToEquipmentIncrement($bodyWeight * $ratio * $genderModifier * $experienceModifier, $exercise);
+        }
+
+        $movementCode = $exercise->movementPattern?->code ?? 'UNKNOWN';
+        $equipmentCode = $exercise->equipmentType?->code ?? 'UNKNOWN';
+        $angleCode = $exercise->angle?->code ?? null;
+
+        // Base multiplier by movement pattern (as fraction of body weight)
+        $baseMultiplier = $this->getBaseMultiplier($movementCode);
+
         // Adjust for equipment type (dumbbell = per hand, cable lighter, etc.)
         $equipmentModifier = $this->getEquipmentModifier($equipmentCode);
 
@@ -417,6 +424,18 @@ class ProgressionCalculatorService
 
         // Round to realistic weight increments based on equipment type
         return $this->roundToEquipmentIncrement($estimatedWeight, $exercise);
+    }
+
+    /**
+     * The exercise's own starting-weight ratio from
+     * workout_generator.starting_weight_ratios, matched by name, if it has one.
+     */
+    private function startingWeightRatio(Exercise $exercise): ?float
+    {
+        $ratios = array_change_key_case(config('workout_generator.starting_weight_ratios', []), CASE_LOWER);
+        $ratio = $ratios[strtolower((string) $exercise->name)] ?? null;
+
+        return $ratio === null ? null : (float) $ratio;
     }
 
     /**

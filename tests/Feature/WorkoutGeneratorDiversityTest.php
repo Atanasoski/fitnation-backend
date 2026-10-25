@@ -644,6 +644,84 @@ class WorkoutGeneratorDiversityTest extends TestCase
         $this->assertSame(3, $sets[$fly->id]);
     }
 
+    /**
+     * 60 minutes is 20 sets over six exercises. Handed out one exercise at a
+     * time they came out 4, 4, 4, 4, 3 and 1: the last isolation got the
+     * single set left over.
+     */
+    public function test_no_exercise_is_left_with_a_single_set(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $this->createPushDay(withTricepsExtension: true);
+        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+
+        $sets = collect($this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 60,
+        ])['exercises'])->pluck('target_sets')->sort()->values()->all();
+
+        $this->assertSame([2, 2, 4, 4, 4, 4], $sets);
+    }
+
+    /**
+     * 45 minutes is 15 sets over five exercises. The four presses used to take
+     * all 15, and the fly, left with none, fell back to the goal's default of
+     * 4: 19 sets in a 45-minute session.
+     */
+    public function test_sets_stay_within_the_time(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $user->profile->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $fly = $this->createPushDay(withTricepsExtension: false);
+        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+
+        $sets = collect($this->generator->generate($user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+        ])['exercises'])->pluck('target_sets', 'exercise_id');
+
+        $this->assertSame(15, $sets->sum());
+        $this->assertSame(2, $sets[$fly->id]);
+        $this->assertSame([3, 3, 3, 4], $sets->except($fly->id)->sort()->values()->all());
+    }
+
+    /**
+     * Four presses at different angles and a fly, plus a triceps extension when
+     * asked for. Returns the fly.
+     */
+    private function createPushDay(bool $withTricepsExtension): Exercise
+    {
+        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
+        Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Barbell Bench Press']);
+        Exercise::factory()->press()->barbell()->vertical()->create(['name' => 'Overhead Press']);
+        Exercise::factory()->press()->barbell()->lowToHigh()->create(['name' => 'Landmine Press']);
+
+        $fly = Exercise::factory()->press()->flat()->create([
+            'name' => 'Cable Fly',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'FLY'], ['name' => 'Fly', 'display_order' => 20])->id,
+        ]);
+
+        if ($withTricepsExtension) {
+            Exercise::factory()->press()->create([
+                'name' => 'Triceps Pushdown',
+                'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'ELBOW_EXTENSION'], ['name' => 'Elbow Extension', 'display_order' => 70])->id,
+            ]);
+        }
+
+        return $fly;
+    }
+
     public function test_lower_body_gets_isolation_exercises(): void
     {
         $partner = Partner::factory()->create();

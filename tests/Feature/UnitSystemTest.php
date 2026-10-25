@@ -14,9 +14,11 @@ use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
+use App\Services\FitnessMetricsService;
 use App\Services\UnitConversionService;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class UnitSystemTest extends TestCase
@@ -233,22 +235,115 @@ class UnitSystemTest extends TestCase
             ]);
         }
 
-        $metricResponse = $this
-            ->actingAs($metricUser, 'sanctum')
-            ->getJson('/api/user/fitness-metrics');
-
-        $imperialResponse = $this
-            ->actingAs($imperialUser, 'sanctum')
-            ->getJson('/api/user/fitness-metrics');
-
-        $metricResponse->assertOk();
-        $imperialResponse->assertOk();
+        // The service itself, not the endpoint: the endpoint converts weekly
+        // volumes for display, so its two payloads rightly differ.
+        $metrics = app(FitnessMetricsService::class);
 
         $this->assertEquals(
-            $metricResponse->json('data'),
-            $imperialResponse->json('data'),
+            $metrics->getMetrics($metricUser->fresh()),
+            $metrics->getMetrics($imperialUser->fresh()),
             'FitnessMetricsService output must be identical regardless of unit_system - unit preference must never leak into its internal kg-based math.'
         );
+    }
+
+    /**
+     * The endpoint converts at the HTTP boundary (ADR-0001): an imperial user's
+     * weekly volumes are display totals in lbs, rounded to the whole pound,
+     * and the difference is taken between the converted totals. Percentages
+     * and counts are unitless and do not move.
+     */
+    public function test_imperial_user_fitness_metrics_report_weekly_volume_in_lbs(): void
+    {
+        // "Current week" is the last complete week: Mon 31 Aug - Sun 6 Sep.
+        $this->travelTo(Carbon::parse('2026-09-09 12:00:00'));
+
+        $metricUser = User::factory()->entitled()->create();
+        $imperialUser = User::factory()->entitled()->create();
+        $imperialUser->profile->update(['unit_system' => UnitSystem::Imperial]);
+        $exercise = Exercise::factory()->create();
+
+        foreach ([$metricUser, $imperialUser] as $user) {
+            $session = WorkoutSession::factory()->create([
+                'user_id' => $user->id,
+                'performed_at' => '2026-09-01 10:00:00',
+                'completed_at' => '2026-09-01 11:00:00',
+                'status' => WorkoutSessionStatus::Completed,
+            ]);
+
+            foreach ([[1, 8], [2, 6]] as [$setNumber, $reps]) {
+                SetLog::create([
+                    'workout_session_id' => $session->id,
+                    'exercise_id' => $exercise->id,
+                    'set_number' => $setNumber,
+                    'weight' => 100.0,
+                    'reps' => $reps,
+                    'rest_seconds' => 60,
+                ]);
+            }
+        }
+
+        $metric = $this->actingAs($metricUser, 'sanctum')->getJson('/api/user/fitness-metrics')
+            ->assertOk()->json('data.weekly_progress');
+        $imperial = $this->actingAs($imperialUser, 'sanctum')->getJson('/api/user/fitness-metrics')
+            ->assertOk()->json('data.weekly_progress');
+
+        // 1,400 kg of volume -> 3,086.47 lbs, rounded to the whole pound.
+        $this->assertSame(1400, $metric['current_week_volume']);
+        $this->assertSame(3086, $imperial['current_week_volume']);
+        $this->assertSame(0, $imperial['previous_week_volume']);
+        $this->assertSame(3086, $imperial['volume_difference']);
+        $this->assertSame(3086, $imperial['daily_breakdown'][1]['volume']);
+        $this->assertSame($metric['volume_difference_percent'], $imperial['volume_difference_percent']);
+        $this->assertSame($metric['percentage'], $imperial['percentage']);
+    }
+
+    /**
+     * An exercise's history goes out in the user's Unit System: a session's
+     * weight is its heaviest set, stepped like a logged set, and its volume is
+     * a display total. A metric user reads the stored kilograms.
+     */
+    public function test_imperial_user_exercise_history_is_in_lbs(): void
+    {
+        $metricUser = User::factory()->entitled()->create();
+        $imperialUser = User::factory()->entitled()->create();
+        $imperialUser->profile->update(['unit_system' => UnitSystem::Imperial]);
+        $exercise = Exercise::factory()->create();
+
+        foreach ([$metricUser, $imperialUser] as $user) {
+            $session = WorkoutSession::factory()->create([
+                'user_id' => $user->id,
+                'performed_at' => now()->subDay(),
+                'completed_at' => now()->subDay()->addHour(),
+                'status' => WorkoutSessionStatus::Completed,
+            ]);
+
+            foreach ([[1, 10], [2, 8]] as [$setNumber, $reps]) {
+                SetLog::create([
+                    'workout_session_id' => $session->id,
+                    'exercise_id' => $exercise->id,
+                    'set_number' => $setNumber,
+                    'weight' => 100.0,
+                    'reps' => $reps,
+                    'rest_seconds' => 60,
+                ]);
+            }
+        }
+
+        $metric = $this->actingAs($metricUser, 'sanctum')->getJson("/api/exercises/{$exercise->id}/history")
+            ->assertOk()->json('data');
+        $imperial = $this->actingAs($imperialUser, 'sanctum')->getJson("/api/exercises/{$exercise->id}/history")
+            ->assertOk()->json('data');
+
+        $this->assertSame(100, $metric['performance_data'][0]['weight']);
+        $this->assertSame(1800, $metric['performance_data'][0]['volume']);
+
+        // 100 kg -> 220.46 lbs, at the 5 lb training-weight step = 220;
+        // 1,800 kg of volume -> 3,968.32 lbs, rounded to the whole pound.
+        $this->assertSame(220, $imperial['performance_data'][0]['weight']);
+        $this->assertSame(3968, $imperial['performance_data'][0]['volume']);
+        $this->assertSame(220, $imperial['stats']['current_weight']);
+        $this->assertSame(220, $imperial['stats']['best_weight']);
+        $this->assertSame(10, $imperial['stats']['best_set_reps']);
     }
 
     /**

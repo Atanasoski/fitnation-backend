@@ -92,8 +92,13 @@ editing code nobody could run.
    `test_a_first_ever_session_records_a_weight_and_a_reps_pr_for_every_exercise`.
    ~~Product question.~~ **Decided: a first-ever session records nothing.** Now
    [017](017-personal-record-rules.md).
-3. **Record weights go out in kilograms, unconverted** —
-   `test_a_fractional_weight_survives_unconverted`. Not in the problem statement
+3. ~~**Record weights go out in kilograms, unconverted**~~ **Fixed 2026-10-22:**
+   `PersonalRecordResource` formats a weight record as
+   `workout_session_set_logs.weight`, so an imperial user reads pounds —
+   `test_an_imperial_users_weight_record_goes_out_in_pounds`. The same change
+   converts the exercise history (`ExerciseHistoryResource`) and the weekly
+   volumes (`FitnessMetricsResource`), which had the same breach. The original
+   note follows. Not in the problem statement
    above; found while extracting. `new_prs` carries Canonical Units straight to
    the client, so an imperial user reads kilograms as pounds — a plain
    [ADR-0001](../adr/0001-convert-units-at-the-http-boundary.md) breach, and not

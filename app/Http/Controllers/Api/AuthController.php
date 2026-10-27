@@ -34,15 +34,17 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // A gym vouches for its members, so Gym Signups skip email
+        // verification (ADR-0004); setting this before Registered fires
+        // also suppresses the verification mail. House signups verify.
+        $isGymSignup = ! $partner->isHouse();
+
         $user = User::create([
             'name' => '',
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'partner_id' => $validated['partner_id'],
-            // A gym vouches for its members, so Gym Signups skip email
-            // verification (ADR-0004); setting this before Registered fires
-            // also suppresses the verification mail. House signups verify.
-            'email_verified_at' => $partner->isHouse() ? null : now(),
+            'email_verified_at' => $isGymSignup ? now() : null,
         ]);
 
         event(new Registered($user));
@@ -50,9 +52,9 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'message' => $partner->isHouse()
-                ? 'User registered successfully. Please check your email to verify your account.'
-                : 'User registered successfully.',
+            'message' => $isGymSignup
+                ? 'User registered successfully.'
+                : 'User registered successfully. Please check your email to verify your account.',
             'user' => new UserResource($user->load(['partner', 'profile'])),
             'token' => $token,
         ], 201);

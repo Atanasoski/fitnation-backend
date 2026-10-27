@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Gym Signups skip email verification
 
 Every registration carries a `partner_id`, and a partner subdomain's whole job is to funnel the gym's customers into the mobile app; a blocking verify-email step in the middle of that funnel cost signups. We decided that `POST /api/register` marks the user verified at creation (`email_verified_at = now()`, set before the `Registered` event fires, which also suppresses the verification mail) for every partner **except** the House Partner (`Partner::isHouse()`). House Partner signups — people joining without a gym vouching for them — keep the full verification flow.

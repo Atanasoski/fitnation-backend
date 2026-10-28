@@ -42,6 +42,9 @@ Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'
 // Public QR station pages (ADR-0005): anonymous scanners on gym floors.
 Route::get('/public/stations/{code}', [PublicStationController::class, 'show'])
     ->middleware('throttle:60,1');
+Route::get('/public/stations/{code}/exercises/{exerciseId}', [PublicStationController::class, 'showExercise'])
+    ->whereNumber('exerciseId')
+    ->middleware('throttle:60,1');
 
 // Public webhooks (signature-verified)
 Route::webhooks('webhooks/revenuecat', 'revenuecat')

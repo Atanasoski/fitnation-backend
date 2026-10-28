@@ -45,6 +45,10 @@ Route::get('/public/stations/{code}', [PublicStationController::class, 'show'])
 Route::get('/public/stations/{code}/exercises/{exerciseId}', [PublicStationController::class, 'showExercise'])
     ->whereNumber('exerciseId')
     ->middleware('throttle:60,1');
+// Event recording is throttled above the reads: one page visit can emit a
+// scan, an exercise open and a CTA click in quick succession.
+Route::post('/public/stations/{code}/events', [PublicStationController::class, 'recordEvent'])
+    ->middleware('throttle:120,1');
 
 // Public webhooks (signature-verified)
 Route::webhooks('webhooks/revenuecat', 'revenuecat')

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -72,5 +73,13 @@ class Station extends Model
             ->withPivot('display_order')
             ->withTimestamps()
             ->orderBy('station_exercise.display_order');
+    }
+
+    /**
+     * Anonymous analytics events recorded against this station's public page.
+     */
+    public function events(): HasMany
+    {
+        return $this->hasMany(StationEvent::class);
     }
 }

@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\PublicStationExerciseResource;
 use App\Http\Resources\Api\PublicStationResource;
 use App\Models\Station;
+use App\Models\StationEvent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 
 /**
  * The public, unauthenticated side of a Station: what a QR scan resolves to.
@@ -78,6 +82,43 @@ class PublicStationController extends Controller
             ]])
             ->response()
             ->header('Cache-Control', 'public, max-age=300');
+    }
+
+    /**
+     * Records one anonymous analytics event (a Scan, an exercise open, or a
+     * CTA click) with the app benefit that was shown. Fire-and-forget from
+     * the page's point of view: the response carries no body.
+     */
+    public function recordEvent(Request $request, string $code): JsonResponse|Response
+    {
+        $station = $this->liveStation($code);
+
+        if ($station instanceof JsonResponse) {
+            return $station;
+        }
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', Rule::in(StationEvent::TYPES)],
+            'exercise_id' => ['nullable', 'integer'],
+            'benefit' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $exerciseId = $validated['exercise_id'] ?? null;
+
+        if ($exerciseId !== null && ! $station->exercises()->whereKey($exerciseId)->exists()) {
+            return response()->json([
+                'status' => 'not_found',
+                'message' => 'This exercise is not available at this station.',
+            ], 404);
+        }
+
+        $station->events()->create([
+            'type' => $validated['type'],
+            'exercise_id' => $exerciseId,
+            'benefit' => $validated['benefit'] ?? null,
+        ]);
+
+        return response()->noContent();
     }
 
     /**

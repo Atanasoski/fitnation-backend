@@ -24,6 +24,8 @@ class Exercise extends Model
         'angle_id',
         'name',
         'description',
+        'instructions',
+        'common_mistakes',
         'muscle_group_image',
         'image',
         'video',
@@ -37,6 +39,8 @@ class Exercise extends Model
         return [
             'difficulty' => ExerciseDifficulty::class,
             'archived_at' => 'datetime',
+            'instructions' => 'array',
+            'common_mistakes' => 'array',
         ];
     }
 

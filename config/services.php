@@ -44,9 +44,9 @@ return [
     ],
 
     'google' => [
-        'client_id'          => env('GOOGLE_WEB_CLIENT_ID'),
-        'ios_client_id'      => env('GOOGLE_IOS_CLIENT_ID'),
-        'android_client_id'  => env('GOOGLE_ANDROID_CLIENT_ID'),
+        'client_id' => env('GOOGLE_WEB_CLIENT_ID'),
+        'ios_client_id' => env('GOOGLE_IOS_CLIENT_ID'),
+        'android_client_id' => env('GOOGLE_ANDROID_CLIENT_ID'),
     ],
 
     'revenuecat' => [
@@ -56,8 +56,15 @@ return [
         'base_url' => 'https://api.revenuecat.com/v1',
     ],
 
+    'anthropic' => [
+        // Used by `php artisan exercises:backfill-guidance` (AnthropicGuidanceGenerator).
+        'key' => env('ANTHROPIC_API_KEY'),
+        'base_url' => 'https://api.anthropic.com/v1',
+        'guidance_model' => 'claude-sonnet-5-5',
+    ],
+
     'apple' => [
-        'bundle_id'  => env('APPLE_BUNDLE_ID', 'com.fitnation.app'),
+        'bundle_id' => env('APPLE_BUNDLE_ID', 'com.fitnation.app'),
         'service_id' => env('APPLE_SERVICE_ID'), // web Service ID, e.g. com.fitnation.app.web
     ],
 

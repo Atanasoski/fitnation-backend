@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\PartnerOverrideController;
 use App\Http\Controllers\Admin\SearchController;
+use App\Http\Controllers\Admin\StationController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserActionController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -51,6 +52,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/partners', [AdminPartnerController::class, 'index'])->name('admin.partners.index');
         Route::get('/partners/{partner}', [AdminPartnerController::class, 'show'])->name('admin.partners.show');
         Route::patch('/partners/{partner}/active', [AdminPartnerController::class, 'updateActive'])->name('admin.partners.active.update');
+
+        // A partner's Stations: QR-stickered spots on its gym floor (ADR-0005).
+        // Soft delete only; the short code is never editable.
+        Route::get('/partners/{partner}/stations/create', [StationController::class, 'create'])->name('admin.stations.create');
+        Route::post('/partners/{partner}/stations', [StationController::class, 'store'])->name('admin.stations.store');
+        Route::get('/partners/{partner}/stations/{station}/edit', [StationController::class, 'edit'])->scopeBindings()->name('admin.stations.edit');
+        Route::put('/partners/{partner}/stations/{station}', [StationController::class, 'update'])->scopeBindings()->name('admin.stations.update');
+        Route::delete('/partners/{partner}/stations/{station}', [StationController::class, 'destroy'])->scopeBindings()->name('admin.stations.destroy');
+        Route::get('/partners/{partner}/stations/{station}/qr.{format}', [StationController::class, 'qr'])->scopeBindings()->whereIn('format', ['svg', 'png'])->name('admin.stations.qr');
         Route::get('/search', SearchController::class)->name('admin.search');
         Route::get('/insights', [InsightsController::class, 'training'])->name('admin.insights');
         Route::get('/insights/revenue', [InsightsController::class, 'revenue'])->name('admin.insights.revenue');

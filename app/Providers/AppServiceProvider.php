@@ -18,7 +18,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // The AI guidance backfill's seam: tests swap the generator here.
+        $this->app->bind(
+            \App\Services\Guidance\GuidanceGenerator::class,
+            \App\Services\Guidance\AnthropicGuidanceGenerator::class,
+        );
     }
 
     /**

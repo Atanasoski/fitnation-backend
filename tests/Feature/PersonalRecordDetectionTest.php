@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
 use App\Models\Partner;
@@ -199,13 +200,10 @@ class PersonalRecordDetectionTest extends TestCase
     }
 
     /**
-     * Weights keep their fraction. They are in Canonical Units — kilograms —
-     * and nothing converts them on the way out, so an imperial user reads this
-     * number as if it were pounds. That contradicts ADR-0001 and is left
-     * exactly as it was: locked here rather than fixed, so the extraction stays
-     * behaviour-preserving and the fix is a decision of its own.
+     * Weights keep their fraction. Records are detected in Canonical Units —
+     * kilograms — and a metric user reads them as they are.
      */
-    public function test_a_fractional_weight_survives_unconverted(): void
+    public function test_a_fractional_weight_survives_for_a_metric_user(): void
     {
         $bench = $this->exercise('Bench Press');
         $this->history($bench, 100.0, 12);
@@ -216,6 +214,33 @@ class PersonalRecordDetectionTest extends TestCase
         $this->assertRecords([
             ['exercise_id' => $bench->id, 'exercise_name' => 'Bench Press', 'pr_type' => 'weight', 'previous_best' => 100.0, 'new_best' => 102.5],
         ], $session);
+    }
+
+    /**
+     * An imperial user's weight records go out in pounds, formatted the way
+     * their logged sets are (ADR-0001), while the module still detects in
+     * kilograms. A reps record is a count and is the same in both. This used
+     * to go out unconverted: a 140 lbs set came back as a "63.5 lbs" record.
+     */
+    public function test_an_imperial_users_weight_record_goes_out_in_pounds(): void
+    {
+        $this->user->profile->update(['unit_system' => UnitSystem::Imperial]);
+        $bench = $this->exercise('Incline Bench Press');
+        $this->history($bench, 61.2, 12);
+
+        $session = $this->activeSession();
+        $this->logSet($session, $bench, 1, 63.5, 13);
+
+        $this->assertSame([
+            ['exercise_id' => $bench->id, 'exercise_name' => 'Incline Bench Press', 'pr_type' => 'weight', 'previous_best' => 61.2, 'new_best' => 63.5],
+            ['exercise_id' => $bench->id, 'exercise_name' => 'Incline Bench Press', 'pr_type' => 'reps', 'previous_best' => 12, 'new_best' => 13],
+        ], $this->detect($session), 'The module detected different records.');
+
+        // 61.2 kg -> 134.9 lbs and 63.5 kg -> 139.99 lbs, at the 5 lb training-weight step.
+        $this->assertSame([
+            ['exercise_id' => $bench->id, 'exercise_name' => 'Incline Bench Press', 'pr_type' => 'weight', 'previous_best' => 135, 'new_best' => 140],
+            ['exercise_id' => $bench->id, 'exercise_name' => 'Incline Bench Press', 'pr_type' => 'reps', 'previous_best' => 12, 'new_best' => 13],
+        ], $this->complete($session));
     }
 
     /**

@@ -20,6 +20,7 @@ class MovementPatternSeeder extends Seeder
             ['code' => 'FLY', 'name' => 'Fly / Adduction', 'display_order' => 20],
             ['code' => 'DIP', 'name' => 'Dip', 'display_order' => 30],
             ['code' => 'PUSHUP', 'name' => 'Push-up', 'display_order' => 40],
+            ['code' => 'SHOULDER_RAISE', 'name' => 'Shoulder Raise', 'display_order' => 50],
 
             // Upper Pull
             ['code' => 'ROW', 'name' => 'Row', 'display_order' => 110],

@@ -4,7 +4,9 @@ namespace Tests\Feature\Api;
 
 use App\Models\Partner;
 use App\Models\User;
+use App\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AuthControllerTest extends TestCase
@@ -32,6 +34,41 @@ class AuthControllerTest extends TestCase
             'email' => 'newuser@example.com',
             'partner_id' => $partner->id,
         ]);
+    }
+
+    public function test_gym_signup_is_auto_verified_and_gets_no_verification_email(): void
+    {
+        Notification::fake();
+        $house = Partner::factory()->create(['name' => 'Fit Nation']);
+        config(['partners.house_partner_id' => $house->id]);
+        $gym = Partner::factory()->create(['name' => 'City Gym']);
+
+        $this->postJson('/api/register', [
+            'email' => 'member@example.com',
+            'password' => 'password123',
+            'partner_id' => $gym->id,
+        ])->assertCreated();
+
+        $user = User::where('email', 'member@example.com')->firstOrFail();
+        $this->assertNotNull($user->email_verified_at);
+        Notification::assertNotSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_house_signup_still_requires_email_verification(): void
+    {
+        Notification::fake();
+        $house = Partner::factory()->create(['name' => 'Fit Nation']);
+        config(['partners.house_partner_id' => $house->id]);
+
+        $this->postJson('/api/register', [
+            'email' => 'solo@example.com',
+            'password' => 'password123',
+            'partner_id' => $house->id,
+        ])->assertCreated();
+
+        $user = User::where('email', 'solo@example.com')->firstOrFail();
+        $this->assertNull($user->email_verified_at);
+        Notification::assertSentTo($user, VerifyEmail::class);
     }
 
     public function test_registration_requires_email_password_and_partner(): void

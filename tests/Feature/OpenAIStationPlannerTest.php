@@ -70,7 +70,26 @@ class OpenAIStationPlannerTest extends TestCase
         app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
     }
 
-    public function test_rejects_an_exercise_on_two_stations(): void
+    public function test_an_exercise_proposed_on_two_stations_stays_on_the_first(): void
+    {
+        $partner = Partner::factory()->create();
+        [$shared, $other] = Exercise::factory()->count(2)->create();
+
+        Http::fake(['api.openai.com/*' => Http::response($this->apiAnswer([
+            'stations' => [
+                ['name' => 'Bench A', 'exercise_ids' => [$shared->id]],
+                ['name' => 'Bench B', 'exercise_ids' => [$shared->id, $other->id]],
+            ],
+        ]))]);
+
+        $plan = app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+
+        $this->assertCount(2, $plan);
+        $this->assertSame([$shared->id], $plan[0]->exerciseIds);
+        $this->assertSame([$other->id], $plan[1]->exerciseIds);
+    }
+
+    public function test_a_station_left_empty_by_deduplication_is_dropped(): void
     {
         $partner = Partner::factory()->create();
         $exercise = Exercise::factory()->create();
@@ -82,10 +101,10 @@ class OpenAIStationPlannerTest extends TestCase
             ],
         ]))]);
 
-        $this->expectException(StationPlanningFailed::class);
-        $this->expectExceptionMessage('more than one');
+        $plan = app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
 
-        app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+        $this->assertCount(1, $plan);
+        $this->assertSame('Bench A', $plan[0]->name);
     }
 
     public function test_rejects_an_empty_or_malformed_plan(): void

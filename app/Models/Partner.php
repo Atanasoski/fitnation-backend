@@ -159,6 +159,14 @@ class Partner extends Model
     }
 
     /**
+     * The partner's Stations: curated spots on its gym floor (see GLOSSARY).
+     */
+    public function stations(): HasMany
+    {
+        return $this->hasMany(Station::class);
+    }
+
+    /**
      * Sync every available exercise to this partner (Archived Exercises are left out).
      * This creates pivot rows with null override values, which will fall back to exercise defaults.
      */

@@ -80,6 +80,8 @@
             </section>
         </div>
 
+        @include('admin.partners._stations', ['partner' => $partner, 'stations' => $stations])
+
         <section class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
             <h2 class="font-display text-sm font-semibold text-gray-900 dark:text-white">Members</h2>
             @if ($members->isEmpty())

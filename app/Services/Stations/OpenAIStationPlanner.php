@@ -117,11 +117,17 @@ PROMPT;
                 if (! is_int($id) || ! isset($allowed[$id])) {
                     throw new StationPlanningFailed("Proposed station \"{$name}\" references an exercise id that was not offered: ".var_export($id, true));
                 }
+                // The model sometimes repeats an exercise on a second station
+                // despite the prompt; the first station keeps it.
                 if (isset($seen[$id])) {
-                    throw new StationPlanningFailed("Exercise id {$id} appears on more than one proposed station.");
+                    continue;
                 }
                 $seen[$id] = true;
                 $cleanIds[] = $id;
+            }
+
+            if ($cleanIds === []) {
+                continue;
             }
 
             $proposals[] = new ProposedStation(trim($name), $cleanIds);

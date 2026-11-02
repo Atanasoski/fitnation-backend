@@ -60,6 +60,7 @@ class PartnerController extends Controller
                 ->whereHas('roles', fn (Builder $roles) => $roles->where('slug', 'partner_admin'))
                 ->orderBy('name')
                 ->get(),
+            'stations' => $partner->stations()->withCount('exercises')->orderBy('name')->get(),
             'lightBranding' => ColorHelper::processPartnerColors($partner->identity),
             'darkBranding' => collect(ColorHelper::getDarkColorPalette($partner->identity))->pluck('value', 'name')->all(),
         ]);

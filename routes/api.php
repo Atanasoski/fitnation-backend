@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PublicStationController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\UserController;
@@ -37,6 +38,17 @@ Route::get('/partners', [PartnerController::class, 'activeList'])
 
 Route::get('/partners/{partner}/branding', [PartnerController::class, 'branding'])
     ->middleware('throttle:6,1');
+
+// Public QR station pages (ADR-0005): anonymous scanners on gym floors.
+Route::get('/public/stations/{code}', [PublicStationController::class, 'show'])
+    ->middleware('throttle:60,1');
+Route::get('/public/stations/{code}/exercises/{exerciseId}', [PublicStationController::class, 'showExercise'])
+    ->whereNumber('exerciseId')
+    ->middleware('throttle:60,1');
+// Event recording is throttled above the reads: one page visit can emit a
+// scan, an exercise open and a CTA click in quick succession.
+Route::post('/public/stations/{code}/events', [PublicStationController::class, 'recordEvent'])
+    ->middleware('throttle:120,1');
 
 // Public webhooks (signature-verified)
 Route::webhooks('webhooks/revenuecat', 'revenuecat')

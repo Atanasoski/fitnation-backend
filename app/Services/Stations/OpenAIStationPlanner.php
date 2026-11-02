@@ -25,6 +25,8 @@ You get a JSON list of the gym's exercises (id, name, equipment, primary muscles
 - Exercises sharing one physical machine belong on the same station; order them most-common-first.
 - Every station name is short and floor-recognisable (what a member would call the machine).
 - Use each exercise id at most once, and only ids from the given list. Leave an exercise out if it fits no sensible station.
+- Every station MUST have a name and at least one exercise id. Never emit a station with an empty exercise_ids list — omit it entirely instead.
+- exercise_ids are JSON numbers, never strings.
 
 Return ONLY a valid JSON object, no markdown, no commentary:
 
@@ -97,11 +99,21 @@ PROMPT;
             $name = is_array($station) ? ($station['name'] ?? null) : null;
             $ids = is_array($station) ? ($station['exercise_ids'] ?? null) : null;
 
+            // The model sometimes pads a long plan with a nameless or empty
+            // station despite the prompt; the exercises it holds (if any) stay
+            // unstationed and a re-run picks them up, so skip it rather than
+            // rejecting the whole plan.
             if (! is_string($name) || trim($name) === '' || ! is_array($ids) || $ids === [] || ! array_is_list($ids)) {
-                throw new StationPlanningFailed('A proposed station is missing a name or a non-empty exercise_ids list.');
+                continue;
             }
 
+            $cleanIds = [];
+
             foreach ($ids as $id) {
+                if (is_string($id) && ctype_digit($id)) {
+                    $id = (int) $id;
+                }
+
                 if (! is_int($id) || ! isset($allowed[$id])) {
                     throw new StationPlanningFailed("Proposed station \"{$name}\" references an exercise id that was not offered: ".var_export($id, true));
                 }
@@ -109,13 +121,14 @@ PROMPT;
                     throw new StationPlanningFailed("Exercise id {$id} appears on more than one proposed station.");
                 }
                 $seen[$id] = true;
+                $cleanIds[] = $id;
             }
 
-            $proposals[] = new ProposedStation(trim($name), array_values($ids));
+            $proposals[] = new ProposedStation(trim($name), $cleanIds);
         }
 
         if ($proposals === []) {
-            throw new StationPlanningFailed('OpenAI proposed no stations at all.');
+            throw new StationPlanningFailed('OpenAI proposed no usable stations at all.');
         }
 
         return $proposals;

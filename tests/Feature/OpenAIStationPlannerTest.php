@@ -96,9 +96,59 @@ class OpenAIStationPlannerTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response($this->apiAnswer(['stations' => []]))]);
 
         $this->expectException(StationPlanningFailed::class);
-        $this->expectExceptionMessage('no stations');
+        $this->expectExceptionMessage('no usable stations');
 
         app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+    }
+
+    public function test_skips_a_nameless_or_empty_station_instead_of_failing_the_plan(): void
+    {
+        $partner = Partner::factory()->create();
+        $exercise = Exercise::factory()->create();
+
+        Http::fake(['api.openai.com/*' => Http::response($this->apiAnswer([
+            'stations' => [
+                ['name' => 'Leg Press', 'exercise_ids' => []],
+                ['name' => null, 'exercise_ids' => [$exercise->id]],
+                ['exercise_ids' => [$exercise->id]],
+                ['name' => 'Cable Station', 'exercise_ids' => [$exercise->id]],
+            ],
+        ]))]);
+
+        $plan = app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+
+        $this->assertCount(1, $plan);
+        $this->assertSame('Cable Station', $plan[0]->name);
+        $this->assertSame([$exercise->id], $plan[0]->exerciseIds);
+    }
+
+    public function test_rejects_a_plan_where_every_station_is_malformed(): void
+    {
+        $partner = Partner::factory()->create();
+        Exercise::factory()->create();
+
+        Http::fake(['api.openai.com/*' => Http::response($this->apiAnswer([
+            'stations' => [['name' => 'Leg Press', 'exercise_ids' => []]],
+        ]))]);
+
+        $this->expectException(StationPlanningFailed::class);
+        $this->expectExceptionMessage('no usable stations');
+
+        app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+    }
+
+    public function test_accepts_exercise_ids_sent_as_numeric_strings(): void
+    {
+        $partner = Partner::factory()->create();
+        $exercise = Exercise::factory()->create();
+
+        Http::fake(['api.openai.com/*' => Http::response($this->apiAnswer([
+            'stations' => [['name' => 'Bench', 'exercise_ids' => [(string) $exercise->id]]],
+        ]))]);
+
+        $plan = app(OpenAIStationPlanner::class)->plan($partner, Exercise::query()->get());
+
+        $this->assertSame([$exercise->id], $plan[0]->exerciseIds);
     }
 
     public function test_refuses_to_run_without_an_api_key(): void

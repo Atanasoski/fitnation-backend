@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\StationController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserActionController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\UserSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\LandingPageController;
@@ -42,6 +43,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [OverviewController::class, 'index'])->name('admin.overview');
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
         Route::get('/users/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->withTrashed()->name('admin.users.show');
+        Route::get('/users/{user}/sessions', [UserSessionController::class, 'index'])->whereNumber('user')->withTrashed()->name('admin.users.sessions.index');
+        Route::get('/users/{user}/sessions/{workoutSession}', [UserSessionController::class, 'show'])->whereNumber('user')->whereNumber('workoutSession')->withTrashed()->scopeBindings()->name('admin.users.sessions.show');
+        Route::post('/users/{user}/sessions/{workoutSession}/cancel', [UserSessionController::class, 'cancel'])->whereNumber('user')->whereNumber('workoutSession')->withTrashed()->scopeBindings()->name('admin.users.sessions.cancel');
         Route::post('/users/{user}/complimentary-access', [UserActionController::class, 'grantComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.store');
         Route::delete('/users/{user}/complimentary-access', [UserActionController::class, 'endComplimentaryAccess'])->whereNumber('user')->name('admin.users.complimentary-access.destroy');
         Route::delete('/users/{user}/signup-trial', [UserActionController::class, 'endSignupTrial'])->whereNumber('user')->name('admin.users.signup-trial.destroy');

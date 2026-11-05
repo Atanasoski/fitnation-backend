@@ -5,13 +5,15 @@ namespace App\Enums;
 /**
  * What a super admin changes about a user by hand, each written to the admin
  * change record (App\Models\AdminChange): Complimentary Access (grant,
- * extend, end), an early end of a Signup Trial, or a partner change.
+ * extend, end), an early end of a Signup Trial, a partner change, or a
+ * cancelled Stuck Session.
  */
 enum AdminChangeKind: string
 {
     case ComplimentaryAccess = 'complimentary_access';
     case SignupTrial = 'signup_trial';
     case PartnerChange = 'partner_change';
+    case SessionCancel = 'session_cancel';
 
     public function label(): string
     {
@@ -19,15 +21,16 @@ enum AdminChangeKind: string
             self::ComplimentaryAccess => 'Complimentary Access',
             self::SignupTrial => 'Signup Trial',
             self::PartnerChange => 'Partner change',
+            self::SessionCancel => 'Session cancelled',
         };
     }
 
     /**
      * Whether the change is to Free Access, recorded with an until-date
-     * (null: ended now) rather than a from → to partner.
+     * (null: ended now) rather than a from → to partner or a session.
      */
     public function isAccessChange(): bool
     {
-        return $this !== self::PartnerChange;
+        return $this === self::ComplimentaryAccess || $this === self::SignupTrial;
     }
 }

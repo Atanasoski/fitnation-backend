@@ -4,9 +4,11 @@ namespace App\Services\Admin;
 
 use App\Enums\AdminChangeKind;
 use App\Enums\FreeAccessKind;
+use App\Enums\WorkoutSessionStatus;
 use App\Models\AdminChange;
 use App\Models\Partner;
 use App\Models\User;
+use App\Models\WorkoutSession;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +16,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * What a super admin changes about a user by hand: Complimentary Access
  * (grant, extend, end now), ending a Signup Trial early, the user's partner,
- * and deactivating or restoring the account. Access and partner changes
- * write the user and an admin change record together, so the "Grants &
- * partner changes" history can never miss one.
+ * cancelling a Stuck Session, and deactivating or restoring the account.
+ * Each change writes the user and an admin change record together, so the
+ * "Admin changes" history can never miss one.
  *
  * Validation (a future date, a reason, an active target partner) belongs to
  * the HTTP request; this module only applies a change it is given.
@@ -68,6 +70,23 @@ final class UserChanges
             return self::record($user, $admin, AdminChangeKind::PartnerChange, $reason, [
                 'from_partner_id' => $from,
                 'to_partner_id' => $to->getKey(),
+            ]);
+        });
+    }
+
+    /**
+     * Cancel a Stuck Session: the same transition as the athlete's own cancel
+     * (status → cancelled, set logs kept, completed_at untouched), recorded
+     * with the session it cancelled. Whether the session is actually stuck is
+     * the HTTP request's check, like all validation here.
+     */
+    public static function cancelStuckSession(User $user, WorkoutSession $session, ?string $reason, User $admin): AdminChange
+    {
+        return DB::transaction(function () use ($user, $session, $reason, $admin) {
+            $session->update(['status' => WorkoutSessionStatus::Cancelled]);
+
+            return self::record($user, $admin, AdminChangeKind::SessionCancel, $reason, [
+                'workout_session_id' => $session->getKey(),
             ]);
         });
     }

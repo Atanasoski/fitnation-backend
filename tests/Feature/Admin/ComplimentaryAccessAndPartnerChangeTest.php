@@ -40,7 +40,7 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
             ->get("/admin/users/{$member->id}")
             ->assertSeeInOrder([
                 'Access Source', 'Complimentary', 'Complimentary until 1 Dec 2026 · granted by Grace Hopper',
-                'Grants &amp; partner changes', 'Complimentary Access', 'by Grace Hopper', '5 Oct 2026', 'until 1 Dec 2026', 'Stuck at the paywall',
+                'Admin changes', 'Complimentary Access', 'by Grace Hopper', '5 Oct 2026', 'until 1 Dec 2026', 'Stuck at the paywall',
             ], escape: false);
     }
 
@@ -86,7 +86,7 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
 
         $this->actingAs($admin)
             ->get("/admin/users/{$member->id}")
-            ->assertSeeInOrder(['Complimentary until 31 Jan 2027', 'Grants', 'until 31 Jan 2027', 'Extended', 'until 20 Oct 2026', 'First']);
+            ->assertSeeInOrder(['Complimentary until 31 Jan 2027', 'Admin changes', 'until 31 Jan 2027', 'Extended', 'until 20 Oct 2026', 'First']);
     }
 
     public function test_a_grant_over_a_running_signup_trial_becomes_complimentary(): void
@@ -149,7 +149,7 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
 
         $this->actingAs($admin)
             ->get("/admin/users/{$member->id}")
-            ->assertSeeInOrder(['Access Source', 'None', 'Grants', 'Complimentary Access', 'by Grace Hopper', 'ended', 'Paid after all']);
+            ->assertSeeInOrder(['Access Source', 'None', 'Admin changes', 'Complimentary Access', 'by Grace Hopper', 'ended', 'Paid after all']);
     }
 
     public function test_an_admin_ends_a_running_signup_trial_now(): void
@@ -175,7 +175,7 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
             ->assertJsonPath('user.subscription.grace_period_ends_at', null);
         $this->actingAs($admin)
             ->get("/admin/users/{$member->id}")
-            ->assertSeeInOrder(['Access Source', 'None', 'Grants', 'Signup Trial', 'by Grace Hopper', 'ended', 'Abusing trials'])
+            ->assertSeeInOrder(['Access Source', 'None', 'Admin changes', 'Signup Trial', 'by Grace Hopper', 'ended', 'Abusing trials'])
             ->assertDontSee('End Signup Trial now');
     }
 
@@ -212,7 +212,7 @@ class ComplimentaryAccessAndPartnerChangeTest extends TestCase
             ->assertSeeInOrder([
                 'Access Source', 'Sponsored', 'Iron Gym pays',
                 'Partner', 'Iron Gym', 'Sponsoring Partner',
-                'Grants', 'Partner change', 'by Grace Hopper', 'Fit Nation → Iron Gym', 'Joined the gym',
+                'Admin changes', 'Partner change', 'by Grace Hopper', 'Fit Nation → Iron Gym', 'Joined the gym',
             ]);
     }
 

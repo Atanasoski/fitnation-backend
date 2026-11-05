@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\EnsuresAppUser;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\User;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class UserActionController extends Controller
 {
+    use EnsuresAppUser;
+
     /**
      * Grant or extend Complimentary Access. The date is a calendar day, and
      * access runs to the end of it.
@@ -134,11 +137,6 @@ class UserActionController extends Controller
         UserChanges::restore($user);
 
         return $this->backToUser($user, "{$user->name} was restored.");
-    }
-
-    private function ensureAppUser(User $user): void
-    {
-        abort_unless(User::query()->appUsers()->withTrashed()->whereKey($user->getKey())->exists(), 404);
     }
 
     private function backToUser(User $user, string $message): RedirectResponse

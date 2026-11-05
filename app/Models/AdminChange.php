@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * One entry in the admin change record: a super admin granted, extended or
- * ended Complimentary Access (`until`; null when ended), or moved the user to
- * another partner (`from_partner_id` → `to_partner_id`), with a reason.
- * Written by App\Services\Admin\UserChanges; shown as "Grants & partner
- * changes" on the user page. Not a general audit log.
+ * ended Complimentary Access (`until`; null when ended), moved the user to
+ * another partner (`from_partner_id` → `to_partner_id`), or cancelled a
+ * Stuck Session (`workout_session_id`), with a reason. Written by
+ * App\Services\Admin\UserChanges; shown as "Admin changes" on the user page.
  */
 class AdminChange extends Model
 {
@@ -22,6 +22,7 @@ class AdminChange extends Model
         'until',
         'from_partner_id',
         'to_partner_id',
+        'workout_session_id',
         'reason',
     ];
 
@@ -55,5 +56,11 @@ class AdminChange extends Model
     public function toPartner(): BelongsTo
     {
         return $this->belongsTo(Partner::class, 'to_partner_id');
+    }
+
+    /** @return BelongsTo<WorkoutSession, $this> */
+    public function workoutSession(): BelongsTo
+    {
+        return $this->belongsTo(WorkoutSession::class);
     }
 }

@@ -61,6 +61,11 @@ trains for a day, so it almost always means the app lost track of the session
 — the athlete left without finishing or cancelling it. In code it is the query
 scope `WorkoutSession::stuck()`.
 
+The remedy is a super admin cancelling it from the session's admin page — the
+same transition as the athlete's own cancel (logged sets are kept), recorded
+as an [Admin Change](#admin-change). Only a Stuck Session may be cancelled
+this way; a session someone is mid-workout on may not.
+
 ## Fitness Metrics
 
 ### Completed Session
@@ -454,9 +459,9 @@ _Avoid_: engagement level, churned, dormant.
 
 A record of something a super admin changed about a user by hand: a grant,
 extension or early end of [Complimentary Access](#complimentary-access), an
-early end of a [Signup Trial](#signup-trial), or a move to another partner.
-It says who, when, what (until, or from → to) and why. The user page lists
-them as "Grants & partner changes". Those three kinds only; it is not a
-general audit log.
+early end of a [Signup Trial](#signup-trial), a move to another partner, or
+a cancelled [Stuck Session](#stuck-session). It says who, when, what (until,
+from → to, or which session) and why. The user page lists them as "Admin
+changes". Only what an admin changed by hand; it is not a general audit log.
 
 _Avoid_: audit log, activity log.

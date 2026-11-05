@@ -104,14 +104,8 @@
                                     <tr class="border-t border-gray-100 dark:border-gray-800">
                                         <td class="whitespace-nowrap py-2 pr-3 text-gray-600 dark:text-gray-400">{{ $session->performed_at?->format('j M Y') ?? '—' }}</td>
                                         <td class="pr-3"><a href="{{ route('admin.users.sessions.show', [$user, $session]) }}" class="font-medium text-brand-600 hover:underline dark:text-brand-400">{{ $session->workoutTemplate?->name ?? 'Session #'.$session->id }}</a></td>
-                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $session->performed_at && $session->completed_at ? (int) $session->performed_at->diffInMinutes($session->completed_at).' min' : '—' }}</td>
-                                        <td class="whitespace-nowrap">
-                                            @if ($session->isStuck())
-                                                <span class="inline-block rounded-full bg-error-50 px-2 py-0.5 text-theme-xs font-medium text-error-700 dark:bg-error-500/15 dark:text-error-400" title="Active since {{ $session->performed_at->format('j M Y H:i') }}">Stuck</span>
-                                            @else
-                                                <span class="inline-block rounded-full px-2 py-0.5 text-theme-xs font-medium {{ $session->status_badge_classes }}">{{ $session->status_label }}</span>
-                                            @endif
-                                        </td>
+                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $session->duration_minutes !== null ? $session->duration_minutes.' min' : '—' }}</td>
+                                        <td class="whitespace-nowrap"><x-admin.session-badge :session="$session" /></td>
                                     </tr>
                                 @endforeach
                             </tbody>

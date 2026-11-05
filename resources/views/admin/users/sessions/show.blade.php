@@ -25,11 +25,7 @@
 
         <div class="flex flex-wrap items-center gap-3">
             <h1 class="font-display text-xl font-semibold text-gray-800 dark:text-white/90">{{ $session->workoutTemplate?->name ?? 'Session #'.$session->id }}</h1>
-            @if ($session->isStuck())
-                <span class="inline-block rounded-full bg-error-50 px-2 py-0.5 text-theme-xs font-medium text-error-700 dark:bg-error-500/15 dark:text-error-400" title="Active since {{ $session->performed_at->format('j M Y H:i') }}">Stuck</span>
-            @else
-                <span class="inline-block rounded-full px-2 py-0.5 text-theme-xs font-medium {{ $session->status_badge_classes }}">{{ $session->status_label }}</span>
-            @endif
+            <x-admin.session-badge :session="$session" />
             @if ($session->is_auto_generated)
                 <span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">Auto-generated</span>
             @endif
@@ -43,7 +39,7 @@
             <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm sm:grid-cols-4">
                 <dt class="text-gray-500 dark:text-gray-400">Started</dt><dd class="text-gray-800 dark:text-white/90">{{ $session->performed_at?->format('j M Y H:i') ?? '—' }}</dd>
                 <dt class="text-gray-500 dark:text-gray-400">Completed</dt><dd class="text-gray-800 dark:text-white/90">{{ $session->completed_at?->format('j M Y H:i') ?? '—' }}</dd>
-                <dt class="text-gray-500 dark:text-gray-400">Duration</dt><dd class="text-gray-800 dark:text-white/90">{{ $session->performed_at && $session->completed_at ? (int) $session->performed_at->diffInMinutes($session->completed_at).' min' : '—' }}</dd>
+                <dt class="text-gray-500 dark:text-gray-400">Duration</dt><dd class="text-gray-800 dark:text-white/90">{{ $session->duration_minutes !== null ? $session->duration_minutes.' min' : '—' }}</dd>
                 <dt class="text-gray-500 dark:text-gray-400">Logged sets</dt><dd class="text-gray-800 dark:text-white/90">{{ $exercises->sum(fn ($exercise) => $exercise['sets']->count()) }}</dd>
             </dl>
             @if ($session->notes)

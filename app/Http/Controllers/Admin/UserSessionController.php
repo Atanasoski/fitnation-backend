@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
+use App\Http\Controllers\Admin\Concerns\DisplaysWeights;
+use App\Http\Controllers\Admin\Concerns\EnsuresAppUser;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
@@ -13,7 +13,6 @@ use App\Services\Admin\UserChanges;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -24,7 +23,8 @@ use Illuminate\View\View;
  */
 class UserSessionController extends Controller
 {
-    use FormatsMeasurements;
+    use DisplaysWeights;
+    use EnsuresAppUser;
 
     public const PER_PAGE = 25;
 
@@ -49,8 +49,27 @@ class UserSessionController extends Controller
         return view('admin.users.sessions.index', [
             'user' => $user,
             'sessions' => $sessions,
-            'filter' => $filter,
+            'filter' => $filter instanceof WorkoutSessionStatus ? $filter->value : $filter,
+            'filterOptions' => $this->filterOptions(),
         ]);
+    }
+
+    /**
+     * The status filter's choices, labelled: In Progress first with Stuck
+     * right after it (a stuck session is the filter's reason to exist), then
+     * the terminal statuses.
+     *
+     * @return array<string, string>
+     */
+    private function filterOptions(): array
+    {
+        return [
+            WorkoutSessionStatus::Active->value => WorkoutSessionStatus::Active->label(),
+            self::STUCK_FILTER => 'Stuck',
+            WorkoutSessionStatus::Completed->value => WorkoutSessionStatus::Completed->label(),
+            WorkoutSessionStatus::Cancelled->value => WorkoutSessionStatus::Cancelled->label(),
+            WorkoutSessionStatus::Draft->value => WorkoutSessionStatus::Draft->label(),
+        ];
     }
 
     /**
@@ -106,9 +125,9 @@ class UserSessionController extends Controller
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
 
         if (! $workoutSession->isStuck()) {
-            throw ValidationException::withMessages([
-                'session' => 'Only a Stuck Session can be cancelled — this one is '.strtolower($workoutSession->status_label).'.',
-            ]);
+            return redirect()
+                ->route('admin.users.sessions.show', [$user, $workoutSession])
+                ->withErrors(['session' => 'Only a Stuck Session can be cancelled — this one is '.strtolower($workoutSession->status_label).'.']);
         }
 
         UserChanges::cancelStuckSession($user, $workoutSession, $data['reason'] ?? null, $request->user());
@@ -116,17 +135,6 @@ class UserSessionController extends Controller
         return redirect()
             ->route('admin.users.sessions.show', [$user, $workoutSession])
             ->with('success', 'Session cancelled.');
-    }
-
-    /**
-     * Same conversion as the user page: shown in the user's own Unit System,
-     * converted at the HTTP boundary (ADR-0001).
-     */
-    private function weight(string|float|null $kg, string $table, string $column, UnitSystem $units): ?string
-    {
-        $value = $this->formatMeasured($kg, $table, $column, $units);
-
-        return $value === null ? null : $value.' '.$units->weightUnit();
     }
 
     private function statusFilter(Request $request): WorkoutSessionStatus|string|null
@@ -138,10 +146,5 @@ class UserSessionController extends Controller
         }
 
         return $status === self::STUCK_FILTER ? $status : WorkoutSessionStatus::tryFrom($status);
-    }
-
-    private function ensureAppUser(User $user): void
-    {
-        abort_unless(User::query()->appUsers()->withTrashed()->whereKey($user->getKey())->exists(), 404);
     }
 }

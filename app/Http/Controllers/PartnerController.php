@@ -82,7 +82,11 @@ class PartnerController extends Controller
             return back()->withInput()->withErrors(['is_active' => Partner::HOUSE_CANNOT_BE_DEACTIVATED]);
         }
 
-        $partner->update($request->only(['name', 'slug', 'domain', 'is_active']));
+        $partner->update($request->only(['name', 'slug', 'domain', 'is_active', 'geo_prompt_enabled', 'benefits']));
+
+        if ($request->gymLocationsSubmitted()) {
+            $partner->syncGymLocations($request->validated('gym_locations', []));
+        }
 
         $identityData = $request->only(config('branding.identity_fields'));
 

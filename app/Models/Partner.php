@@ -64,6 +64,16 @@ class Partner extends Model
     }
 
     /**
+     * Whether a Gym Join may land on this Partner: an active gym with the
+     * Join Prompt enabled. Never the House Partner — accepting it would be
+     * a way back out of a gym, which ADR 0006 rules out.
+     */
+    public function acceptsJoins(): bool
+    {
+        return ! $this->isHouse() && $this->is_active && $this->geo_prompt_enabled;
+    }
+
+    /**
      * House if this is the configured House Partner, Sponsoring if it is an
      * active partner on the sponsor plan (whether or not the sponsorship has
      * run out; who actually sponsors today is isSponsoringMembers()), else

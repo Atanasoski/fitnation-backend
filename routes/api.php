@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
+use App\Http\Controllers\Api\GymJoinController;
 use App\Http\Controllers\Api\MuscleGroupController;
 use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\OnboardingController;
@@ -69,6 +70,12 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // Subscription sync — no subscription required: it is how a user blocked
     // by a late webhook gets their paid access recorded. Throttled per user.
     Route::post('/subscription/sync', [SubscriptionController::class, 'sync'])
+        ->middleware('throttle:10,1');
+
+    // Gym Join — no subscription required: the audience is exactly the
+    // unsubscribed House Partner customers accepting a Join Prompt. One-way
+    // per ADR 0006: House → Partner only, and no leave-gym endpoint exists.
+    Route::post('/me/partner', [GymJoinController::class, 'store'])
         ->middleware('throttle:10,1');
 
     // Onboarding — no subscription required (happens before paywall)

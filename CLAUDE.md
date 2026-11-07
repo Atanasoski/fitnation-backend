@@ -71,3 +71,17 @@ The admin panel must match the marketing site (`front-end/apps/landing_page`):
 - `feat/<description>` → main
 - `fix/<description>` → main
 - Never commit directly to `main`
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `Atanasoski/fitnation-backend`; `docs/issues/` is a frozen archive. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical labels, unrenamed (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

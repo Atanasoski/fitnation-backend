@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\GymLocation;
 use App\Models\Partner;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +23,7 @@ class GymLocationFactory extends Factory
             'label' => fake()->streetName(),
             'latitude' => fake()->latitude(),
             'longitude' => fake()->longitude(),
-            'radius_m' => 150,
+            'radius_m' => GymLocation::DEFAULT_RADIUS_M,
         ];
     }
 }

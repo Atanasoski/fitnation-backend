@@ -84,10 +84,7 @@ class PartnerController extends Controller
 
         $partner->update($request->only(['name', 'slug', 'domain', 'is_active', 'geo_prompt_enabled', 'benefits']));
 
-        // The Join Prompt section always posts its marker, so an admin who
-        // removed every Gym Location row still gets them deleted; older posts
-        // without the section leave the locations alone.
-        if ($request->has('gym_locations') || $request->boolean('gym_locations_submitted')) {
+        if ($request->gymLocationsSubmitted()) {
             $partner->syncGymLocations($request->validated('gym_locations', []));
         }
 

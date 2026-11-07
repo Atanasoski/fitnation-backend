@@ -142,6 +142,23 @@ class PartnerJoinPromptConfigTest extends TestCase
         $this->assertFalse($partner->refresh()->geo_prompt_enabled);
     }
 
+    public function test_blank_benefits_posted_as_an_array_do_not_satisfy_the_enable_gate(): void
+    {
+        $partner = Partner::factory()->create(['slug' => 'iron-temple']);
+
+        $this->actingAs($this->admin())
+            ->put('/partners/iron-temple', $this->form([
+                'geo_prompt_enabled' => '1',
+                'benefits' => ['', '   '],
+                'gym_locations' => [
+                    ['id' => '', 'label' => 'Main floor', 'latitude' => '42.0', 'longitude' => '21.0', 'radius_m' => ''],
+                ],
+            ]))
+            ->assertSessionHasErrors('geo_prompt_enabled');
+
+        $this->assertFalse($partner->refresh()->geo_prompt_enabled);
+    }
+
     public function test_the_join_prompt_can_be_enabled_once_a_location_and_a_benefit_exist(): void
     {
         $partner = Partner::factory()->create(['slug' => 'iron-temple']);

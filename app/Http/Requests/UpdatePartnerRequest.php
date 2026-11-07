@@ -21,18 +21,36 @@ class UpdatePartnerRequest extends FormRequest
 
     /**
      * The admin edits benefits as a one-per-line textarea; validation and
-     * storage both want the array (GLOSSARY: Join Prompt).
+     * storage both want the array (GLOSSARY: Join Prompt). Blank lines — and
+     * blank entries, should a client post the array directly — are dropped, so
+     * they never count towards the "at least one benefit" enable gate.
      */
     protected function prepareForValidation(): void
     {
-        if ($this->has('benefits') && ! is_array($this->input('benefits'))) {
-            $this->merge([
-                'benefits' => array_values(array_filter(array_map(
-                    'trim',
-                    preg_split('/\r\n|\r|\n/', (string) $this->input('benefits')),
-                ), fn (string $line) => $line !== '')),
-            ]);
+        if (! $this->has('benefits')) {
+            return;
         }
+
+        $lines = is_array($this->input('benefits'))
+            ? $this->input('benefits')
+            : preg_split('/\r\n|\r|\n/', (string) $this->input('benefits'));
+
+        $this->merge([
+            'benefits' => array_values(array_filter(
+                array_map(fn ($line) => trim((string) $line), $lines),
+                fn (string $line) => $line !== '',
+            )),
+        ]);
+    }
+
+    /**
+     * Whether this submission carries the form's Join Prompt section. With
+     * every Gym Location row removed only the section's hidden marker is
+     * posted; older posts without the section leave the locations alone.
+     */
+    public function gymLocationsSubmitted(): bool
+    {
+        return $this->has('gym_locations') || $this->boolean('gym_locations_submitted');
     }
 
     /**
@@ -51,7 +69,7 @@ class UpdatePartnerRequest extends FormRequest
             /** @var Partner $partner */
             $partner = $this->route('partner');
 
-            $locations = $this->has('gym_locations') || $this->boolean('gym_locations_submitted')
+            $locations = $this->gymLocationsSubmitted()
                 ? count($this->input('gym_locations', []))
                 : $partner->gymLocations()->count();
             $benefits = $this->has('benefits')

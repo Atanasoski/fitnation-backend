@@ -124,6 +124,102 @@
                 </div>
             </section>
 
+            @if ($partner)
+                {{-- Inline statements only: a block-style php directive (or even
+                     that closing directive's name in a comment) would pair with
+                     the inline one in the Colours loop and break compilation. --}}
+                @php($benefitsText = implode("\n", (array) old('benefits', $partner->benefits ?? [])))
+                @php($locationRows = old('gym_locations', $partner->gymLocations()->orderBy('id')->get()->map(fn ($location) => $location->only(['id', 'label', 'latitude', 'longitude', 'radius_m']))->all()))
+                <section class="{{ $card }} space-y-4" x-data="gymLocationRows({{ count($locationRows) }})">
+                    <div>
+                        <h2 class="font-display text-base font-semibold text-gray-800 dark:text-white/90">Join Prompt</h2>
+                        <p class="text-theme-xs text-gray-500 dark:text-gray-400">What nearby House Partner customers are offered. Enabling needs at least one Gym Location and one benefit.</p>
+                    </div>
+
+                    {{-- With every row removed, only this marker tells the server the section was submitted. --}}
+                    <input type="hidden" name="gym_locations_submitted" value="1" />
+
+                    <div>
+                        <div class="mb-1.5 flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-400">Gym Locations</span>
+                            <button type="button" @click="added.push(next++)" class="rounded-lg border border-brand-300 px-2.5 py-1 text-theme-xs font-medium text-brand-600 hover:bg-brand-500/10 dark:border-brand-800 dark:text-brand-400">Add location</button>
+                        </div>
+                        <div class="space-y-2">
+                            @foreach ($locationRows as $i => $row)
+                                <div data-location-row class="grid items-end gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1fr_7rem_7rem_6rem_auto] dark:border-gray-800">
+                                    <input type="hidden" name="gym_locations[{{ $i }}][id]" value="{{ $row['id'] ?? '' }}" />
+                                    <div>
+                                        <label class="{{ $label }}">Label</label>
+                                        <input type="text" name="gym_locations[{{ $i }}][label]" value="{{ $row['label'] }}" required placeholder="Main entrance" class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Latitude</label>
+                                        <input type="number" step="any" min="-90" max="90" name="gym_locations[{{ $i }}][latitude]" value="{{ $row['latitude'] }}" required class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Longitude</label>
+                                        <input type="number" step="any" min="-180" max="180" name="gym_locations[{{ $i }}][longitude]" value="{{ $row['longitude'] }}" required class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Radius (m)</label>
+                                        <input type="number" min="10" max="100000" name="gym_locations[{{ $i }}][radius_m]" value="{{ $row['radius_m'] }}" placeholder="150" class="{{ $input }}" />
+                                    </div>
+                                    <button type="button" @click="$el.closest('[data-location-row]').remove()" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-600 hover:border-error-300 hover:text-error-500 dark:border-gray-700 dark:text-gray-400">Remove</button>
+                                </div>
+                            @endforeach
+                            <template x-for="key in added" :key="key">
+                                <div data-location-row class="grid items-end gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1fr_7rem_7rem_6rem_auto] dark:border-gray-800">
+                                    <div>
+                                        <label class="{{ $label }}">Label</label>
+                                        <input type="text" :name="`gym_locations[${key}][label]`" required placeholder="Main entrance" class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Latitude</label>
+                                        <input type="number" step="any" min="-90" max="90" :name="`gym_locations[${key}][latitude]`" required class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Longitude</label>
+                                        <input type="number" step="any" min="-180" max="180" :name="`gym_locations[${key}][longitude]`" required class="{{ $input }}" />
+                                    </div>
+                                    <div>
+                                        <label class="{{ $label }}">Radius (m)</label>
+                                        <input type="number" min="10" max="100000" :name="`gym_locations[${key}][radius_m]`" placeholder="150" class="{{ $input }}" />
+                                    </div>
+                                    <button type="button" @click="added = added.filter((k) => k !== key)" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-600 hover:border-error-300 hover:text-error-500 dark:border-gray-700 dark:text-gray-400">Remove</button>
+                                </div>
+                            </template>
+                        </div>
+                        @error('gym_locations') <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p> @enderror
+                        @foreach ($errors->get('gym_locations.*') as $messages)
+                            @foreach ($messages as $message)
+                                <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p>
+                            @endforeach
+                        @endforeach
+                    </div>
+
+                    <div>
+                        <label for="benefits" class="{{ $label }}">Benefits</label>
+                        <textarea id="benefits" name="benefits" rows="4" placeholder="One benefit per line"
+                            class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">{{ $benefitsText }}</textarea>
+                        <p class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">Shown on the Join Prompt, one per line.</p>
+                        @error('benefits') <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p> @enderror
+                        @foreach ($errors->get('benefits.*') as $messages)
+                            @foreach ($messages as $message)
+                                <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p>
+                            @endforeach
+                        @endforeach
+                    </div>
+
+                    <div>
+                        <input type="hidden" name="geo_prompt_enabled" value="0" />
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" name="geo_prompt_enabled" value="1" @checked(old('geo_prompt_enabled', $partner->geo_prompt_enabled)) class="rounded border-gray-300 text-brand-500 dark:border-gray-700" /> Join Prompt enabled
+                        </label>
+                        @error('geo_prompt_enabled') <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p> @enderror
+                    </div>
+                </section>
+            @endif
+
             <div class="flex items-center justify-end gap-2">
                 <span x-show="dirty" x-cloak class="mr-auto rounded-full bg-orange-500/15 px-2 py-0.5 text-theme-xs font-medium text-orange-500">Unsaved changes</span>
                 <a href="{{ $cancelUrl }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Cancel</a>
@@ -165,6 +261,13 @@
 @once
     @push('scripts')
         <script>
+            // Gym Location rows added since the page loaded. Server-rendered
+            // rows use indexes 0..n-1; new rows continue from n so names never
+            // collide. Removing a server row just removes its inputs.
+            function gymLocationRows(next) {
+                return { next, added: [] };
+            }
+
             function partnerForm(initial) {
                 return {
                     f: initial,

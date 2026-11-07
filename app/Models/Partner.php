@@ -24,12 +24,16 @@ class Partner extends Model
         'is_active',
         'plan',
         'plan_expires_at',
+        'geo_prompt_enabled',
+        'benefits',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'geo_prompt_enabled' => 'boolean',
+            'benefits' => 'array',
             'plan' => PartnerPlan::class,
             'plan_expires_at' => 'datetime',
         ];
@@ -164,6 +168,48 @@ class Partner extends Model
     public function stations(): HasMany
     {
         return $this->hasMany(Station::class);
+    }
+
+    /**
+     * The partner's Gym Locations: the points-with-radius where its gyms are
+     * (see GLOSSARY). The Join Prompt only fires inside one of these.
+     */
+    public function gymLocations(): HasMany
+    {
+        return $this->hasMany(GymLocation::class);
+    }
+
+    /**
+     * Make the partner's Gym Locations exactly the given rows: rows with an id
+     * update that location, rows without one are created, and locations the
+     * admin removed from the form are deleted. Ids that don't belong to this
+     * partner are ignored and their rows created fresh.
+     *
+     * @param  array<int, array{id?: int|string|null, label: string, latitude: float|string, longitude: float|string, radius_m?: int|string|null}>  $rows
+     */
+    public function syncGymLocations(array $rows): void
+    {
+        $existing = $this->gymLocations()->get()->keyBy('id');
+        $kept = [];
+
+        foreach ($rows as $row) {
+            $location = $existing->get($row['id'] ?? null);
+            $values = [
+                'label' => $row['label'],
+                'latitude' => $row['latitude'],
+                'longitude' => $row['longitude'],
+                'radius_m' => $row['radius_m'] ?? GymLocation::DEFAULT_RADIUS_M,
+            ];
+
+            if ($location) {
+                $location->update($values);
+                $kept[] = $location->id;
+            } else {
+                $kept[] = $this->gymLocations()->create($values)->id;
+            }
+        }
+
+        $this->gymLocations()->whereNotIn('id', $kept)->delete();
     }
 
     /**

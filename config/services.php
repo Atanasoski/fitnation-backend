@@ -56,11 +56,12 @@ return [
         'base_url' => 'https://api.revenuecat.com/v1',
     ],
 
-    'anthropic' => [
-        // Used by `php artisan exercises:backfill-guidance` (AnthropicGuidanceGenerator).
-        'key' => env('ANTHROPIC_API_KEY'),
-        'base_url' => 'https://api.anthropic.com/v1',
-        'guidance_model' => 'claude-sonnet-5-5',
+    'openai' => [
+        // Used by `exercises:backfill-guidance` and `stations:bootstrap`.
+        // Same OPENAI_API_KEY the nutrition parser uses (config/nutrition.php).
+        'key' => env('OPENAI_API_KEY'),
+        'base_url' => 'https://api.openai.com/v1',
+        'guidance_model' => env('OPENAI_GUIDANCE_MODEL', 'gpt-4.1'),
     ],
 
     'apple' => [

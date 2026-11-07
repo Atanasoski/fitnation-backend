@@ -21,7 +21,13 @@ class AppServiceProvider extends ServiceProvider
         // The AI guidance backfill's seam: tests swap the generator here.
         $this->app->bind(
             \App\Services\Guidance\GuidanceGenerator::class,
-            \App\Services\Guidance\AnthropicGuidanceGenerator::class,
+            \App\Services\Guidance\OpenAIGuidanceGenerator::class,
+        );
+
+        // The AI station bootstrap's seam: tests swap the planner here.
+        $this->app->bind(
+            \App\Services\Stations\StationPlanner::class,
+            \App\Services\Stations\OpenAIStationPlanner::class,
         );
     }
 

@@ -87,7 +87,10 @@
             </section>
 
             <section class="{{ $card }} lg:col-span-2">
-                <h2 class="{{ $heading }}">Recent sessions</h2>
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="{{ $heading }}">Recent sessions</h2>
+                    <a href="{{ route('admin.users.sessions.index', $user) }}" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">View all →</a>
+                </div>
                 @if ($sessions->isEmpty())
                     <p class="{{ $empty }}">No sessions yet.</p>
                 @else
@@ -100,15 +103,9 @@
                                 @foreach ($sessions as $session)
                                     <tr class="border-t border-gray-100 dark:border-gray-800">
                                         <td class="whitespace-nowrap py-2 pr-3 text-gray-600 dark:text-gray-400">{{ $session->performed_at?->format('j M Y') ?? '—' }}</td>
-                                        <td class="pr-3 text-gray-800 dark:text-white/90">{{ $session->workoutTemplate?->name ?? '—' }}</td>
-                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $session->performed_at && $session->completed_at ? (int) $session->performed_at->diffInMinutes($session->completed_at).' min' : '—' }}</td>
-                                        <td class="whitespace-nowrap">
-                                            @if ($session->isStuck())
-                                                <span class="inline-block rounded-full bg-error-50 px-2 py-0.5 text-theme-xs font-medium text-error-700 dark:bg-error-500/15 dark:text-error-400" title="Active since {{ $session->performed_at->format('j M Y H:i') }}">Stuck</span>
-                                            @else
-                                                <span class="inline-block rounded-full px-2 py-0.5 text-theme-xs font-medium {{ $session->status_badge_classes }}">{{ $session->status_label }}</span>
-                                            @endif
-                                        </td>
+                                        <td class="pr-3"><a href="{{ route('admin.users.sessions.show', [$user, $session]) }}" class="font-medium text-brand-600 hover:underline dark:text-brand-400">{{ $session->workoutTemplate?->name ?? 'Session #'.$session->id }}</a></td>
+                                        <td class="whitespace-nowrap pr-3 text-gray-600 dark:text-gray-400">{{ $session->duration_minutes !== null ? $session->duration_minutes.' min' : '—' }}</td>
+                                        <td class="whitespace-nowrap"><x-admin.session-badge :session="$session" /></td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -207,7 +204,7 @@
             </section>
 
             <section class="{{ $card }} lg:col-span-2">
-                <h2 class="{{ $heading }}">Grants &amp; partner changes</h2>
+                <h2 class="{{ $heading }}">Admin changes</h2>
                 @forelse ($history as $change)
                     <div class="mt-3 text-sm">
                         <span class="font-medium text-gray-800 dark:text-white/90">{{ $change->kind->label() }}</span>
@@ -215,6 +212,10 @@
                             · by {{ $change->admin?->name ?? 'a deleted account' }} · {{ $change->created_at->format('j M Y') }}
                             @if ($change->kind->isAccessChange())
                                 · {{ $change->until ? 'until '.$change->until->format('j M Y') : 'ended' }}
+                            @elseif ($change->kind === \App\Enums\AdminChangeKind::SessionCancel)
+                                @if ($change->workout_session_id)
+                                    · <a href="{{ route('admin.users.sessions.show', [$user, $change->workout_session_id]) }}" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Session #{{ $change->workout_session_id }}</a>
+                                @endif
                             @else
                                 · {{ $change->fromPartner?->name ?? 'no partner' }} → {{ $change->toPartner?->name ?? 'a deleted partner' }}
                             @endif

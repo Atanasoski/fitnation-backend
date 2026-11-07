@@ -77,12 +77,17 @@ class WorkoutSession extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        return match ($this->status) {
-            WorkoutSessionStatus::Cancelled => 'Cancelled',
-            WorkoutSessionStatus::Completed => 'Completed',
-            WorkoutSessionStatus::Draft => 'Draft',
-            WorkoutSessionStatus::Active => 'In Progress',
-        };
+        return $this->status->label();
+    }
+
+    /**
+     * Minutes from start to completion; null while either end is missing.
+     */
+    public function getDurationMinutesAttribute(): ?int
+    {
+        return $this->performed_at && $this->completed_at
+            ? (int) $this->performed_at->diffInMinutes($this->completed_at)
+            : null;
     }
 
     /**

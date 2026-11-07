@@ -61,3 +61,9 @@ so both halves apply: the row requests convert through `ConvertsIncomingUnits`
 with the owner's system (`Plan::ownerUnitSystem()`, not the signed-in staff
 member's), and the page converts for display through `MeasuredFields`. Library
 plans have no owner and stay metric.
+
+A third exception (2026-11-05): the super-admin **session pages**
+(`/admin/users/{user}/sessions`) show a session's logged and target weights in
+*that user's* Unit System, for the same support-question reason as the User
+page. Read-only, converting through `MeasuredFields` (the shared
+`DisplaysWeights` concern); nothing on them writes a measurement.

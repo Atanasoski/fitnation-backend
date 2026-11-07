@@ -86,14 +86,14 @@ class BackfillExerciseGuidanceCommandTest extends TestCase
 
         $this->bindGenerator(function (Exercise $exercise) use ($failing) {
             if ($exercise->id === $failing->id) {
-                throw new GuidanceGenerationFailed('Anthropic response was not valid JSON.');
+                throw new GuidanceGenerationFailed('OpenAI response was not valid JSON.');
             }
 
             return new ExerciseGuidance(self::STEPS, self::MISTAKES);
         });
 
         $this->artisan('exercises:backfill-guidance')
-            ->expectsOutputToContain("[{$failing->id}] {$failing->name}: Anthropic response was not valid JSON. — skipped.")
+            ->expectsOutputToContain("[{$failing->id}] {$failing->name}: OpenAI response was not valid JSON. — skipped.")
             ->expectsOutputToContain('Done: 1 filled, 1 failed and skipped.')
             ->assertSuccessful();
 

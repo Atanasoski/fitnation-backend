@@ -7,8 +7,9 @@ use App\Enums\ActivityStatus;
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
+use App\Http\Controllers\Admin\Concerns\DisplaysWeights;
+use App\Http\Controllers\Admin\Concerns\EnsuresAppUser;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\Partner;
 use App\Models\User;
 use App\Services\Access\AccessSources;
@@ -37,7 +38,8 @@ use Illuminate\View\View;
  */
 class UserController extends Controller
 {
-    use FormatsMeasurements;
+    use DisplaysWeights;
+    use EnsuresAppUser;
 
     public const PER_PAGE = 25;
 
@@ -114,7 +116,7 @@ class UserController extends Controller
      */
     public function show(Request $request, User $user): View
     {
-        abort_unless(User::query()->appUsers()->withTrashed()->whereKey($user->getKey())->exists(), 404);
+        $this->ensureAppUser($user);
 
         $user->load(['partner', 'profile']);
         $units = $user->unitSystem();
@@ -165,17 +167,9 @@ class UserController extends Controller
     }
 
     /**
-     * Measurements on the user page are shown in the user's own Unit System,
-     * converted here at the HTTP boundary (ADR-0001), so the admin reads the
-     * same numbers the user sees in the app.
+     * Like weight (DisplaysWeights): the user's own Unit System, converted at
+     * the HTTP boundary (ADR-0001).
      */
-    private function weight(string|float|null $kg, string $table, string $column, UnitSystem $units): ?string
-    {
-        $value = $this->formatMeasured($kg, $table, $column, $units);
-
-        return $value === null ? null : $value.' '.$units->weightUnit();
-    }
-
     private function height(?int $cm, UnitSystem $units): ?string
     {
         $value = $this->formatMeasured($cm, 'user_profiles', 'height', $units);

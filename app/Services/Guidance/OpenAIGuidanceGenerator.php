@@ -7,12 +7,13 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 /**
- * The real GuidanceGenerator: one Anthropic Messages API call per exercise,
- * mirroring the existing HTTP-client pattern (OpenAINutritionParser). The
- * response must be the strict JSON shape below — anything else is rejected
- * as GuidanceGenerationFailed, never half-parsed into the catalogue.
+ * The real GuidanceGenerator: one OpenAI chat completion per exercise,
+ * mirroring the codebase's existing OpenAI pattern (OpenAINutritionParser)
+ * and reusing the same OPENAI_API_KEY. The response must be the strict JSON
+ * shape below — anything else is rejected as GuidanceGenerationFailed, never
+ * half-parsed into the catalogue.
  */
-class AnthropicGuidanceGenerator implements GuidanceGenerator
+class OpenAIGuidanceGenerator implements GuidanceGenerator
 {
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You are a certified strength and conditioning coach writing guidance for a public exercise page that gym-goers read on their phone, mid-workout, standing at the machine.
@@ -40,38 +41,37 @@ PROMPT;
 
     private function call(string $exerciseDescription): string
     {
-        $key = config('services.anthropic.key');
+        $key = config('services.openai.key');
 
         if (empty($key)) {
-            throw new GuidanceGenerationFailed('No Anthropic API key configured (services.anthropic.key / ANTHROPIC_API_KEY).');
+            throw new GuidanceGenerationFailed('No OpenAI API key configured (services.openai.key / OPENAI_API_KEY).');
         }
 
         try {
             $response = Http::withHeaders([
-                'x-api-key' => $key,
-                'anthropic-version' => '2023-06-01',
-                'content-type' => 'application/json',
-            ])->timeout(60)->post(config('services.anthropic.base_url').'/messages', [
-                'model' => config('services.anthropic.guidance_model'),
-                'max_tokens' => 2048,
-                'system' => self::SYSTEM_PROMPT,
+                'Authorization' => 'Bearer '.$key,
+                'Content-Type' => 'application/json',
+            ])->timeout(60)->post(config('services.openai.base_url').'/chat/completions', [
+                'model' => config('services.openai.guidance_model'),
+                'response_format' => ['type' => 'json_object'],
                 'messages' => [
+                    ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
                     ['role' => 'user', 'content' => $exerciseDescription],
                 ],
+                'temperature' => 0.2,
             ]);
         } catch (ConnectionException $e) {
-            throw new GuidanceGenerationFailed("Anthropic API unreachable: {$e->getMessage()}", previous: $e);
+            throw new GuidanceGenerationFailed("OpenAI API unreachable: {$e->getMessage()}", previous: $e);
         }
 
         if (! $response->successful()) {
-            throw new GuidanceGenerationFailed("Anthropic API error (HTTP {$response->status()}): ".$response->body());
+            throw new GuidanceGenerationFailed("OpenAI API error (HTTP {$response->status()}): ".$response->body());
         }
 
-        // The model may emit thinking blocks before the text block.
-        $text = collect($response->json('content', []))->firstWhere('type', 'text')['text'] ?? null;
+        $text = $response->json('choices.0.message.content');
 
         if (! is_string($text) || trim($text) === '') {
-            throw new GuidanceGenerationFailed('Anthropic response contained no text block.');
+            throw new GuidanceGenerationFailed('OpenAI response contained no message content.');
         }
 
         return $text;
@@ -102,7 +102,7 @@ PROMPT;
         $data = json_decode($json, true);
 
         if (! is_array($data)) {
-            throw new GuidanceGenerationFailed('Anthropic response was not valid JSON: '.str($text)->limit(200));
+            throw new GuidanceGenerationFailed('OpenAI response was not valid JSON: '.str($text)->limit(200));
         }
 
         return new ExerciseGuidance(
@@ -120,12 +120,12 @@ PROMPT;
         $value = $data[$key] ?? null;
 
         if (! is_array($value) || $value === [] || ! array_is_list($value)) {
-            throw new GuidanceGenerationFailed("Anthropic response is missing a non-empty \"{$key}\" array.");
+            throw new GuidanceGenerationFailed("OpenAI response is missing a non-empty \"{$key}\" array.");
         }
 
         foreach ($value as $item) {
             if (! is_string($item) || trim($item) === '') {
-                throw new GuidanceGenerationFailed("Anthropic response has a non-string or empty entry in \"{$key}\".");
+                throw new GuidanceGenerationFailed("OpenAI response has a non-string or empty entry in \"{$key}\".");
             }
         }
 

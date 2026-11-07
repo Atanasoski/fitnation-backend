@@ -71,6 +71,12 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     Route::post('/subscription/sync', [SubscriptionController::class, 'sync'])
         ->middleware('throttle:10,1');
 
+    // Nearby Partners for the Join Prompt — no subscription required: the
+    // eligible audience is exactly the House Partner customers WITHOUT one.
+    // Eligibility is decided inside, never trusted to the client (issue #88).
+    Route::get('/partners/nearby', [PartnerController::class, 'nearby'])
+        ->middleware('throttle:30,1');
+
     // Onboarding — no subscription required (happens before paywall)
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);
 

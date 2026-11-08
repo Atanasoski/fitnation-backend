@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
+use App\Http\Controllers\Api\GymJoinController;
 use App\Http\Controllers\Api\JoinPromptDismissalController;
 use App\Http\Controllers\Api\MuscleGroupController;
 use App\Http\Controllers\Api\NotificationSettingsController;
@@ -82,6 +83,12 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // "Not interested" declines forever, "Maybe later" snoozes 24h (issue #89).
     Route::post('/join-prompt/dismissals', [JoinPromptDismissalController::class, 'store'])
         ->middleware('throttle:30,1');
+
+    // Gym Join — no subscription required: the audience is exactly the
+    // unsubscribed House Partner customers accepting a Join Prompt. One-way
+    // per ADR 0006: House → Partner only, and no leave-gym endpoint exists.
+    Route::post('/me/partner', [GymJoinController::class, 'store'])
+        ->middleware('throttle:10,1');
 
     // Onboarding — no subscription required (happens before paywall)
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete']);

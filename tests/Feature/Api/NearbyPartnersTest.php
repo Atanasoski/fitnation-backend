@@ -49,7 +49,10 @@ class NearbyPartnersTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $partner->id)
             ->assertJsonPath('data.0.name', 'Iron Temple')
-            ->assertJsonPath('data.0.benefits', ['Free towel service', 'Sauna access']);
+            ->assertJsonPath('data.0.benefits', ['Free towel service', 'Sauna access'])
+            // Joinable Partners are never the House Partner; the flag is
+            // carried anyway so every partner payload carries is_house (#95).
+            ->assertJsonPath('data.0.is_house', false);
 
         $this->assertIsArray($response->json('data.0.visual_identity'));
         $this->assertArrayHasKey('primary_color', $response->json('data.0.visual_identity'));

@@ -42,4 +42,27 @@ class GymLocation extends Model
     {
         return $this->belongsTo(Partner::class);
     }
+
+    /**
+     * Great-circle distance from this Gym Location to a point, in meters
+     * (Haversine).
+     */
+    public function distanceToMeters(float $latitude, float $longitude): float
+    {
+        $earthRadiusM = 6371000;
+
+        $latDelta = deg2rad($latitude - $this->latitude);
+        $lngDelta = deg2rad($longitude - $this->longitude);
+
+        $a = sin($latDelta / 2) ** 2
+            + cos(deg2rad($this->latitude)) * cos(deg2rad($latitude)) * sin($lngDelta / 2) ** 2;
+
+        return 2 * $earthRadiusM * asin(sqrt($a));
+    }
+
+    /** Whether a point lies inside this Gym Location's radius. */
+    public function covers(float $latitude, float $longitude): bool
+    {
+        return $this->distanceToMeters($latitude, $longitude) <= $this->radius_m;
+    }
 }

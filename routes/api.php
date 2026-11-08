@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\ExerciseClassificationController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\FitnessMetricsController;
+use App\Http\Controllers\Api\JoinPromptDismissalController;
 use App\Http\Controllers\Api\MuscleGroupController;
 use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\OnboardingController;
@@ -75,6 +76,11 @@ Route::middleware('auth:sanctum')->name('api.')->group(function () {
     // eligible audience is exactly the House Partner customers WITHOUT one.
     // Eligibility is decided inside, never trusted to the client (issue #88).
     Route::get('/partners/nearby', [PartnerController::class, 'nearby'])
+        ->middleware('throttle:30,1');
+
+    // Join Prompt dismissals — no subscription required for the same reason:
+    // "Not interested" declines forever, "Maybe later" snoozes 24h (issue #89).
+    Route::post('/join-prompt/dismissals', [JoinPromptDismissalController::class, 'store'])
         ->middleware('throttle:30,1');
 
     // Onboarding — no subscription required (happens before paywall)

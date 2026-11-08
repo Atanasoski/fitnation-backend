@@ -63,7 +63,12 @@ class PartnerController extends Controller
         $partners = GymLocation::query()
             ->whereHas('partner', fn ($query) => $query
                 ->where('is_active', true)
-                ->where('geo_prompt_enabled', true))
+                ->where('geo_prompt_enabled', true)
+                // Dismissed Partners don't come back (issue #89): a decline
+                // silences the Join Prompt forever, a snooze until it expires.
+                ->whereDoesntHave('joinPromptDismissals', fn ($dismissals) => $dismissals
+                    ->where('user_id', $user->id)
+                    ->silencing()))
             ->with('partner.identity')
             ->get()
             ->filter(fn (GymLocation $location) => $location->covers($latitude, $longitude))

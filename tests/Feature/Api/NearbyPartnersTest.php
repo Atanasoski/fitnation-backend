@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api;
 
 use App\Models\GymLocation;
+use App\Models\JoinPromptDismissal;
 use App\Models\Partner;
 use App\Models\PartnerIdentity;
 use App\Models\Role;
@@ -265,6 +266,79 @@ class NearbyPartnersTest extends TestCase
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.name', 'Near Gym')
             ->assertJsonPath('data.1.name', 'Far Gym');
+    }
+
+    public function test_a_declined_partner_never_appears_again(): void
+    {
+        $partner = $this->joinablePartner();
+        GymLocation::factory()->for($partner)->create([
+            'latitude' => self::LAT,
+            'longitude' => self::LNG,
+        ]);
+
+        $customer = $this->eligibleCustomer();
+        JoinPromptDismissal::factory()->declined()->for($customer)->for($partner)->create();
+
+        $this->actingAs($customer, 'sanctum')
+            ->getJson($this->url(self::LAT, self::LNG))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        // Still gone long after any snooze would have expired.
+        $this->travel(30)->days();
+
+        $this->actingAs($customer, 'sanctum')
+            ->getJson($this->url(self::LAT, self::LNG))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_a_snoozed_partner_is_hidden_until_the_snooze_expires(): void
+    {
+        $partner = $this->joinablePartner();
+        GymLocation::factory()->for($partner)->create([
+            'latitude' => self::LAT,
+            'longitude' => self::LNG,
+        ]);
+
+        $customer = $this->eligibleCustomer();
+        JoinPromptDismissal::factory()->snoozed()->for($customer)->for($partner)->create();
+
+        $this->actingAs($customer, 'sanctum')
+            ->getJson($this->url(self::LAT, self::LNG))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        // 25 hours later the snooze has expired: the Partner reappears even
+        // though the (now stale) dismissal row is still there.
+        $this->travel(25)->hours();
+
+        $this->actingAs($customer, 'sanctum')
+            ->getJson($this->url(self::LAT, self::LNG))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $partner->id);
+
+        $this->assertDatabaseCount('join_prompt_dismissals', 1);
+    }
+
+    public function test_another_customers_dismissals_do_not_leak(): void
+    {
+        $partner = $this->joinablePartner();
+        GymLocation::factory()->for($partner)->create([
+            'latitude' => self::LAT,
+            'longitude' => self::LNG,
+        ]);
+
+        $customer = $this->eligibleCustomer();
+        $decliner = User::factory()->create(['partner_id' => $customer->partner_id]);
+        JoinPromptDismissal::factory()->declined()->for($decliner)->for($partner)->create();
+
+        $this->actingAs($customer, 'sanctum')
+            ->getJson($this->url(self::LAT, self::LNG))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $partner->id);
     }
 
     public function test_coordinates_are_validated(): void

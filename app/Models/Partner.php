@@ -180,6 +180,15 @@ class Partner extends Model
     }
 
     /**
+     * Customers' Join Prompt dismissals of this partner: permanent declines
+     * and 24-hour snoozes (see GLOSSARY: Join Prompt).
+     */
+    public function joinPromptDismissals(): HasMany
+    {
+        return $this->hasMany(JoinPromptDismissal::class);
+    }
+
+    /**
      * Make the partner's Gym Locations exactly the given rows: rows with an id
      * update that location, rows without one are created, and locations the
      * admin removed from the form are deleted. Ids that don't belong to this

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PartnerKind;
 use App\Enums\PartnerPlan;
+use App\Enums\PaywallDiscountTier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ class Partner extends Model
         'slug',
         'domain',
         'is_active',
+        'paywall_discount_tier',
         'plan',
         'plan_expires_at',
         'geo_prompt_enabled',
@@ -36,6 +38,7 @@ class Partner extends Model
             'benefits' => 'array',
             'plan' => PartnerPlan::class,
             'plan_expires_at' => 'datetime',
+            'paywall_discount_tier' => PaywallDiscountTier::class,
         ];
     }
 
@@ -128,6 +131,16 @@ class Partner extends Model
             ->where(fn (Builder $q) => $q
                 ->whereNull('partners.plan_expires_at')
                 ->orWhere('partners.plan_expires_at', '>', now()));
+    }
+
+    /**
+     * The RevenueCat offering this partner's members see on the paywall, e.g.
+     * "discount-30"; null for the standard one (GLOSSARY: Paywall Discount).
+     * A deactivated partner discounts no one, whatever its tier.
+     */
+    public function paywallOfferingId(): ?string
+    {
+        return $this->is_active ? $this->paywall_discount_tier?->offeringId() : null;
     }
 
     /**

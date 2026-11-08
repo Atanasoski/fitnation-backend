@@ -11,6 +11,7 @@
     $label = 'mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400';
     $input = 'h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
     $isHouse = $partner?->isHouse() ?? false;
+    $discountTier = (string) old('paywall_discount_tier', $partner?->paywall_discount_tier?->value);
     $logo = $partner?->identity?->logo ? $partner->identity->logo_url : null;
     $modes = ['light' => 'Light', 'dark' => 'Dark'];
     $slots = ['primary' => 'Primary', 'secondary' => 'Secondary'];
@@ -78,6 +79,17 @@
                             </label>
                         @endif
                         @error('is_active') <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="paywall_discount_tier" class="{{ $label }}">Paywall discount</label>
+                        <select id="paywall_discount_tier" name="paywall_discount_tier" class="{{ $input }}">
+                            <option value="">None</option>
+                            @foreach (\App\Enums\PaywallDiscountTier::cases() as $tier)
+                                <option value="{{ $tier->value }}" @selected($discountTier === (string) $tier->value)>{{ $tier->label() }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">{{ $isHouse ? 'On the House Partner this discounts everyone who joined without a gym.' : "This partner's members see it on the app's paywall." }}</p>
+                        @error('paywall_discount_tier') <p class="mt-1 text-theme-xs text-error-500">{{ $message }}</p> @enderror
                     </div>
                 </div>
             </section>

@@ -58,6 +58,7 @@
                 <dl class="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
                     <div>Plan: <b>{{ $partner->plan ? ucfirst($partner->plan->value) : '—' }}</b></div>
                     <div>Sponsorship until: <b>{{ $partner->plan_expires_at?->format('j M Y') ?? '—' }}</b></div>
+                    <div>Paywall discount: <b>{{ $partner->paywall_discount_tier?->label() ?? 'None' }}</b></div>
                     <div>Members: <b>{{ number_format($memberCount) }}</b> · active this week <b>{{ number_format($activeThisWeek) }}</b></div>
                 </dl>
             </section>

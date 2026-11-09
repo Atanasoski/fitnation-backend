@@ -19,7 +19,9 @@ class PrescriptionCalculator
     {
         $tier = $this->isCompound($movementPatternCode) ? 'compound' : 'isolation';
 
-        [$minReps, $maxReps] = config("workout_generator.rep_ranges.{$goal->value}.{$tier}");
+        [$minReps, $maxReps] = config("workout_generator.rep_ranges.{$goal->value}.{$tier}")
+            ?? config("workout_generator.rep_ranges.general_fitness.{$tier}")
+            ?? [8, 12];
 
         $override = config("workout_generator.prescription_overrides.{$movementPatternCode}", []);
 

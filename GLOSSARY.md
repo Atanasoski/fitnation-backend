@@ -66,7 +66,7 @@ The targets handed to a user for one exercise in one session: sets, rep range, r
 _Avoid_: targets (unqualified), defaults
 
 **Compound Movement**:
-A multi-joint Exercise, classified by its movement pattern. Compounds come first in a session, earn more sets, heavier starting weights, and lower-rep Prescriptions. Each workout day caps how many compounds it may contain.
+A multi-joint Exercise, classified by its movement pattern. Compounds come first in a session, earn more sets, heavier starting weights, and lower-rep Prescriptions. Each target region of a workout day caps how many compounds it may contribute, and the cap yields only when the day cannot otherwise fill.
 _Avoid_: big lift, main lift
 
 **Isolation Movement**:

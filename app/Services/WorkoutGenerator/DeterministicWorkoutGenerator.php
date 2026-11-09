@@ -240,7 +240,15 @@ class DeterministicWorkoutGenerator
 
         $activeRegions = array_keys($regionPools);
 
-        foreach ([false, true] as $relaxed) {
+        // Three passes, each weaker than the last: strict enforces the
+        // pattern|angle dedupe and the compound cap; relaxed drops the dedupe
+        // but holds the cap, so duplicate-key isolations fill ahead of extra
+        // compounds; fill drops the cap too, so a compound-only pool still
+        // fills the day rather than running short (ADR-0009).
+        foreach (['strict', 'relaxed', 'fill'] as $pass) {
+            $relaxed = $pass !== 'strict';
+            $capEnforced = $pass !== 'fill';
+
             if ($relaxed) {
                 foreach ($activeRegions as $r) {
                     $regionCursors[$r] = 0;
@@ -274,12 +282,8 @@ class DeterministicWorkoutGenerator
                         $key = "{$pattern}|{$angle}";
 
                         $isCompound = in_array($pattern, $compoundPatterns);
-                        // The compound cap is hard in the strict pass and yields in the
-                        // relaxed pass: a day that cannot otherwise fill (a pool of
-                        // nothing but presses) still fills, with extra compounds, rather
-                        // than running short.
                         $regionCompoundCap = $maxCompoundByRegion[$region] ?? null;
-                        if (! $relaxed && $isCompound && $regionCompoundCap !== null && ($compoundCountByRegion[$region] ?? 0) >= $regionCompoundCap) {
+                        if ($capEnforced && $isCompound && $regionCompoundCap !== null && ($compoundCountByRegion[$region] ?? 0) >= $regionCompoundCap) {
                             continue;
                         }
                         if (! $relaxed && isset($seen[$key])) {
@@ -346,7 +350,7 @@ class DeterministicWorkoutGenerator
      * only that region's complementary pattern (UPPER_PUSH → ELBOW_EXTENSION,
      * UPPER_PULL → ELBOW_FLEXION). ARMS alone, or alongside both upper
      * regions, keeps the full pool. Compared against the exercise's own
-     * movement pattern code, not its selection alias.
+     * movement pattern code.
      *
      * @param  list<string>  $targetRegions
      * @return list<string>|null
@@ -548,8 +552,11 @@ class DeterministicWorkoutGenerator
                 'exercise_id' => $exercise->id,
                 'order' => $order++,
                 'target_sets' => $distributedSets > 0 ? $distributedSets : $defaults['sets'], // Fallback to defaults if distribution failed
-                'min_target_reps' => $targets['min_target_reps'],
-                'max_target_reps' => $targets['max_target_reps'],
+                // Bodyweight (total_reps) targets carry null rep bounds, but
+                // template rows are NOT NULL: the goal defaults are the final
+                // fallback of the Prescription precedence chain.
+                'min_target_reps' => $targets['min_target_reps'] ?? $defaults['min_reps'],
+                'max_target_reps' => $targets['max_target_reps'] ?? $defaults['max_reps'],
                 'target_weight' => $targets['target_weight'] ?? 0,
                 'rest_seconds' => $targets['rest_seconds'],
             ];

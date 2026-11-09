@@ -216,8 +216,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | max_exercises_per_pattern is a global 4. These override it for a single
-    | pattern, keyed by the ALIASED pattern the selector counts by (see
-    | selection_aliases: a SHOULDER_RAISE counts as PRESS). Two curls or two
+    | pattern, keyed by the exercise's movement pattern code. Two curls or two
     | triceps extensions are plenty for the seeded arm days; without the cap a
     | Pull + Biceps day with enough distinct-angle curls fills half its slots
     | with them.

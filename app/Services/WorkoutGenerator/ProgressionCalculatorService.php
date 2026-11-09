@@ -230,7 +230,9 @@ class ProgressionCalculatorService
         return [
             'weight' => $mostCommonWeight,
             'sets' => $setLogs->count(),
-            'rest_seconds' => $restSeconds ?? $exercise->default_rest_sec ?? 90,
+            // null when no set logged a rest: the consumer falls back to the
+            // default Prescription's goal-scaled rest, not the raw Default Rest.
+            'rest_seconds' => $restSeconds,
             'weights' => $weights,
             'reps' => $reps,
         ];
@@ -351,7 +353,9 @@ class ProgressionCalculatorService
     }
 
     /**
-     * Get default targets based on experience level
+     * Experience-level defaults for what the Prescription does not cover:
+     * sets and the starting-weight estimate. Rep range and rest come from
+     * PrescriptionCalculator (ADR-0009).
      */
     private function getDefaultTargets(TrainingExperience $experience, ?Exercise $exercise = null, ?User $user = null): array
     {
@@ -361,29 +365,10 @@ class ProgressionCalculatorService
             $targetWeight = $this->estimateStartingWeight($exercise, $user, $experience);
         }
 
-        return match ($experience) {
-            TrainingExperience::Beginner => [
-                'target_sets' => 3,
-                'min_target_reps' => 8,
-                'max_target_reps' => 12,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 90,
-            ],
-            TrainingExperience::Intermediate => [
-                'target_sets' => 4,
-                'min_target_reps' => 8,
-                'max_target_reps' => 12,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 90,
-            ],
-            TrainingExperience::Advanced => [
-                'target_sets' => 4,
-                'min_target_reps' => 6,
-                'max_target_reps' => 10,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 120,
-            ],
-        };
+        return [
+            'target_sets' => $experience === TrainingExperience::Beginner ? 3 : 4,
+            'target_weight' => $targetWeight,
+        ];
     }
 
     /**

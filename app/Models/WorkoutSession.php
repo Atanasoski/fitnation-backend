@@ -151,6 +151,8 @@ class WorkoutSession extends Model
             ->where('user_id', $this->user_id)
             ->where('id', '!=', $this->id)
             ->completed()
+            // Deload sessions are recovery, not performance history (ADR-0008)
+            ->where('is_deload', false)
             ->whereHas('setLogs', fn ($q) => $q->whereIn('exercise_id', $exerciseIds))
             ->with(['setLogs' => fn ($q) => $q->whereIn('exercise_id', $exerciseIds)->orderBy('set_number')])
             ->orderByDesc('completed_at')

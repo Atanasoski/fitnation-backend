@@ -137,8 +137,8 @@ class WorkoutPreviewController extends Controller
             ->keyBy('id');
 
         // Attach exercise models to workout data
-        foreach ($weeks as $weekNum => $days) {
-            foreach ($days as $dayIndex => $dayData) {
+        foreach ($weeks as $weekNum => $dayRows) {
+            foreach ($dayRows as $dayIndex => $dayData) {
                 foreach ($dayData['exercises'] as $exIndex => $exerciseData) {
                     if (isset($exercises[$exerciseData['exercise_id']])) {
                         $weeks[$weekNum][$dayIndex]['exercises'][$exIndex]['exercise'] = $exercises[$exerciseData['exercise_id']];

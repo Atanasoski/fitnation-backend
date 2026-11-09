@@ -90,7 +90,9 @@ class WelcomePlanGenerationService
 
             $orderIndex = 0;
             for ($week = 1; $week <= $durationWeeks; $week++) {
-                $isDeloadWeek = $week === $durationWeeks;
+                // A program is never deload-only: a misconfigured 1-week
+                // duration produces one accumulation week, not one deload.
+                $isDeloadWeek = $durationWeeks >= 2 && $week === $durationWeeks;
 
                 foreach ($days as $dayIndex => $day) {
                     $this->writeTemplate(
@@ -110,6 +112,10 @@ class WelcomePlanGenerationService
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'templates_count' => $plan->workoutTemplates()->count(),
+                'exercises_per_day' => array_map(
+                    fn (array $day) => count($day['workout']['exercises']),
+                    $days
+                ),
             ]);
 
             return $plan->load(['workoutTemplates.exercises', 'workoutTemplates.exercises.partners']);

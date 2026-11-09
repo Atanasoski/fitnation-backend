@@ -132,4 +132,53 @@ class DeloadSessionTest extends TestCase
         );
         $this->assertNull($deloadTargets['total_reps_target']);
     }
+
+    public function test_previous_sets_come_from_the_last_working_session_not_the_deload(): void
+    {
+        $user = User::factory()->entitled()->create();
+        $exercise = Exercise::factory()->create();
+
+        $logSets = function (WorkoutSession $session, array $reps) use ($exercise): void {
+            foreach ($reps as $index => $repCount) {
+                SetLog::create([
+                    'workout_session_id' => $session->id,
+                    'exercise_id' => $exercise->id,
+                    'set_number' => $index + 1,
+                    'weight' => 80,
+                    'reps' => $repCount,
+                    'rest_seconds' => 90,
+                ]);
+            }
+        };
+
+        $working = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => now()->subWeek(),
+            'completed_at' => now()->subWeek(),
+            'status' => WorkoutSessionStatus::Completed,
+        ]);
+        $logSets($working, [10, 10, 10]);
+
+        $deload = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => now()->subDay(),
+            'completed_at' => now()->subDay(),
+            'status' => WorkoutSessionStatus::Completed,
+            'is_deload' => true,
+        ]);
+        $logSets($deload, [3, 3]);
+
+        $current = WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'performed_at' => now(),
+            'status' => WorkoutSessionStatus::Active,
+        ]);
+
+        $previous = $current->getPreviousSetLogsForExercises([$exercise->id]);
+
+        $this->assertSame(
+            [10, 10, 10],
+            $previous[$exercise->id]->pluck('reps')->map(fn ($r) => (int) $r)->all()
+        );
+    }
 }

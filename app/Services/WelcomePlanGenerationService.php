@@ -224,9 +224,13 @@ class WelcomePlanGenerationService
             'order_index' => $orderIndex,
         ]);
 
+        // Bulk insert: a program writes these rows per exercise per week (an
+        // 8-week plan is 300+ rows) inside the onboarding request.
+        $now = now();
+        $rows = [];
         $order = 1;
         foreach ($generatedWorkout['exercises'] as $exerciseData) {
-            WorkoutTemplateExercise::create([
+            $rows[] = [
                 'workout_template_id' => $template->id,
                 'exercise_id' => $exerciseData['exercise_id'],
                 'order' => $order++,
@@ -235,7 +239,13 @@ class WelcomePlanGenerationService
                 'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if ($rows !== []) {
+            WorkoutTemplateExercise::insert($rows);
         }
 
         return $template;

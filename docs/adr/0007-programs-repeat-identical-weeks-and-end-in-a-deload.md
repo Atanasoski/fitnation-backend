@@ -49,8 +49,9 @@ check there before tuning either.
   drop reads as designed, not broken.
 - End-of-mesocycle transition is manual: the user regenerates via the existing
   endpoint. Prompts, 1RM recalculation and accessory rotation are deferred.
-- Known, accepted limitations — all because a deload session is an ordinary
-  completed session the progression read path cannot distinguish:
+- Known limitations, since resolved by ADR-0008 (deload sessions are marked
+  and skipped as performance history) — all because a deload session used to
+  be indistinguishable from an ordinary completed session:
   - After a completed deload, the next read of the same exercise reports
     `below_min` (3–4 reps under the working rep range's min), so the app may
     offer a one-step weight drop at the start of the next mesocycle.
@@ -60,5 +61,5 @@ check there before tuning either.
   - Bodyweight (`total_reps` mode) exercises get no rep deload: the stored
     3–4 bounds are suppressed and the total-reps target still asks for last
     total + 1. Their sets still drop to 2.
-  Distinguishing deload sessions (a marker on the session) is the fix if
-  these start to matter.
+  ADR-0008 is that distinction: deload sessions are flagged and excluded
+  from performance history.

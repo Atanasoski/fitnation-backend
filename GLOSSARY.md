@@ -54,9 +54,9 @@ One generated Program block: identical accumulation weeks (same workouts every w
 _Avoid_: cycle, block (unqualified)
 
 **Deload Week**:
-The final week of a Mesocycle: a scheduled low-volume recovery week. Every exercise drops to 2 sets; compounds at 3–4 reps, isolations keep their normal rep range. The Working Weight is unchanged.
+The final week of a Mesocycle: a scheduled low-volume recovery week. Every exercise drops to 2 sets; compounds at 3–4 reps, isolations keep their normal rep range. The Working Weight is unchanged. Sessions completed in a Deload Week are recovery, not performance: they never count as performance history.
 _Avoid_: rest week, recovery week
 
 **Working Weight**:
-The weight progression currently prescribes for an exercise: recomputed on every read from the user's latest completed session of that exercise, never stored as a target. A stored `target_weight` on a template or session row is only the starting estimate for a user with no history.
+The weight progression currently prescribes for an exercise: recomputed on every read from the user's latest completed working (non-deload) session of that exercise, never stored as a target. A stored `target_weight` on a template or session row is only the starting estimate for a user with no history.
 _Avoid_: current weight, last weight

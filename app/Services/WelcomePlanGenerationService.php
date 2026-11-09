@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Gender;
 use App\Enums\PlanType;
 use App\Enums\SplitFocus;
+use App\Models\Exercise;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\WorkoutSplit;
@@ -21,7 +22,17 @@ class WelcomePlanGenerationService
         private DeterministicWorkoutGenerator $workoutGenerator
     ) {}
 
-    const DURATION_WEEKS = 5;
+    /**
+     * How many weeks this user's mesocycle runs, from the goal (ADR-0007).
+     */
+    public static function durationWeeksFor(User $user): int
+    {
+        $byGoal = config('workout_generator.program.duration_weeks_by_goal', []);
+        $goal = $user->profile?->fitness_goal?->value;
+
+        return $byGoal[$goal]
+            ?? config('workout_generator.program.default_duration_weeks', 8);
+    }
 
     /**
      * Generate a personalized program from the user's profile.
@@ -39,14 +50,15 @@ class WelcomePlanGenerationService
             };
 
             $split = $this->determineSplit($user->profile->training_days_per_week, $splitFocus);
+            $durationWeeks = self::durationWeeksFor($user);
 
             $plan = Plan::create([
                 'user_id' => $user->id,
                 'partner_id' => $user->partner_id,
                 'name' => $planName ?? 'Your Personalized Plan',
-                'description' => 'Auto-generated '.self::DURATION_WEEKS.'-week program based on your profile',
+                'description' => 'Auto-generated '.$durationWeeks.'-week program based on your profile',
                 'type' => PlanType::Program,
-                'duration_weeks' => self::DURATION_WEEKS,
+                'duration_weeks' => $durationWeeks,
                 'is_active' => false,
                 'is_auto_generated' => true,
             ]);
@@ -62,15 +74,33 @@ class WelcomePlanGenerationService
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'training_days' => $user->profile->training_days_per_week,
-                'duration_weeks' => self::DURATION_WEEKS,
+                'duration_weeks' => $durationWeeks,
             ]);
 
+            // One mesocycle (ADR-0007): each split day is generated once and
+            // repeated identically across every week, so progression has the
+            // same exercises to progress against.
+            $days = [];
+            foreach (array_values($split) as $dayIndex => $targetRegions) {
+                $days[$dayIndex] = [
+                    'name' => $this->getWorkoutName($targetRegions, $dayIndex),
+                    'workout' => $this->generateWorkout($user, $targetRegions, $preferences),
+                ];
+            }
+
             $orderIndex = 0;
-            for ($week = 1; $week <= 5; $week++) {
-                $dayIndex = 0;
-                foreach ($split as $targetRegions) {
-                    $this->createWorkoutTemplate($plan, $dayIndex, $targetRegions, $user, $week, $orderIndex, $preferences);
-                    $dayIndex++;
+            for ($week = 1; $week <= $durationWeeks; $week++) {
+                $isDeloadWeek = $week === $durationWeeks;
+
+                foreach ($days as $dayIndex => $day) {
+                    $this->writeTemplate(
+                        $plan,
+                        $isDeloadWeek ? $day['name'].' (Deload)' : $day['name'],
+                        $isDeloadWeek ? $this->deloadWorkout($day['workout']) : $day['workout'],
+                        $dayIndex,
+                        $week,
+                        $orderIndex
+                    );
                     $orderIndex++;
                 }
             }
@@ -124,13 +154,11 @@ class WelcomePlanGenerationService
     }
 
     /**
-     * Create a workout template for a specific day and week
+     * Generate one split day's workout.
      */
-    private function createWorkoutTemplate(Plan $plan, int $dayIndex, array $targetRegions, User $user, int $weekNumber, int $orderIndex, array $preferences = []): WorkoutTemplate
+    private function generateWorkout(User $user, array $targetRegions, array $preferences = []): array
     {
-        $workoutName = $this->getWorkoutName($targetRegions, $dayIndex);
-
-        $generatedWorkout = $this->workoutGenerator->generate($user, array_merge(
+        return $this->workoutGenerator->generate($user, array_merge(
             array_filter([
                 'equipment_types' => $preferences['equipment_types'] ?? null,
                 'movement_patterns' => $preferences['movement_patterns'] ?? null,
@@ -142,7 +170,51 @@ class WelcomePlanGenerationService
                 'duration_minutes' => $user->profile->workout_duration_minutes,
             ]
         ));
+    }
 
+    /**
+     * The Deload Week variant of a generated workout (ADR-0007): every exercise
+     * drops to the deload set count, compounds to 3-4 reps while isolations
+     * keep their rep range. Weight is untouched here because the Working Weight
+     * is recomputed from history on every read, never from these rows.
+     *
+     * Public so the admin workout preview can show the same final week a
+     * generated program would carry.
+     */
+    public function deloadWorkout(array $generatedWorkout): array
+    {
+        $deload = config('workout_generator.program.deload', []);
+        $sets = $deload['sets'] ?? 2;
+        $compoundMinReps = $deload['compound_min_reps'] ?? 3;
+        $compoundMaxReps = $deload['compound_max_reps'] ?? 4;
+
+        $patternByExerciseId = Exercise::with('movementPattern')
+            ->findMany(array_column($generatedWorkout['exercises'], 'exercise_id'))
+            ->mapWithKeys(fn (Exercise $exercise) => [$exercise->id => $exercise->movementPattern?->code])
+            ->all();
+
+        $generatedWorkout['exercises'] = array_map(
+            function (array $row) use ($patternByExerciseId, $sets, $compoundMinReps, $compoundMaxReps) {
+                $row['target_sets'] = $sets;
+
+                if (DeterministicWorkoutGenerator::isCompoundPattern($patternByExerciseId[$row['exercise_id']] ?? null)) {
+                    $row['min_target_reps'] = $compoundMinReps;
+                    $row['max_target_reps'] = $compoundMaxReps;
+                }
+
+                return $row;
+            },
+            $generatedWorkout['exercises']
+        );
+
+        return $generatedWorkout;
+    }
+
+    /**
+     * Write one generated workout as a template for one week.
+     */
+    private function writeTemplate(Plan $plan, string $workoutName, array $generatedWorkout, int $dayIndex, int $weekNumber, int $orderIndex): WorkoutTemplate
+    {
         $template = WorkoutTemplate::create([
             'plan_id' => $plan->id,
             'name' => $workoutName,
@@ -165,14 +237,6 @@ class WelcomePlanGenerationService
                 'rest_seconds' => $exerciseData['rest_seconds'],
             ]);
         }
-
-        Log::info('Workout template created', [
-            'template_id' => $template->id,
-            'plan_id' => $plan->id,
-            'week_number' => $weekNumber,
-            'day_index' => $dayIndex,
-            'exercises_count' => count($generatedWorkout['exercises']),
-        ]);
 
         return $template;
     }

@@ -277,6 +277,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Program (Mesocycle) Structure
+    |--------------------------------------------------------------------------
+    |
+    | A generated program is one mesocycle: identical accumulation weeks ending
+    | in a deload week (ADR-0007). Length is goal-driven; the deload week drops
+    | every exercise to `sets`, compounds to 3-4 reps while isolations keep
+    | their normal rep range, and the working weight is untouched.
+    |
+    */
+
+    'program' => [
+        'duration_weeks_by_goal' => [
+            'fat_loss' => 6,
+            'strength' => 8,
+            'muscle_gain' => 8,
+            'general_fitness' => 8,
+        ],
+        'default_duration_weeks' => 8,
+        'deload' => [
+            'sets' => 2,
+            'compound_min_reps' => 3,
+            'compound_max_reps' => 4,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Beginner Equipment Exclusions
     |--------------------------------------------------------------------------
     |

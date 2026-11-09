@@ -153,6 +153,54 @@ class WorkoutPreviewTest extends TestCase
         $this->assertEquals(8, $summary['total_workouts']); // 2 weeks × 4 days
     }
 
+    public function test_preview_mirrors_the_mesocycle_structure(): void
+    {
+        Exercise::factory()->press()->barbell()->flat()->count(3)->create();
+        Exercise::factory()->press()->barbell()->incline()->count(2)->create();
+        Exercise::factory()->row()->barbell()->horizontal()->count(3)->create();
+        Exercise::factory()->row()->barbell()->lowToHigh()->count(2)->create();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+            'fitness_goal' => 'muscle_gain',
+            'training_experience' => 'intermediate',
+            'gender' => 'male',
+            'training_days_per_week' => 3,
+            'duration_minutes' => 60,
+            'weeks' => 3,
+        ]);
+
+        $response->assertStatus(200);
+        $weeks = $response->viewData('weeks');
+        $this->assertCount(3, $weeks);
+
+        $idsFor = fn (int $week): array => array_map(
+            fn (array $day) => array_column($day['exercises'], 'exercise_id'),
+            $weeks[$week]
+        );
+
+        // Accumulation weeks are identical, and the deload reuses the same exercises.
+        $this->assertSame($idsFor(1), $idsFor(2));
+        $this->assertSame($idsFor(1), $idsFor(3));
+
+        foreach ($weeks[1] as $day) {
+            $this->assertStringEndsNotWith(' (Deload)', $day['name']);
+        }
+
+        foreach ($weeks[3] as $day) {
+            $this->assertStringEndsWith(' (Deload)', $day['name']);
+
+            foreach ($day['exercises'] as $row) {
+                $this->assertSame(2, $row['target_sets']);
+                // The catalog here is all compounds (press/row).
+                $this->assertSame(3, $row['min_target_reps']);
+                $this->assertSame(4, $row['max_target_reps']);
+            }
+        }
+    }
+
     public function test_preview_returns_error_when_split_not_found(): void
     {
         // Delete all splits to simulate missing split

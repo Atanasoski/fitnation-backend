@@ -22,6 +22,7 @@ class WorkoutSession extends Model
         'notes',
         'is_auto_generated',
         'status',
+        'is_deload',
         'replaced_session_id',
     ];
 
@@ -29,6 +30,7 @@ class WorkoutSession extends Model
         'performed_at' => 'datetime',
         'completed_at' => 'datetime',
         'is_auto_generated' => 'boolean',
+        'is_deload' => 'boolean',
         'status' => WorkoutSessionStatus::class,
     ];
 
@@ -149,6 +151,8 @@ class WorkoutSession extends Model
             ->where('user_id', $this->user_id)
             ->where('id', '!=', $this->id)
             ->completed()
+            // Deload sessions are recovery, not performance history (ADR-0008)
+            ->where('is_deload', false)
             ->whereHas('setLogs', fn ($q) => $q->whereIn('exercise_id', $exerciseIds))
             ->with(['setLogs' => fn ($q) => $q->whereIn('exercise_id', $exerciseIds)->orderBy('set_number')])
             ->orderByDesc('completed_at')

@@ -41,6 +41,10 @@ final class SessionDetail
 
         $rows = $session->workoutSessionExercises;
 
+        // targetsFor() reads the row's session (deload flag); hand it the one
+        // already in memory so no row lazy-loads it back from the database.
+        $rows->each->setRelation('workoutSession', $session);
+
         $ownership = SetOwnership::forSession($session);
         $progressions = app(SessionProgression::class);
         $progression = $progressions->forRows($rows, $user);

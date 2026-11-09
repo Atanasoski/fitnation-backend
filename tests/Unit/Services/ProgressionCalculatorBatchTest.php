@@ -166,7 +166,42 @@ class ProgressionCalculatorBatchTest extends TestCase
         $this->assertSame([], $this->service->getLastPerformanceForExercises([], $user));
     }
 
-    private function completedSession(User $user, \DateTimeInterface $completedAt): WorkoutSession
+    public function test_deload_sessions_are_not_performance_history(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('SQUAT', 'BARBELL');
+
+        $working = $this->completedSession($user, now()->subWeek());
+        $deload = $this->completedSession($user, now()->subDay(), isDeload: true);
+
+        $this->logSets($working, $exercise, [[80.0, 10], [80.0, 10], [80.0, 10]]);
+        $this->logSets($deload, $exercise, [[80.0, 3], [80.0, 3]]);
+
+        $single = $this->service->getLastPerformance($exercise, $user);
+        $batch = $this->service->getLastPerformanceForExercises([$exercise], $user);
+
+        // Both lookups answer from the last WORKING session (ADR-0008).
+        $this->assertSame([10, 10, 10], $single['reps']);
+        $this->assertSame(3, $single['sets']);
+        $this->assertEquals($single, $batch[$exercise->id]);
+    }
+
+    public function test_only_deload_history_reads_as_no_history(): void
+    {
+        $user = User::factory()->create();
+        $exercise = $this->createExercise('SQUAT', 'BARBELL');
+
+        $deload = $this->completedSession($user, now()->subDay(), isDeload: true);
+        $this->logSets($deload, $exercise, [[80.0, 3], [80.0, 3]]);
+
+        $this->assertNull($this->service->getLastPerformance($exercise, $user));
+        $this->assertArrayNotHasKey(
+            $exercise->id,
+            $this->service->getLastPerformanceForExercises([$exercise], $user)
+        );
+    }
+
+    private function completedSession(User $user, \DateTimeInterface $completedAt, bool $isDeload = false): WorkoutSession
     {
         return WorkoutSession::factory()->create([
             'user_id' => $user->id,
@@ -174,6 +209,7 @@ class ProgressionCalculatorBatchTest extends TestCase
             'performed_at' => $completedAt,
             'completed_at' => $completedAt,
             'status' => WorkoutSessionStatus::Completed,
+            'is_deload' => $isDeload,
         ]);
     }
 

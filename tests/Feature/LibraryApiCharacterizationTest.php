@@ -198,6 +198,7 @@ class LibraryApiCharacterizationTest extends TestCase
             'description' => 'Squat day',
             'day_of_week' => 0,
             'week_number' => 1,
+            'is_deload' => false,
             'order_index' => 0,
             'last_completed_session_id' => null,
             'exercises' => [[
@@ -244,6 +245,7 @@ class LibraryApiCharacterizationTest extends TestCase
                 'description' => 'Loosen up',
                 'day_of_week' => 2,
                 'week_number' => 1,
+                'is_deload' => false,
                 'order_index' => 0,
                 'last_completed_session_id' => null,
                 'exercises' => [[

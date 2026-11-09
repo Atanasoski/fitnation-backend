@@ -252,6 +252,7 @@ class ProgramProgressCharacterizationTest extends TestCase
             'description' => $template->description,
             'day_of_week' => $template->day_of_week,
             'week_number' => $template->week_number,
+            'is_deload' => false,
             'order_index' => $template->order_index,
             'last_completed_session_id' => $lastCompletedSessionId,
             'exercises' => $withExercise ? [[

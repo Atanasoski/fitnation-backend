@@ -93,6 +93,8 @@ class ProgressionCalculatorService
     {
         $lastSetLog = $user->workoutSessions()
             ->completed()
+            // Deload sessions are recovery, not performance history (ADR-0008)
+            ->where('is_deload', false)
             ->whereHas('setLogs', function ($q) use ($exercise) {
                 $q->where('exercise_id', $exercise->id);
             })
@@ -139,6 +141,8 @@ class ProgressionCalculatorService
             ->join('workout_sessions as sessions', 'sessions.id', '=', 'set_logs.workout_session_id')
             ->where('sessions.user_id', $user->id)
             ->where('sessions.status', WorkoutSessionStatus::Completed->value)
+            // Deload sessions are recovery, not performance history (ADR-0008)
+            ->where('sessions.is_deload', false)
             ->whereIn('set_logs.exercise_id', $exercises->keys()->all())
             ->select([
                 'set_logs.exercise_id',

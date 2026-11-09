@@ -291,9 +291,29 @@ class DeterministicWorkoutGenerator
      */
     private function selectionPattern(Exercise $exercise): string
     {
-        $code = $exercise->movementPattern?->code ?? 'UNKNOWN';
+        return self::aliasedPattern($exercise->movementPattern?->code);
+    }
+
+    /**
+     * A movement pattern code resolved through the selection aliases.
+     */
+    public static function aliasedPattern(?string $movementPatternCode): string
+    {
+        $code = $movementPatternCode ?? 'UNKNOWN';
 
         return config('workout_generator.selection_aliases', [])[$code] ?? $code;
+    }
+
+    /**
+     * Whether a movement pattern counts as compound, after aliasing — the same
+     * answer selection, ordering and set distribution work from.
+     */
+    public static function isCompoundPattern(?string $movementPatternCode): bool
+    {
+        return in_array(
+            self::aliasedPattern($movementPatternCode),
+            config('workout_generator.compound_patterns', [])
+        );
     }
 
     private function inferComplementaryRegion(Exercise $exercise, array $targetRegions, array $complementaryPatterns): ?string

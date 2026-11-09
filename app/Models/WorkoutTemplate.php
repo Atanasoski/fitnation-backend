@@ -19,11 +19,13 @@ class WorkoutTemplate extends Model
         'description',
         'day_of_week',
         'week_number',
+        'is_deload',
         'order_index',
     ];
 
     protected $casts = [
         'day_of_week' => 'integer',
+        'is_deload' => 'boolean',
     ];
 
     /**

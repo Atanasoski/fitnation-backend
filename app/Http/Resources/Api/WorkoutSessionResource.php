@@ -47,6 +47,7 @@ class WorkoutSessionResource extends JsonResource
             'status' => $this->status,           // ← missing from GET
             'rationale' => $this->notes,
             'is_auto_generated' => $this->is_auto_generated,
+            'is_deload' => (bool) $this->is_deload,
             'replaced_session_id' => $this->replaced_session_id,
             'notes' => $this->notes,
             'exercises' => $exercisesData,

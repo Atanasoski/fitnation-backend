@@ -22,6 +22,7 @@ class WorkoutSession extends Model
         'notes',
         'is_auto_generated',
         'status',
+        'is_deload',
         'replaced_session_id',
     ];
 
@@ -29,6 +30,7 @@ class WorkoutSession extends Model
         'performed_at' => 'datetime',
         'completed_at' => 'datetime',
         'is_auto_generated' => 'boolean',
+        'is_deload' => 'boolean',
         'status' => WorkoutSessionStatus::class,
     ];
 

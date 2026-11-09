@@ -99,7 +99,8 @@ class WelcomePlanGenerationService
                         $isDeloadWeek ? $this->deloadWorkout($day['workout']) : $day['workout'],
                         $dayIndex,
                         $week,
-                        $orderIndex
+                        $orderIndex,
+                        $isDeloadWeek
                     );
                     $orderIndex++;
                 }
@@ -213,7 +214,7 @@ class WelcomePlanGenerationService
     /**
      * Write one generated workout as a template for one week.
      */
-    private function writeTemplate(Plan $plan, string $workoutName, array $generatedWorkout, int $dayIndex, int $weekNumber, int $orderIndex): WorkoutTemplate
+    private function writeTemplate(Plan $plan, string $workoutName, array $generatedWorkout, int $dayIndex, int $weekNumber, int $orderIndex, bool $isDeload = false): WorkoutTemplate
     {
         $template = WorkoutTemplate::create([
             'plan_id' => $plan->id,
@@ -221,6 +222,7 @@ class WelcomePlanGenerationService
             'description' => $generatedWorkout['rationale'] ?? null,
             'day_of_week' => $dayIndex,
             'week_number' => $weekNumber,
+            'is_deload' => $isDeload,
             'order_index' => $orderIndex,
         ]);
 

@@ -149,11 +149,13 @@ class MesocycleProgramTest extends TestCase
 
         foreach ($deloadTemplates as $template) {
             $this->assertStringEndsWith(' (Deload)', $template->name);
+            $this->assertTrue($template->is_deload);
 
             $weekOne = $plan->workoutTemplates
                 ->where('week_number', 1)
                 ->where('day_of_week', $template->day_of_week)
                 ->first();
+            $this->assertFalse($weekOne->is_deload);
 
             // Same exercises, same order as the accumulation weeks.
             $this->assertSame(

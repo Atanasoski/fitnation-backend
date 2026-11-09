@@ -263,6 +263,17 @@ class UsersListTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_user_without_a_name_is_linked_by_their_email(): void
+    {
+        $gym = Partner::factory()->create();
+        $this->member($gym, ['name' => '', 'email' => 'nameless@example.com']);
+
+        $this->actingAs($this->userWithRole('admin'))
+            ->get('/admin/users')
+            ->assertOk()
+            ->assertSee('>nameless@example.com</a>', false);
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      * @param  list<int>  $completedDaysAgo

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $user->name)
+@section('title', $user->name ?: $user->email)
 
 @section('content')
     @php
@@ -25,7 +25,7 @@
         @endif
 
         <div>
-            <h1 class="font-display text-xl font-semibold text-gray-800 dark:text-white/90">{{ $user->name }}</h1>
+            <h1 class="font-display text-xl font-semibold text-gray-800 dark:text-white/90">{{ $user->name ?: $user->email }}</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</p>
         </div>
 

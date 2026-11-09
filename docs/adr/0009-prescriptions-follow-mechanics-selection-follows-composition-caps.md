@@ -1,0 +1,9 @@
+# Prescriptions follow mechanics; day shape comes from composition caps, not aliases
+
+Until now `selection_aliases` made SHOULDER_RAISE select, order, deload and count sets as a PRESS, so that raises kept appearing on push days after their 2026-10-25 re-patterning. That alias made one pattern lie to every consumer: raises ordered among compounds, deloaded to 3–4 reps, and would have inherited compound rep ranges. We removed the alias entirely and solved the real problem — the compounds-first fill consuming every region slot — with the mechanism that already existed for LOWER: `max_compound_by_region` now also caps UPPER_PUSH and UPPER_PULL (2 each, env-tunable). An exercise's movement pattern states only what the movement mechanically is; how many compounds a day carries is a composition rule. This deliberately reverses the 2026-10-25 decision: raises now get isolation sets, ordering, reps, rest and deload treatment, and their push-day frequency is emergent (tuned via `selection_priority` if needed) rather than guaranteed.
+
+## Consequences
+
+- Rep ranges and rest come from a compound/isolation × fitness-goal matrix in config (rest = Default Rest × goal multiplier, clamped with tier-aware floors, rounded to 15s), with a per-pattern override map that ships empty. A user's logged history always outranks these defaults.
+- Beginner users are protected from risky exercises by excluding `advanced`-difficulty exercises from selection (NULL difficulty counts as intermediate), not by softening the rep matrix for everyone. The gate is inert until the catalog's `difficulty` column is curated (262/274 NULL as of 2026-11-09).
+- Gender is not a selection input and must not become one; it belongs only in starting-weight estimation.

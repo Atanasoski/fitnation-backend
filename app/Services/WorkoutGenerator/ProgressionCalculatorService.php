@@ -2,6 +2,7 @@
 
 namespace App\Services\WorkoutGenerator;
 
+use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProgressionCalculatorService
 {
+    public function __construct(
+        private PrescriptionCalculator $prescriptionCalculator
+    ) {}
+
     /**
      * Decimal places SetLog casts `weight` to. Kept in step with that cast.
      */
@@ -43,6 +48,15 @@ class ProgressionCalculatorService
         $experience ??= TrainingExperience::Beginner;
         $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
 
+        // The default Prescription (ADR-0009): rep range from the
+        // compound/isolation × goal matrix, rest from the exercise's Default
+        // Rest scaled by the goal. Logged performance still outranks it below.
+        $prescription = $this->prescriptionCalculator->defaults(
+            $exercise->movementPattern?->code,
+            $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness,
+            $exercise->default_rest_sec,
+        );
+
         if ($this->isBodyweight($exercise)) {
             $totalRepsPrevious = $lastPerformance ? array_sum($lastPerformance['reps'] ?? []) : null;
             $totalRepsTarget = $totalRepsPrevious !== null ? $totalRepsPrevious + 1 : null;
@@ -55,7 +69,7 @@ class ProgressionCalculatorService
                 'target_weight' => null,
                 'total_reps_previous' => $totalRepsPrevious,
                 'total_reps_target' => $totalRepsTarget,
-                'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
+                'rest_seconds' => $lastPerformance['rest_seconds'] ?? $prescription['rest_seconds'],
             ];
         }
 
@@ -63,26 +77,26 @@ class ProgressionCalculatorService
             return [
                 'progression_mode' => 'double_progression',
                 'target_sets' => $defaultTargets['target_sets'],
-                'min_target_reps' => $defaultTargets['min_target_reps'],
-                'max_target_reps' => $defaultTargets['max_target_reps'],
+                'min_target_reps' => $prescription['min_target_reps'],
+                'max_target_reps' => $prescription['max_target_reps'],
                 'target_weight' => $defaultTargets['target_weight'],
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
-                'rest_seconds' => $defaultTargets['rest_seconds'],
+                'rest_seconds' => $prescription['rest_seconds'],
             ];
         }
 
-        $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $defaultTargets['max_target_reps']);
+        $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $prescription['max_target_reps']);
 
         return [
             'progression_mode' => 'double_progression',
             'target_sets' => $targets['sets'],
-            'min_target_reps' => $defaultTargets['min_target_reps'],
-            'max_target_reps' => $defaultTargets['max_target_reps'],
+            'min_target_reps' => $prescription['min_target_reps'],
+            'max_target_reps' => $prescription['max_target_reps'],
             'target_weight' => $targets['weight'],
             'total_reps_previous' => null,
             'total_reps_target' => null,
-            'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
+            'rest_seconds' => $lastPerformance['rest_seconds'] ?? $prescription['rest_seconds'],
         ];
     }
 

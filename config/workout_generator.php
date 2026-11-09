@@ -44,21 +44,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Selection Aliases
+    | Prescription Matrix (ADR-0009)
     |--------------------------------------------------------------------------
     |
-    | A movement pattern the generator selects, orders and gives sets as if it
-    | were another. Lateral and front raises were filed as PRESS until
-    | 2026-10-25, when they got SHOULDER_RAISE so their starting weight stops
-    | being a bench press's. This alias keeps push days as they were: a raise
-    | on about 80% of them, with a compound's sets. Without it, raises become
-    | isolation work (2-3 sets, later in the session) on about half as many
-    | push days. That is a programming decision of its own.
+    | Rep ranges for a user with no history, by compound/isolation (the
+    | exercise's raw movement pattern — selection aliases are gone) crossed
+    | with fitness goal. Rest is the exercise's Default Rest scaled by the
+    | goal's multiplier, clamped with tier-aware floors so a fat-loss deadlift
+    | is never rushed, then rounded to the nearest 15s. prescription_overrides
+    | is the per-pattern escape hatch; it ships empty on purpose — add entries
+    | only for genuinely exceptional patterns, never to tune one exercise.
     |
     */
-    'selection_aliases' => [
-        'SHOULDER_RAISE' => 'PRESS',
+    'rep_ranges' => [
+        'strength' => ['compound' => [3, 6], 'isolation' => [6, 10]],
+        'muscle_gain' => ['compound' => [6, 10], 'isolation' => [10, 15]],
+        'general_fitness' => ['compound' => [8, 12], 'isolation' => [10, 15]],
+        'fat_loss' => ['compound' => [8, 12], 'isolation' => [10, 15]],
     ],
+
+    'rest_multipliers' => [
+        'strength' => 1.5,
+        'muscle_gain' => 1.0,
+        'general_fitness' => 0.8,
+        'fat_loss' => 0.6,
+    ],
+
+    'rest_bounds' => [
+        'compound_min' => 60,
+        'isolation_min' => 30,
+        'max' => 240,
+        'round_to' => 15,
+    ],
+
+    'prescription_overrides' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -220,7 +239,9 @@ return [
     */
 
     'max_compound_by_region' => [
-        'LOWER' => 2,
+        'LOWER' => (int) env('WG_MAX_COMPOUND_LOWER', 2),
+        'UPPER_PUSH' => (int) env('WG_MAX_COMPOUND_UPPER_PUSH', 2),
+        'UPPER_PULL' => (int) env('WG_MAX_COMPOUND_UPPER_PULL', 2),
     ],
 
     /*
@@ -331,4 +352,17 @@ return [
     */
 
     'beginner_excluded_equipment' => ['SMITH'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Beginner Difficulty Exclusions
+    |--------------------------------------------------------------------------
+    |
+    | Exercise difficulties excluded for beginner users (ADR-0009). An exercise
+    | with no difficulty counts as intermediate and is never excluded, so the
+    | gate only bites once the difficulty column is curated. Selection gates on
+    | training experience, never on gender.
+    |
+    */
+    'beginner_excluded_difficulties' => ['advanced'],
 ];

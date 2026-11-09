@@ -48,3 +48,15 @@ A Station's immutable public identifier, generated once and never regenerated, b
 
 **Scan**:
 A logged visit to a Station's public page via its QR code: which Station, when, which app benefit was shown, and whether the download CTA was clicked.
+
+**Mesocycle**:
+One generated Program block: identical accumulation weeks (same workouts every week, loads progressing) ending in a Deload Week. Exercise variety arrives between Mesocycles — each newly generated Program draws fresh exercises — never within one.
+_Avoid_: cycle, block (unqualified)
+
+**Deload Week**:
+The final week of a Mesocycle: a scheduled low-volume recovery week. Every exercise drops to 2 sets; compounds at 3–4 reps, isolations keep their normal rep range. The Working Weight is unchanged.
+_Avoid_: rest week, recovery week
+
+**Working Weight**:
+The weight progression currently prescribes for an exercise: recomputed on every read from the user's latest completed session of that exercise, never stored as a target. A stored `target_weight` on a template or session row is only the starting estimate for a user with no history.
+_Avoid_: current weight, last weight

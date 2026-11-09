@@ -9,7 +9,7 @@ A gym or business whose customers use Fit Nation under its branding. Customers a
 _Avoid_: gym (as a model name), tenant
 
 **House Partner**:
-Fit Nation itself, acting as the partner for everyone who joins without a gym. Identified by `HOUSE_PARTNER_ID`; cannot be deactivated.
+Fit Nation itself, acting as the partner for everyone who joins without a gym. Identified server-side by configuration; API clients read the `is_house` flag on partner payloads, never an id. Cannot be deactivated.
 _Avoid_: default partner, no-partner
 
 **Gym Signup**:

@@ -64,11 +64,21 @@ class DeterministicWorkoutGenerator
         ], $user->partner);
 
         $complementaryPatterns = config('workout_generator.complementary_patterns', []);
-        $complementaryMovementPatterns = collect($targetRegions)
-            ->flatMap(fn (string $region) => $complementaryPatterns[$region] ?? [])
-            ->unique()
-            ->values()
-            ->all();
+
+        // A day that targets ARMS brings its own arm work through the ARMS
+        // pool, which selectExercisesForDuration narrows to the paired upper
+        // region's complementary pattern (armsPatternFilter). The import below
+        // would fight that narrowing: on a ['UPPER_PULL', 'ARMS'] day it
+        // re-fetches every curl and hands any not grouped under ARMS an
+        // UPPER_PULL slot, putting arm work back where the filter just removed
+        // it. So the import only runs when ARMS is not targeted.
+        $complementaryMovementPatterns = in_array('ARMS', $targetRegions, true)
+            ? []
+            : collect($targetRegions)
+                ->flatMap(fn (string $region) => $complementaryPatterns[$region] ?? [])
+                ->unique()
+                ->values()
+                ->all();
 
         if (! empty($complementaryMovementPatterns)) {
             $complementary = $this->exerciseSelector->getAvailableExercises([
@@ -175,6 +185,7 @@ class DeterministicWorkoutGenerator
         $compoundPatterns = config('workout_generator.compound_patterns', []);
         $compoundCount = 0;
         $maxPerPattern = config('workout_generator.max_exercises_per_pattern', 4);
+        $maxPerPatternOverrides = config('workout_generator.max_per_pattern_overrides', []);
         $maxPerRegion = config('workout_generator.max_exercises_per_region', 4);
 
         $byRegion = $exercises->groupBy(function (Exercise $exercise) {
@@ -198,6 +209,8 @@ class DeterministicWorkoutGenerator
         $countByRegion = [];
         $countByPattern = [];
 
+        $armsPatterns = $this->armsPatternFilter($preferredRegions);
+
         $regionPools = [];
         $regionCursors = [];
         foreach ($preferredRegions as $region) {
@@ -205,8 +218,19 @@ class DeterministicWorkoutGenerator
                 continue;
             }
 
+            $pool = $byRegion->get($region);
+            if ($region === 'ARMS' && $armsPatterns !== null) {
+                $pool = $pool->filter(
+                    fn (Exercise $exercise) => in_array($exercise->movementPattern?->code, $armsPatterns, true)
+                )->values();
+
+                if ($pool->isEmpty()) {
+                    continue;
+                }
+            }
+
             $countByRegion[$region] = 0;
-            $shuffled = $byRegion->get($region)->shuffle();
+            $shuffled = $pool->shuffle();
             $regionPools[$region] = $this->sortByCompoundPriority($shuffled)->values();
             $regionCursors[$region] = 0;
         }
@@ -253,7 +277,7 @@ class DeterministicWorkoutGenerator
                         if (! $relaxed && isset($seen[$key])) {
                             continue;
                         }
-                        if (($countByPattern[$pattern] ?? 0) >= $maxPerPattern) {
+                        if (($countByPattern[$pattern] ?? 0) >= ($maxPerPatternOverrides[$pattern] ?? $maxPerPattern)) {
                             continue;
                         }
 
@@ -314,6 +338,39 @@ class DeterministicWorkoutGenerator
             self::aliasedPattern($movementPatternCode),
             config('workout_generator.compound_patterns', [])
         );
+    }
+
+    /**
+     * The movement patterns a day's ARMS pool is narrowed to, or null to keep
+     * the full pool. The seeded splits pair ARMS with one upper region on
+     * purpose — ['UPPER_PUSH', 'ARMS'] is "Push + Triceps", ['UPPER_PULL',
+     * 'ARMS'] is "Pull + Biceps" (WorkoutSplitSeeder) — so when exactly one
+     * paired region appears in complementary_patterns, the ARMS pool keeps
+     * only that region's complementary pattern (UPPER_PUSH → ELBOW_EXTENSION,
+     * UPPER_PULL → ELBOW_FLEXION). ARMS alone, or alongside both upper
+     * regions, keeps the full pool. Compared against the exercise's own
+     * movement pattern code, not its selection alias.
+     *
+     * @param  list<string>  $targetRegions
+     * @return list<string>|null
+     */
+    private function armsPatternFilter(array $targetRegions): ?array
+    {
+        if (! in_array('ARMS', $targetRegions, true)) {
+            return null;
+        }
+
+        $complementaryPatterns = config('workout_generator.complementary_patterns', []);
+        $pairedRegions = array_values(array_filter(
+            $targetRegions,
+            fn (string $region) => $region !== 'ARMS' && ! empty($complementaryPatterns[$region])
+        ));
+
+        if (count($pairedRegions) !== 1) {
+            return null;
+        }
+
+        return $complementaryPatterns[$pairedRegions[0]];
     }
 
     private function inferComplementaryRegion(Exercise $exercise, array $targetRegions, array $complementaryPatterns): ?string

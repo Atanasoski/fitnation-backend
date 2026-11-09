@@ -111,8 +111,10 @@
                             @php $last = $user->last_completed_session_at ? \Illuminate\Support\Carbon::parse($user->last_completed_session_at) : null; @endphp
                             <tr class="border-t border-gray-100 dark:border-gray-800">
                                 <td class="px-5 py-3 sm:px-6">
-                                    <a href="{{ route('admin.users.show', array_filter(['user' => $user->id, 'back' => http_build_query(request()->query())])) }}" class="font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90 dark:hover:text-brand-400">{{ $user->name }}</a>
-                                    <div class="text-theme-xs text-gray-500 dark:text-gray-400">{{ $user->email }}</div>
+                                    <a href="{{ route('admin.users.show', array_filter(['user' => $user->id, 'back' => http_build_query(request()->query())])) }}" class="font-medium text-gray-800 hover:text-brand-600 hover:underline dark:text-white/90 dark:hover:text-brand-400">{{ $user->name ?: $user->email }}</a>
+                                    @if ($user->name)
+                                        <div class="text-theme-xs text-gray-500 dark:text-gray-400">{{ $user->email }}</div>
+                                    @endif
                                 </td>
                                 <td class="px-3 py-3 text-gray-600 dark:text-gray-400">{{ $user->partner?->name ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-400">{{ $user->created_at->format('j M Y') }}</td>

@@ -277,6 +277,7 @@ class SessionDetailCharacterizationTest extends TestCase
             'status' => 'active',
             'rationale' => 'Characterization fixture.',
             'is_auto_generated' => false,
+            'is_deload' => false,
             'replaced_session_id' => null,
             'notes' => 'Characterization fixture.',
             'exercises' => [

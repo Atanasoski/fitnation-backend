@@ -20,12 +20,13 @@ class PartnerResource extends JsonResource
             'slug' => $this->slug,
             'domain' => $this->domain,
             'is_active' => $this->is_active,
+            'is_house' => $this->isHouse(),
             'visual_identity' => $this->whenLoaded('identity', function () {
                 return new PartnerVisualIdentityResource($this->identity);
             }),
             'users' => $this->whenLoaded('users', function () {
                 return UserResource::collection($this->users);
-            })
+            }),
         ];
     }
 }

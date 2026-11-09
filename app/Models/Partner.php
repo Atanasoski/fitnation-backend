@@ -24,12 +24,16 @@ class Partner extends Model
         'is_active',
         'plan',
         'plan_expires_at',
+        'geo_prompt_enabled',
+        'benefits',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'geo_prompt_enabled' => 'boolean',
+            'benefits' => 'array',
             'plan' => PartnerPlan::class,
             'plan_expires_at' => 'datetime',
         ];
@@ -57,6 +61,16 @@ class Partner extends Model
     public function canBeDeactivated(): bool
     {
         return ! $this->isHouse();
+    }
+
+    /**
+     * Whether a Gym Join may land on this Partner: an active gym with the
+     * Join Prompt enabled. Never the House Partner — accepting it would be
+     * a way back out of a gym, which ADR 0006 rules out.
+     */
+    public function acceptsJoins(): bool
+    {
+        return ! $this->isHouse() && $this->is_active && $this->geo_prompt_enabled;
     }
 
     /**
@@ -164,6 +178,57 @@ class Partner extends Model
     public function stations(): HasMany
     {
         return $this->hasMany(Station::class);
+    }
+
+    /**
+     * The partner's Gym Locations: the points-with-radius where its gyms are
+     * (see GLOSSARY). The Join Prompt only fires inside one of these.
+     */
+    public function gymLocations(): HasMany
+    {
+        return $this->hasMany(GymLocation::class);
+    }
+
+    /**
+     * Customers' Join Prompt dismissals of this partner: permanent declines
+     * and 24-hour snoozes (see GLOSSARY: Join Prompt).
+     */
+    public function joinPromptDismissals(): HasMany
+    {
+        return $this->hasMany(JoinPromptDismissal::class);
+    }
+
+    /**
+     * Make the partner's Gym Locations exactly the given rows: rows with an id
+     * update that location, rows without one are created, and locations the
+     * admin removed from the form are deleted. Ids that don't belong to this
+     * partner are ignored and their rows created fresh.
+     *
+     * @param  array<int, array{id?: int|string|null, label: string, latitude: float|string, longitude: float|string, radius_m?: int|string|null}>  $rows
+     */
+    public function syncGymLocations(array $rows): void
+    {
+        $existing = $this->gymLocations()->get()->keyBy('id');
+        $kept = [];
+
+        foreach ($rows as $row) {
+            $location = $existing->get($row['id'] ?? null);
+            $values = [
+                'label' => $row['label'],
+                'latitude' => $row['latitude'],
+                'longitude' => $row['longitude'],
+                'radius_m' => $row['radius_m'] ?? GymLocation::DEFAULT_RADIUS_M,
+            ];
+
+            if ($location) {
+                $location->update($values);
+                $kept[] = $location->id;
+            } else {
+                $kept[] = $this->gymLocations()->create($values)->id;
+            }
+        }
+
+        $this->gymLocations()->whereNotIn('id', $kept)->delete();
     }
 
     /**

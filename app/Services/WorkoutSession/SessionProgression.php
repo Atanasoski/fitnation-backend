@@ -150,6 +150,13 @@ class SessionProgression
         if (($calculated['progression_mode'] ?? 'double_progression') === 'total_reps') {
             $targets['min_target_reps'] = null;
             $targets['max_target_reps'] = null;
+
+            // A deload session asks for recovery, not a new total: no "beat
+            // last week + 1" during the deload (ADR-0008). Only reached for
+            // bodyweight rows, so the lazy session load stays rare.
+            if ($row->workoutSession?->is_deload) {
+                $targets['total_reps_target'] = null;
+            }
         }
 
         return $targets;

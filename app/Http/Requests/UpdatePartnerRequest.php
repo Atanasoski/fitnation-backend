@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Partner;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdatePartnerRequest extends FormRequest
 {
@@ -15,6 +17,73 @@ class UpdatePartnerRequest extends FormRequest
         $partner = $this->route('partner');
 
         return $this->user()->can('update', $partner);
+    }
+
+    /**
+     * The admin edits benefits as a one-per-line textarea; validation and
+     * storage both want the array (GLOSSARY: Join Prompt). Blank lines — and
+     * blank entries, should a client post the array directly — are dropped, so
+     * they never count towards the "at least one benefit" enable gate.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('benefits')) {
+            return;
+        }
+
+        $lines = is_array($this->input('benefits'))
+            ? $this->input('benefits')
+            : preg_split('/\r\n|\r|\n/', (string) $this->input('benefits'));
+
+        $this->merge([
+            'benefits' => array_values(array_filter(
+                array_map(fn ($line) => trim((string) $line), $lines),
+                fn (string $line) => $line !== '',
+            )),
+        ]);
+    }
+
+    /**
+     * Whether this submission carries the form's Join Prompt section. With
+     * every Gym Location row removed only the section's hidden marker is
+     * posted; older posts without the section leave the locations alone.
+     */
+    public function gymLocationsSubmitted(): bool
+    {
+        return $this->has('gym_locations') || $this->boolean('gym_locations_submitted');
+    }
+
+    /**
+     * Enabling the Join Prompt requires at least one Gym Location and one
+     * benefit, so a half-configured gym can never produce an empty prompt
+     * (issue #86). Disabling is always allowed. Counts come from the submitted
+     * form when it carries the section, from the partner otherwise.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (! $this->boolean('geo_prompt_enabled')) {
+                return;
+            }
+
+            /** @var Partner $partner */
+            $partner = $this->route('partner');
+
+            $locations = $this->gymLocationsSubmitted()
+                ? count($this->input('gym_locations', []))
+                : $partner->gymLocations()->count();
+            $benefits = $this->has('benefits')
+                ? count($this->input('benefits', []))
+                : count($partner->benefits ?? []);
+
+            if ($locations < 1) {
+                $validator->errors()->add('geo_prompt_enabled', 'The Join Prompt needs at least one Gym Location before it can be enabled.');
+            }
+
+            if ($benefits < 1) {
+                $validator->errors()->add('geo_prompt_enabled', 'The Join Prompt needs at least one benefit before it can be enabled.');
+            }
+        });
     }
 
     /**
@@ -31,6 +100,17 @@ class UpdatePartnerRequest extends FormRequest
             'slug' => ['required', 'string', 'max:255', Rule::unique('partners')->ignore($partnerId), 'alpha_dash'],
             'domain' => ['nullable', 'string', 'max:255', Rule::unique('partners')->ignore($partnerId)],
             'is_active' => ['boolean'],
+
+            // Join Prompt configuration
+            'geo_prompt_enabled' => ['boolean'],
+            'benefits' => ['array'],
+            'benefits.*' => ['string', 'max:255'],
+            'gym_locations' => ['array'],
+            'gym_locations.*.id' => ['nullable', 'integer'],
+            'gym_locations.*.label' => ['required', 'string', 'max:255'],
+            'gym_locations.*.latitude' => ['required', 'numeric', 'between:-90,90'],
+            'gym_locations.*.longitude' => ['required', 'numeric', 'between:-180,180'],
+            'gym_locations.*.radius_m' => ['nullable', 'integer', 'min:10', 'max:100000'],
 
             // Identity fields
             'primary_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],

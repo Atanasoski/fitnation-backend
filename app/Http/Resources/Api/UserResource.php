@@ -34,6 +34,7 @@ class UserResource extends JsonResource
                     'id' => $this->partner->id,
                     'name' => $this->partner->name,
                     'slug' => $this->partner->slug,
+                    'is_house' => $this->partner->isHouse(),
                     'visual_identity' => $this->partner->identity
                         ? new PartnerVisualIdentityResource($this->partner->identity)
                         : null,

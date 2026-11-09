@@ -112,37 +112,40 @@ class WorkoutSessionController extends Controller
 
         if (! $session) {
             $session = DB::transaction(function () use ($request, $today) {
+                $template = $request->template_id
+                    ? WorkoutTemplate::with('workoutTemplateExercises')->find($request->template_id)
+                    : null;
+
                 $newSession = WorkoutSession::create([
                     'user_id' => Auth::id(),
                     'workout_template_id' => $request->template_id,
                     'performed_at' => $today,
                     'status' => WorkoutSessionStatus::Active,
+                    // Snapshotted like the targets below: a deload session stays
+                    // one even if the template changes later (ADR-0008).
+                    'is_deload' => (bool) $template?->is_deload,
                 ]);
 
                 // Snapshot template exercises if template is provided
-                if ($request->template_id) {
-                    $template = WorkoutTemplate::with('workoutTemplateExercises')->find($request->template_id);
+                if ($template && $template->workoutTemplateExercises->isNotEmpty()) {
+                    // Bulk insert instead of individual creates
+                    $now = now();
+                    $exercisesToInsert = $template->workoutTemplateExercises->map(function ($templateExercise) use ($newSession, $now) {
+                        return [
+                            'workout_session_id' => $newSession->id,
+                            'exercise_id' => $templateExercise->exercise_id,
+                            'order' => $templateExercise->order,
+                            'target_sets' => $templateExercise->target_sets,
+                            'min_target_reps' => $templateExercise->min_target_reps,
+                            'max_target_reps' => $templateExercise->max_target_reps,
+                            'target_weight' => $templateExercise->target_weight,
+                            'rest_seconds' => $templateExercise->rest_seconds,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    })->toArray();
 
-                    if ($template && $template->workoutTemplateExercises->isNotEmpty()) {
-                        // Bulk insert instead of individual creates
-                        $now = now();
-                        $exercisesToInsert = $template->workoutTemplateExercises->map(function ($templateExercise) use ($newSession, $now) {
-                            return [
-                                'workout_session_id' => $newSession->id,
-                                'exercise_id' => $templateExercise->exercise_id,
-                                'order' => $templateExercise->order,
-                                'target_sets' => $templateExercise->target_sets,
-                                'min_target_reps' => $templateExercise->min_target_reps,
-                                'max_target_reps' => $templateExercise->max_target_reps,
-                                'target_weight' => $templateExercise->target_weight,
-                                'rest_seconds' => $templateExercise->rest_seconds,
-                                'created_at' => $now,
-                                'updated_at' => $now,
-                            ];
-                        })->toArray();
-
-                        WorkoutSessionExercise::insert($exercisesToInsert);
-                    }
+                    WorkoutSessionExercise::insert($exercisesToInsert);
                 }
 
                 return $newSession;

@@ -97,6 +97,7 @@ class WorkoutTemplateResource extends JsonResource
             'description' => $this->description,
             'day_of_week' => $this->day_of_week,
             'week_number' => $this->week_number,
+            'is_deload' => (bool) $this->is_deload,
             'order_index' => $this->order_index,
             'last_completed_session_id' => $this->lastCompletedSessionIdWasSeeded
                 ? $this->lastCompletedSessionId

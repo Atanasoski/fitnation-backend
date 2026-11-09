@@ -13,6 +13,7 @@ use App\Models\Partner;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\WorkoutSplit;
+use App\Services\WelcomePlanGenerationService;
 use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,7 +21,8 @@ use Illuminate\View\View;
 class WorkoutPreviewController extends Controller
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator
+        private DeterministicWorkoutGenerator $workoutGenerator,
+        private WelcomePlanGenerationService $planGenerationService
     ) {}
 
     /**
@@ -88,25 +90,36 @@ class WorkoutPreviewController extends Controller
             ]);
         }
 
-        // Generate workouts for each week and day
+        // Mirror the mesocycle structure a generated program carries (ADR-0007):
+        // each split day is generated once and repeated identically across the
+        // weeks, with the final week shown as the deload.
+        $days = [];
+        foreach (array_values($split) as $dayIndex => $targetRegions) {
+            $days[$dayIndex] = [
+                'name' => $this->getWorkoutName($targetRegions, $dayIndex),
+                'workout' => $this->workoutGenerator->generate($fakeUser, array_filter([
+                    'target_regions' => $targetRegions,
+                    'duration_minutes' => (int) $validated['duration_minutes'],
+                    'equipment_types' => $validated['equipment_types'] ?? null,
+                    'training_styles' => $validated['training_styles'] ?? null,
+                ], fn ($v) => $v !== null)),
+            ];
+        }
+
         $weeks = [];
         $allExerciseIds = [];
 
         for ($week = 1; $week <= $validated['weeks']; $week++) {
             $weeks[$week] = [];
+            $isDeloadWeek = $validated['weeks'] >= 2 && $week === (int) $validated['weeks'];
 
-            foreach ($split as $dayIndex => $targetRegions) {
-                $workout = $this->workoutGenerator->generate($fakeUser, array_filter([
-                    'target_regions' => $targetRegions,
-                    'duration_minutes' => (int) $validated['duration_minutes'],
-                    'equipment_types' => $validated['equipment_types'] ?? null,
-                    'training_styles' => $validated['training_styles'] ?? null,
-                ], fn ($v) => $v !== null));
-
-                $workoutName = $this->getWorkoutName($targetRegions, $dayIndex);
+            foreach ($days as $day) {
+                $workout = $isDeloadWeek
+                    ? $this->planGenerationService->deloadWorkout($day['workout'])
+                    : $day['workout'];
 
                 $weeks[$week][] = [
-                    'name' => $workoutName,
+                    'name' => $isDeloadWeek ? $day['name'].' (Deload)' : $day['name'],
                     'exercises' => $workout['exercises'],
                 ];
 
@@ -124,8 +137,8 @@ class WorkoutPreviewController extends Controller
             ->keyBy('id');
 
         // Attach exercise models to workout data
-        foreach ($weeks as $weekNum => $days) {
-            foreach ($days as $dayIndex => $dayData) {
+        foreach ($weeks as $weekNum => $dayRows) {
+            foreach ($dayRows as $dayIndex => $dayData) {
                 foreach ($dayData['exercises'] as $exIndex => $exerciseData) {
                     if (isset($exercises[$exerciseData['exercise_id']])) {
                         $weeks[$weekNum][$dayIndex]['exercises'][$exIndex]['exercise'] = $exercises[$exerciseData['exercise_id']];

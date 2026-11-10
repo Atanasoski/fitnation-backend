@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Exercise;
+use App\Models\Partner;
 use Database\Seeders\CatalogEnrichmentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,10 +16,23 @@ use Tests\TestCase;
  * angle where meaningful, muscle groups), band coverage above all — BAND was
  * a selectable equipment type with zero exercises. Names that already exist,
  * in any state including archived, are left untouched.
+ *
+ * Issue #130: every import joins the House Partner's library and no other
+ * Partner Library; bands and kettlebells are FUNCTIONAL only.
  */
 class CatalogEnrichmentSeederTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Partner $house;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->house = Partner::factory()->create(['name' => 'Fit Nation']);
+        config(['partners.house_partner_id' => $this->house->id]);
+    }
 
     public function test_band_biceps_curl_is_imported_fully_classified(): void
     {
@@ -122,6 +136,30 @@ class CatalogEnrichmentSeederTest extends TestCase
         }
     }
 
+    public function test_every_import_joins_the_house_partners_library_and_no_other(): void
+    {
+        $gym = Partner::factory()->create();
+        $curated = Exercise::factory()->create(['name' => 'Gym Curated Press']);
+        $gym->exercises()->attach($curated->id, ['description' => 'Our cue', 'image' => null, 'video' => null]);
+
+        $this->seed(CatalogEnrichmentSeeder::class);
+
+        $imports = Exercise::query()->whereKeyNot($curated->id)->get();
+        $this->assertCount(37, $imports);
+
+        $houseLibrary = $this->house->exercises()->get()->keyBy('id');
+        $this->assertEqualsCanonicalizing($imports->modelKeys(), $houseLibrary->keys()->all());
+        foreach ($houseLibrary as $exercise) {
+            $this->assertNull($exercise->pivot->description, "{$exercise->name} was linked with an override");
+            $this->assertNull($exercise->pivot->image, "{$exercise->name} was linked with an override");
+            $this->assertNull($exercise->pivot->video, "{$exercise->name} was linked with an override");
+        }
+
+        $gymLibrary = $gym->exercises()->get();
+        $this->assertSame([$curated->id], $gymLibrary->modelKeys());
+        $this->assertSame('Our cue', $gymLibrary->first()->pivot->description);
+    }
+
     public function test_arm_isolations_are_classified_under_arms_never_upper_push_or_pull(): void
     {
         $this->seed(CatalogEnrichmentSeeder::class);
@@ -157,6 +195,7 @@ class CatalogEnrichmentSeederTest extends TestCase
         $this->assertSame('Original description', $untouched->description);
         $this->assertSame(999, $untouched->default_rest_sec);
         $this->assertNull($untouched->movement_pattern_id);
+        $this->assertFalse($this->house->exercises()->whereKey($archived->id)->exists(), 'An existing row was linked into the House library');
     }
 
     public function test_reseeding_creates_no_duplicates(): void
@@ -169,5 +208,22 @@ class CatalogEnrichmentSeederTest extends TestCase
             Exercise::count(),
             Exercise::distinct('name')->count('name'),
         );
+        $this->assertSame(37, $this->house->exercises()->count());
+    }
+
+    public function test_the_seeder_refuses_to_import_without_a_house_partner(): void
+    {
+        config(['partners.house_partner_id' => 999999]);
+
+        $thrown = null;
+        try {
+            $this->seed(CatalogEnrichmentSeeder::class);
+        } catch (\RuntimeException $e) {
+            $thrown = $e;
+        }
+
+        $this->assertNotNull($thrown, 'The seeder imported with no House Partner to link into.');
+        $this->assertStringContainsString('House Partner', $thrown->getMessage());
+        $this->assertSame(0, Exercise::count());
     }
 }

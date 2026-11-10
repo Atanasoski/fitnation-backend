@@ -228,4 +228,56 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
 
         $this->assertSame(75, $targets['rest_seconds']); // 120 × 0.6 = 72 → 75
     }
+
+    /**
+     * A member whose history logged no rest gets the Prescription rest on a
+     * generated row, for the Slot's class: a split squat (a compound
+     * pattern) filling the quad-isolation Slot rests under the isolation
+     * floor, not the compound one.
+     */
+    public function test_history_without_logged_rest_gets_the_prescription_rest_for_the_slots_class(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::FatLoss);
+
+        $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $splitSquat = $this->catalogExercise('LUNGE_SPLIT_SQUAT', 'LOWER', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE', null, ['default_rest_sec' => 60]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'status' => \App\Enums\WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+        $row = \App\Models\WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $splitSquat->id,
+            'order' => 1,
+            'target_sets' => 3,
+            'min_target_reps' => 10,
+            'max_target_reps' => 15,
+            'target_weight' => 12,
+            'rest_seconds' => 30,
+        ]);
+        foreach ([1, 2, 3] as $setNumber) {
+            \App\Models\SetLog::create([
+                'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $row->id,
+                'exercise_id' => $splitSquat->id,
+                'set_number' => $setNumber,
+                'weight' => 12,
+                'reps' => 12,
+                'rest_seconds' => null,
+            ]);
+        }
+
+        $rows = collect($this->generator->generatePlan($user, ['duration_minutes' => 60], [['LOWER']])[0]->rows)
+            ->keyBy('slot_key');
+
+        $this->assertSame($splitSquat->id, $rows['quad_iso']['exercise_id']);
+        $this->assertEqualsWithDelta(12.0, (float) $rows['quad_iso']['target_weight'], 0.001, 'the history is read');
+        $this->assertSame(30, $rows['quad_iso']['rest_seconds'], '60 × 0.6 = 36 → 30 under the isolation floor, not raised to the compound 60');
+    }
 }

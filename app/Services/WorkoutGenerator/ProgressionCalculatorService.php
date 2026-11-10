@@ -403,11 +403,11 @@ class ProgressionCalculatorService
      * - working: anything else.
      *
      * A set with no Logged Range (a performance built by hand) is judged
-     * against the fallback range.
+     * against the matrix range.
      *
      * @param  array<string, mixed>  $lastPerformance
      */
-    private function verdict(array $lastPerformance, int $fallbackMin, int $fallbackMax): string
+    private function verdict(array $lastPerformance, int $matrixMin, int $matrixMax): string
     {
         $reps = array_values($lastPerformance['reps'] ?? []);
         $weights = array_values($lastPerformance['weights'] ?? []);
@@ -418,7 +418,7 @@ class ProgressionCalculatorService
         $belowMin = false;
 
         foreach ($reps as $index => $repCount) {
-            [$minReps, $maxReps] = $ranges[$index] ?? [$fallbackMin, $fallbackMax];
+            [$minReps, $maxReps] = $ranges[$index] ?? [$matrixMin, $matrixMax];
 
             $topped = $topped && $repCount >= $maxReps;
             $belowMin = $belowMin || $repCount < $minReps;

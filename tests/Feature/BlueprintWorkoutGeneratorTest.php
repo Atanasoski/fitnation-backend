@@ -593,6 +593,72 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertNotContains($trxBodybuilding->id, $pickedIds);
     }
 
+    public function test_a_bodybuilding_filter_holds_for_a_non_functional_equipment_selection(): void
+    {
+        $dumbbellPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
+        $dumbbellThruster = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'VERTICAL');
+        $this->tagFunctionalOnly($dumbbellThruster);
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['DUMBBELL'],
+            'training_styles' => ['BODYBUILDING'],
+        ])['exercises'];
+
+        $pickedIds = array_column($rows, 'exercise_id');
+        $this->assertContains($dumbbellPress->id, $pickedIds);
+        $this->assertNotContains($dumbbellThruster->id, $pickedIds);
+    }
+
+    public function test_functional_equipment_anywhere_in_the_selection_drops_the_bodybuilding_default(): void
+    {
+        $dumbbellPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
+        $trxRow = $this->catalogExercise('ROW', 'UPPER_PULL', 'TRX', 'HORIZONTAL');
+        $this->tagFunctionalOnly($trxRow);
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['DUMBBELL', 'TRX'],
+            'training_styles' => ['BODYBUILDING'],
+        ])['exercises'];
+
+        $pickedIds = array_column($rows, 'exercise_id');
+        $this->assertContains($dumbbellPress->id, $pickedIds);
+        $this->assertContains($trxRow->id, $pickedIds);
+    }
+
+    public function test_an_empty_training_styles_array_is_treated_as_unset_alongside_an_equipment_selection(): void
+    {
+        $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxPress);
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['TRX'],
+            'training_styles' => [],
+        ])['exercises'];
+
+        $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
+    }
+
+    public function test_generation_fails_when_equipment_and_training_style_do_not_overlap(): void
+    {
+        $barbellThruster = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $this->tagFunctionalOnly($barbellThruster);
+
+        $this->expectExceptionMessage('No exercises available matching the specified criteria');
+
+        $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['BARBELL'],
+            'training_styles' => ['BODYBUILDING'],
+        ]);
+    }
+
     public function test_a_standard_push_day_is_the_push_blueprints_tier_one_and_two_slots_in_order(): void
     {
         $this->seedFullGymCatalog();

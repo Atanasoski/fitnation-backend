@@ -33,6 +33,9 @@ class WeeklyVolumeAuditTest extends TestCase
     private const DIRECT_SLOTS_BY_MUSCLE = [
         'chest' => ['main_press', 'incline_press', 'chest_iso'],
         'quads' => ['quad_compound', 'quad_iso'],
+        'back' => ['vertical_pull', 'heavy_row', 'second_row', 'lats_iso'],
+        'hamstrings' => ['hinge', 'ham_iso'],
+        'biceps' => ['biceps'],
     ];
 
     public function test_a_four_day_balanced_split_delivers_the_declared_weekly_direct_sets(): void
@@ -65,9 +68,15 @@ class WeeklyVolumeAuditTest extends TestCase
             ->sum(fn (string $slotKey) => $setsBySlotKey[$slotKey] ?? 0);
 
         // On paper: PUSH standard carries main_press (3) + incline_press (3);
-        // each LOWER day carries quad_compound (3) + quad_iso (3), twice a week.
+        // each LOWER day carries quad_compound (3) + quad_iso (3), twice a
+        // week; PULL standard carries three back slots (9) and biceps (3);
+        // hinge (3) + ham_iso (3) land twice a week. chest_iso and lats_iso
+        // are tier-3 and absent at Standard.
         $this->assertSame(6, $directSetsFor('chest'), 'chest direct sets per week');
         $this->assertSame(12, $directSetsFor('quads'), 'quads direct sets per week');
+        $this->assertSame(9, $directSetsFor('back'), 'back direct sets per week');
+        $this->assertSame(12, $directSetsFor('hamstrings'), 'hamstrings direct sets per week');
+        $this->assertSame(3, $directSetsFor('biceps'), 'biceps direct sets per week');
 
         // And the Standard tier's quality-volume target holds day by day:
         // four days × five slots × three sets.

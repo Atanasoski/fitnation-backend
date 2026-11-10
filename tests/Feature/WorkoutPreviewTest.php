@@ -276,6 +276,46 @@ class WorkoutPreviewTest extends TestCase
         }
     }
 
+    /**
+     * The preview names days exactly as a member's program does (#131):
+     * from the resolved day, not from a second copy of region naming.
+     */
+    public function test_preview_days_carry_the_program_workout_names(): void
+    {
+        foreach ([['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], ['UPPER_PUSH', 'LOWER'], ['LOWER', 'UPPER_PUSH', 'UPPER_PULL']] as $dayIndex => $regions) {
+            WorkoutSplit::where('days_per_week', 3)
+                ->where('focus', \App\Enums\SplitFocus::Balanced)
+                ->where('day_index', $dayIndex)
+                ->update(['target_regions' => $regions]);
+        }
+        Exercise::factory()->press()->barbell()->flat()->count(3)->create();
+        Exercise::factory()->press()->barbell()->incline()->count(2)->create();
+        Exercise::factory()->row()->barbell()->horizontal()->count(3)->create();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+            'fitness_goal' => 'general_fitness',
+            'training_experience' => 'intermediate',
+            'gender' => 'male',
+            'training_days_per_week' => 3,
+            'duration_minutes' => 60,
+            'weeks' => 2,
+        ]);
+
+        $response->assertStatus(200);
+        $weeks = $response->viewData('weeks');
+        $this->assertSame(
+            ['Upper Body Day', 'Push & Legs Day', 'Full Body (Legs)'],
+            array_column($weeks[1], 'name')
+        );
+        $this->assertSame(
+            ['Upper Body Day (Deload)', 'Push & Legs Day (Deload)', 'Full Body (Legs) (Deload)'],
+            array_column($weeks[2], 'name')
+        );
+    }
+
     public function test_preview_returns_error_when_split_not_found(): void
     {
         // Delete all splits to simulate missing split

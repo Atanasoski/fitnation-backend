@@ -56,6 +56,15 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertEquals('draft', $response->json('data.status'));
         $this->assertTrue($response->json('data.is_auto_generated'));
 
+        // The session notes are member-facing plain words (#131): an empty
+        // region request is a Full Body day, and only presses exist here.
+        $rationale = $response->json('data.rationale');
+        $this->assertStringStartsWith('Full Body day, ', $rationale);
+        $this->assertStringContainsString('No suitable exercise was available for ', $rationale);
+        foreach (['blueprint', 'slot', 'tier'] as $internalWord) {
+            $this->assertStringNotContainsStringIgnoringCase($internalWord, $rationale);
+        }
+
         // Verify session was created in database
         $session = WorkoutSession::find($response->json('data.id'));
         $this->assertNotNull($session);

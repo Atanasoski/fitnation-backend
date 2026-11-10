@@ -103,11 +103,12 @@ class WorkoutPreviewController extends Controller
             'training_styles' => $validated['training_styles'] ?? null,
         ], fn ($v) => $v !== null), $split);
 
+        // Named from the resolved day, exactly as a member's program is (#131).
         $days = [];
-        foreach ($split as $dayIndex => $targetRegions) {
+        foreach ($workouts as $dayIndex => $workout) {
             $days[$dayIndex] = [
-                'name' => $this->getWorkoutName($targetRegions, $dayIndex),
-                'workout' => $workouts[$dayIndex],
+                'name' => $workout->blueprint->workoutName(),
+                'workout' => $workout,
             ];
         }
 
@@ -169,63 +170,5 @@ class WorkoutPreviewController extends Controller
             'params' => $validated,
             'partners' => $partners,
         ]);
-    }
-
-    /**
-     * Generate a workout name based on target regions
-     * (Same logic as WelcomePlanGenerationService)
-     */
-    private function getWorkoutName(array $targetRegions, int $dayIndex): string
-    {
-        // Check for special multi-region combinations first
-        $regionSet = array_unique($targetRegions);
-        sort($regionSet);
-        $regionKey = implode('|', $regionSet);
-
-        // Check if it's a full body workout (all three main regions)
-        $isFullBody = count($regionSet) === 3
-            && in_array('UPPER_PUSH', $regionSet)
-            && in_array('UPPER_PULL', $regionSet)
-            && in_array('LOWER', $regionSet);
-
-        if ($isFullBody) {
-            // Determine focus based on first region in the array (order matters for exercise selection)
-            $firstRegion = $targetRegions[0];
-            $focus = match ($firstRegion) {
-                'UPPER_PUSH' => 'Push',
-                'UPPER_PULL' => 'Pull',
-                'LOWER' => 'Legs',
-                default => '',
-            };
-
-            return $focus ? "Full Body ({$focus})" : 'Full Body';
-        }
-
-        $specialNames = [
-            'CORE|LOWER' => 'Legs Day',
-            'UPPER_PULL|UPPER_PUSH' => 'Upper Body Day',
-            'ARMS|UPPER_PUSH' => 'Push Day',
-            'ARMS|UPPER_PULL' => 'Pull Day',
-        ];
-
-        if (isset($specialNames[$regionKey])) {
-            return $specialNames[$regionKey];
-        }
-
-        // Single region or other combinations
-        $regionNames = [
-            'UPPER_PUSH' => 'Push',
-            'UPPER_PULL' => 'Pull',
-            'LOWER' => 'Legs',
-            'ARMS' => 'Arms',
-            'CORE' => 'Core',
-        ];
-
-        $names = [];
-        foreach ($regionSet as $region) {
-            $names[] = $regionNames[$region] ?? $region;
-        }
-
-        return implode(' + ', $names);
     }
 }

@@ -91,6 +91,7 @@ final class BlueprintResolver
 
         return new Blueprint(
             implode('+', $orderedRegions),
+            implode(' & ', array_map($this->blueprints->fragmentLabel(...), $orderedRegions)),
             array_merge(...array_values($slotsByRegion)),
             fragmentComposed: true,
         );
@@ -166,7 +167,8 @@ final class BlueprintResolver
      * Compound slots stay ahead of isolation slots (a short session must
      * still lead with the heavy lifts, #107 user story 5); within each
      * class, the slots serving the focus region move to the front and
-     * everything else keeps its blueprint order.
+     * everything else keeps its blueprint order. The day is named for its
+     * focus: "Full Body (Push)".
      */
     private function fullBodyFocusedOn(string $focus): Blueprint
     {
@@ -180,6 +182,11 @@ final class BlueprintResolver
             ->values()
             ->all();
 
-        return new Blueprint($blueprint->code, $slots);
+        return new Blueprint(
+            $blueprint->code,
+            $blueprint->label,
+            $slots,
+            focusLabel: $this->blueprints->fragmentLabel($focus),
+        );
     }
 }

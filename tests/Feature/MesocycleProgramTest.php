@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\MovementClass;
+use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\MovementPattern;
 use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\User;
+use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -199,5 +201,48 @@ class MesocycleProgramTest extends TestCase
 
         // The isolation branch must actually have been exercised.
         $this->assertGreaterThan(0, $isolationRowsSeen);
+    }
+
+    /**
+     * A workout's name and description come from the same resolved day
+     * (#131): push+pull+arms is an Upper day in both, a composed day is
+     * named from its regions, and Full Body keeps its focus in the name.
+     */
+    public function test_workout_names_and_descriptions_name_the_same_day_type(): void
+    {
+        $this->setBalancedThreeDaySplit([
+            ['UPPER_PUSH', 'UPPER_PULL', 'ARMS'],
+            ['UPPER_PUSH', 'LOWER'],
+            ['UPPER_PULL', 'UPPER_PUSH', 'LOWER'],
+        ]);
+
+        $plan = app(WelcomePlanGenerationService::class)->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
+
+        $weekOne = $plan->workoutTemplates->where('week_number', 1)->sortBy('day_of_week')->values();
+        $this->assertSame(
+            ['Upper Body Day', 'Push & Legs Day', 'Full Body (Pull)'],
+            $weekOne->pluck('name')->all()
+        );
+        foreach (['Upper Body day, 60 min: ', 'Push & Legs day, 60 min: ', 'Full Body day, 60 min: '] as $day => $opening) {
+            $this->assertStringStartsWith($opening, $weekOne[$day]->description);
+        }
+
+        $this->assertSame(
+            ['Upper Body Day (Deload)', 'Push & Legs Day (Deload)', 'Full Body (Pull) (Deload)'],
+            $plan->workoutTemplates->where('week_number', 8)->sortBy('day_of_week')->pluck('name')->values()->all()
+        );
+    }
+
+    /**
+     * @param  list<list<string>>  $days
+     */
+    private function setBalancedThreeDaySplit(array $days): void
+    {
+        foreach ($days as $dayIndex => $regions) {
+            WorkoutSplit::where('days_per_week', 3)
+                ->where('focus', SplitFocus::Balanced)
+                ->where('day_index', $dayIndex)
+                ->update(['target_regions' => $regions]);
+        }
     }
 }

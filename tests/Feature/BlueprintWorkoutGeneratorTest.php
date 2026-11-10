@@ -449,18 +449,145 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         }
     }
 
-    public function test_a_fragment_days_rationale_names_the_regions_and_the_budget_not_a_blueprint(): void
+    /**
+     * Members read the description as session notes and as a program
+     * workout's description (#131): the day type, its length and its
+     * exercise count in plain words — never blueprint, slot or tier
+     * wording.
+     *
+     * @return array<string, array{0: list<string>, 1: int, 2: string}>
+     */
+    public static function plainDescriptionTable(): array
+    {
+        $order = 'heavy compound lifts first, then isolation work.';
+
+        return [
+            'push standard' => [['UPPER_PUSH'], 60, "Push day, 60 min: 5 exercises, {$order}"],
+            'legs express' => [['LOWER', 'CORE'], 30, "Legs day, 30 min: 3 exercises, {$order}"],
+            'push+pull+arms is an upper day' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, "Upper Body day, 90 min: 6 exercises, {$order}"],
+            'full body names no focus' => [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 60, "Full Body day, 60 min: 5 exercises, {$order}"],
+            'a composed day is named from its regions' => [['ARMS', 'CORE'], 45, "Arms & Core day, 45 min: 5 exercises, {$order}"],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $regions
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('plainDescriptionTable')]
+    public function test_a_day_is_described_in_plain_words(array $regions, int $durationMinutes, string $expected): void
     {
         $this->seedFullGymCatalog();
 
-        $rationale = $this->generator->generate($this->user, [
-            'target_regions' => ['ARMS', 'CORE'],
-            'duration_minutes' => 45,
+        $description = $this->generator->generate($this->user, [
+            'target_regions' => $regions,
+            'duration_minutes' => $durationMinutes,
         ])['rationale'];
 
-        $this->assertStringContainsString('arms + core', $rationale);
-        $this->assertStringContainsString('fragments', $rationale);
-        $this->assertStringNotContainsString('blueprint', $rationale);
+        $this->assertSame($expected, $description);
+    }
+
+    /**
+     * A day that came out short says which roles had no suitable exercise
+     * and where their sets went, so it reads as deliberate (#131). This
+     * catalog holds presses only: no isolation can stand in for the side
+     * delts, triceps or chest fly Slots, even after relaxation.
+     *
+     * @return array<string, array{0: int, 1: string}>
+     */
+    public static function skippedSlotDescriptionTable(): array
+    {
+        return [
+            'two skipped slots' => [60, 'Push day, 60 min: 3 exercises, heavy compound lifts first, then isolation work. '
+                .'No suitable exercise was available for side delts or triceps, so their sets went to earlier exercises.'],
+            'three skipped slots' => [90, 'Push day, 90 min: 3 exercises, heavy compound lifts first, then isolation work. '
+                .'No suitable exercise was available for side delts, triceps or chest fly, so their sets went to earlier exercises.'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('skippedSlotDescriptionTable')]
+    public function test_a_day_with_skipped_slots_names_the_roles_it_could_not_fill(int $durationMinutes, string $expected): void
+    {
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'INCLINE');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
+
+        $description = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => $durationMinutes,
+        ])['rationale'];
+
+        $this->assertSame($expected, $description);
+    }
+
+    /**
+     * A program workout's name comes from the day its regions resolved to
+     * (#131), keeping every name programs carried before; push+pull+arms
+     * is now an Upper day, so it is named like one.
+     */
+    public function test_each_day_is_named_from_the_day_it_resolved_to(): void
+    {
+        $this->seedFullGymCatalog();
+
+        $cases = [
+            [['UPPER_PUSH'], 'Push Day'],
+            [['UPPER_PUSH', 'ARMS'], 'Push Day'],
+            [['UPPER_PULL'], 'Pull Day'],
+            [['UPPER_PULL', 'ARMS'], 'Pull Day'],
+            [['LOWER'], 'Legs Day'],
+            [['LOWER', 'CORE'], 'Legs Day'],
+            [['UPPER_PUSH', 'UPPER_PULL'], 'Upper Body Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 'Upper Body Day'],
+            [['ARMS'], 'Arms Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'LOWER'], 'Full Body (Push)'],
+            [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 'Full Body (Pull)'],
+            [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 'Full Body (Legs)'],
+            [['UPPER_PUSH', 'LOWER'], 'Push & Legs Day'],
+            [['LOWER', 'UPPER_PUSH'], 'Legs & Push Day'],
+            [['CORE'], 'Core Day'],
+        ];
+
+        $days = $this->generator->generatePlan($this->user, ['duration_minutes' => 60], array_column($cases, 0));
+
+        $this->assertSame(
+            array_column($cases, 1),
+            array_map(fn (\App\Services\WorkoutGenerator\GeneratedDay $day) => $day->blueprint->workoutName(), $days),
+        );
+    }
+
+    public function test_the_tier_and_skipped_slots_go_to_the_log_not_the_description(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+
+        $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 30,
+        ]);
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with('workout.day_generated', [
+            'blueprint' => 'PUSH',
+            'tier' => 'express',
+            'filled_slots' => ['main_press'],
+            'skipped_slots' => ['overhead_press', 'triceps'],
+        ]);
+    }
+
+    public function test_a_one_exercise_day_is_described_in_the_singular(): void
+    {
+        // The only press fills main_press; overhead_press finds nothing left
+        // to relax to, and nothing can stand in for triceps.
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+
+        $description = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 30,
+        ])['rationale'];
+
+        $this->assertSame(
+            'Push day, 30 min: 1 exercise, heavy compound lifts first, then isolation work. '
+                .'No suitable exercise was available for overhead press or triceps, so their sets went to earlier exercises.',
+            $description,
+        );
     }
 
     public function test_the_literal_full_body_region_generates_the_push_focused_full_body_day(): void

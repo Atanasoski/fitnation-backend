@@ -198,7 +198,7 @@ class BlueprintResolverTest extends TestCase
         // Express, 13 sets > 10: a single 7-set CORE slot holds more sets
         // than ARMS's two 3-set slots, yet ARMS loses triceps: a region
         // loses its first Slot only once every region is down to one.
-        config()->set('workout_blueprints.fragments.CORE.0.sets', 7);
+        config()->set('workout_blueprints.fragments.CORE.slots.0.sets', 7);
 
         $blueprint = (new BlueprintResolver)->resolve(['ARMS', 'CORE'], SessionTier::Express);
 

@@ -26,17 +26,21 @@ class WorkoutGenerationService
         $this->validateUserProfile($user);
 
         try {
-            // Generate workout from its Blueprint (ADR-0010)
-            $generatedWorkout = $this->workoutGenerator->generate($user, $preferences);
+            // A single session is a one-day plan (ADR-0010, #124)
+            $generatedWorkout = $this->workoutGenerator->generatePlan(
+                $user,
+                $preferences,
+                [$preferences['target_regions'] ?? []],
+            )[0];
 
             Log::info('Workout generated', [
                 'user_id' => $user->id,
-                'exercises_count' => count($generatedWorkout['exercises'] ?? []),
-                'exercise_ids' => array_column($generatedWorkout['exercises'] ?? [], 'exercise_id'),
+                'exercises_count' => count($generatedWorkout->rows),
+                'exercise_ids' => array_column($generatedWorkout->rows, 'exercise_id'),
             ]);
 
             // Validate we have exercises
-            if (empty($generatedWorkout['exercises'])) {
+            if ($generatedWorkout->rows === []) {
                 throw new \Exception('No exercises could be selected for this workout. Please try different criteria.');
             }
 
@@ -48,14 +52,14 @@ class WorkoutGenerationService
                     'performed_at' => null, // Draft sessions don't have performed_at
                     'is_auto_generated' => true,
                     'status' => WorkoutSessionStatus::Draft,
-                    'notes' => $generatedWorkout['rationale'],
+                    'notes' => $generatedWorkout->description,
                 ]);
 
                 // Create workout session exercises
                 $now = now();
                 $exercisesToInsert = [];
 
-                foreach ($generatedWorkout['exercises'] as $exerciseData) {
+                foreach ($generatedWorkout->rows as $exerciseData) {
                     $exercisesToInsert[] = [
                         'workout_session_id' => $session->id,
                         'exercise_id' => $exerciseData['exercise_id'],

@@ -93,18 +93,21 @@ class WorkoutPreviewController extends Controller
         }
 
         // Mirror the mesocycle structure a generated program carries (ADR-0007):
-        // each split day is generated once and repeated identically across the
+        // each split day is generated once — the whole split as one plan, the
+        // same path members get (#124) — and repeated identically across the
         // weeks, with the final week shown as the deload.
+        $split = array_values($split);
+        $workouts = $this->workoutGenerator->generatePlan($fakeUser, array_filter([
+            'duration_minutes' => (int) $validated['duration_minutes'],
+            'equipment_types' => $validated['equipment_types'] ?? null,
+            'training_styles' => $validated['training_styles'] ?? null,
+        ], fn ($v) => $v !== null), $split);
+
         $days = [];
-        foreach (array_values($split) as $dayIndex => $targetRegions) {
+        foreach ($split as $dayIndex => $targetRegions) {
             $days[$dayIndex] = [
                 'name' => $this->getWorkoutName($targetRegions, $dayIndex),
-                'workout' => $this->workoutGenerator->generate($fakeUser, array_filter([
-                    'target_regions' => $targetRegions,
-                    'duration_minutes' => (int) $validated['duration_minutes'],
-                    'equipment_types' => $validated['equipment_types'] ?? null,
-                    'training_styles' => $validated['training_styles'] ?? null,
-                ], fn ($v) => $v !== null)),
+                'workout' => $workouts[$dayIndex],
             ];
         }
 
@@ -122,11 +125,11 @@ class WorkoutPreviewController extends Controller
 
                 $weeks[$week][] = [
                     'name' => $isDeloadWeek ? $day['name'].' (Deload)' : $day['name'],
-                    'exercises' => $workout['exercises'],
+                    'exercises' => $workout->rows,
                 ];
 
                 // Collect exercise IDs for eager loading
-                foreach ($workout['exercises'] as $exerciseData) {
+                foreach ($workout->rows as $exerciseData) {
                     $allExerciseIds[] = $exerciseData['exercise_id'];
                 }
             }

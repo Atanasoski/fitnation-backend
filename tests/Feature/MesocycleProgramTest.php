@@ -12,8 +12,10 @@ use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 /**
@@ -22,6 +24,7 @@ use Tests\TestCase;
  */
 class MesocycleProgramTest extends TestCase
 {
+    use CreatesCatalogExercises;
     use RefreshDatabase;
 
     private Partner $partner;
@@ -199,5 +202,42 @@ class MesocycleProgramTest extends TestCase
 
         // The isolation branch must actually have been exercised.
         $this->assertGreaterThan(0, $isolationRowsSeen);
+    }
+
+    /**
+     * The Slot's class, not the exercise's, decides a generated row's
+     * treatment (ADR-0010): a split squat (a compound pattern) filling the
+     * quad-isolation Slot keeps 10–15 and the isolation rest floor in the
+     * accumulation weeks, and keeps 10–15 in the Deload Week, where the squat
+     * filling the compound Slot drops to 3–4.
+     */
+    public function test_a_split_squat_filling_the_quad_isolation_slot_is_an_isolation_in_every_week(): void
+    {
+        $user = $this->makeUser(FitnessGoal::FatLoss);
+
+        $squat = $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $splitSquat = $this->catalogExercise('LUNGE_SPLIT_SQUAT', 'LOWER', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE', null, ['default_rest_sec' => 60]);
+        foreach (Exercise::all() as $exercise) {
+            $exercise->partners()->syncWithoutDetaching([$this->partner->id]);
+        }
+
+        $day = app(BlueprintWorkoutGenerator::class)->generatePlan($user, ['duration_minutes' => 60], [['LOWER']])[0];
+        $deload = app(WelcomePlanGenerationService::class)->deloadWorkout($day);
+
+        $accumulation = collect($day->rows)->keyBy('slot_key');
+        $this->assertSame($splitSquat->id, $accumulation['quad_iso']['exercise_id']);
+        $this->assertSame([10, 15], [$accumulation['quad_iso']['min_target_reps'], $accumulation['quad_iso']['max_target_reps']]);
+        $this->assertSame(30, $accumulation['quad_iso']['rest_seconds'], '60 × 0.6 = 36 → 30 under the isolation floor, not raised to the compound 60');
+
+        $deloadRows = collect($deload->rows)->keyBy('slot_key');
+        $this->assertSame($splitSquat->id, $deloadRows['quad_iso']['exercise_id']);
+        $this->assertSame(2, $deloadRows['quad_iso']['target_sets']);
+        $this->assertSame([10, 15], [$deloadRows['quad_iso']['min_target_reps'], $deloadRows['quad_iso']['max_target_reps']]);
+
+        $this->assertSame($squat->id, $deloadRows['quad_compound']['exercise_id']);
+        $this->assertSame(2, $deloadRows['quad_compound']['target_sets']);
+        $this->assertSame([3, 4], [$deloadRows['quad_compound']['min_target_reps'], $deloadRows['quad_compound']['max_target_reps']]);
     }
 }

@@ -505,6 +505,94 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         ]);
     }
 
+    /**
+     * Retags an exercise as FUNCTIONAL only, removing the factory's default
+     * BODYBUILDING tag.
+     */
+    private function tagFunctionalOnly(\App\Models\Exercise $exercise): void
+    {
+        $exercise->trainingStyles()->sync([
+            \App\Models\TrainingStyle::firstOrCreate(
+                ['code' => 'FUNCTIONAL'],
+                ['name' => 'Functional', 'display_order' => 20]
+            )->id,
+        ]);
+    }
+
+    /**
+     * Training-style semantics carried over from the legacy generator: with
+     * neither an equipment selection nor a style filter, the day defaults to
+     * the BODYBUILDING catalog, so functional-only movements (kettlebell
+     * flows, TRX work) never surprise a plain request.
+     */
+    public function test_a_plain_request_defaults_to_the_bodybuilding_catalog(): void
+    {
+        $this->seedFullGymCatalog();
+        $thruster = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $this->tagFunctionalOnly($thruster);
+
+        $pickedIds = collect(range(1, 10))
+            ->flatMap(fn () => array_column($this->generator->generate($this->user, [
+                'target_regions' => ['UPPER_PUSH'],
+                'duration_minutes' => 60,
+            ])['exercises'], 'exercise_id'))
+            ->unique();
+
+        $this->assertNotContains($thruster->id, $pickedIds->all());
+    }
+
+    public function test_an_equipment_selection_applies_no_training_style_default(): void
+    {
+        // TRX is functional equipment: a member who selected it gets its
+        // functional-only exercises without naming a style.
+        $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxPress);
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['TRX'],
+        ])['exercises'];
+
+        $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
+    }
+
+    public function test_a_client_bodybuilding_default_yields_to_functional_equipment(): void
+    {
+        // Mobile sends BODYBUILDING by default; a member who then picks TRX
+        // meant the equipment, so the style filter is dropped rather than
+        // starving the day.
+        $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxPress);
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['TRX'],
+            'training_styles' => ['BODYBUILDING'],
+        ])['exercises'];
+
+        $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
+    }
+
+    public function test_an_explicit_training_style_combines_with_the_equipment_selection(): void
+    {
+        $trxFunctional = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxFunctional);
+        $trxBodybuilding = $this->catalogExercise('FLY', 'UPPER_PUSH', 'TRX', 'HORIZONTAL');
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 45,
+            'equipment_types' => ['TRX'],
+            'training_styles' => ['FUNCTIONAL'],
+        ])['exercises'];
+
+        $pickedIds = array_column($rows, 'exercise_id');
+        $this->assertContains($trxFunctional->id, $pickedIds);
+        $this->assertNotContains($trxBodybuilding->id, $pickedIds);
+    }
+
     public function test_a_standard_push_day_is_the_push_blueprints_tier_one_and_two_slots_in_order(): void
     {
         $this->seedFullGymCatalog();

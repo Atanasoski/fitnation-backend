@@ -16,6 +16,7 @@ class WorkoutTemplateExercise extends Model
         'max_target_reps',
         'target_weight',
         'rest_seconds',
+        'slot_key',
     ];
 
     protected $casts = [

@@ -2,7 +2,6 @@
 
 namespace App\Services\WorkoutGenerator;
 
-use App\Enums\FitnessGoal;
 use App\Enums\MovementClass;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
@@ -58,16 +57,8 @@ class ProgressionCalculatorService
         $experience ??= TrainingExperience::Beginner;
         $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
 
-        // The default Prescription (ADR-0009): rep range from the
-        // compound/isolation × goal matrix, rest from the exercise's Default
-        // Rest scaled by the goal. Logged performance still outranks it below.
-        $movementPatternCode = $exercise->movementPattern?->code;
-        $prescription = $this->prescriptionCalculator->defaults(
-            MovementClass::fromPattern($movementPatternCode),
-            $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness,
-            $exercise->default_rest_sec,
-            $movementPatternCode,
-        );
+        // Logged performance still outranks the default Prescription below.
+        $prescription = $this->matrixPrescription($exercise, $user);
 
         if ($this->isBodyweight($exercise)) {
             $totalRepsPrevious = $lastPerformance ? array_sum($lastPerformance['reps'] ?? []) : null;
@@ -312,15 +303,28 @@ class ProgressionCalculatorService
      */
     private function matrixRange(Exercise $exercise, User $user): array
     {
+        $prescription = $this->matrixPrescription($exercise, $user);
+
+        return [(int) $prescription['min_target_reps'], (int) $prescription['max_target_reps']];
+    }
+
+    /**
+     * The default Prescription (ADR-0009) for the exercise's own class and
+     * the member's current goal: rep range from the compound/isolation ×
+     * goal matrix, rest from the exercise's Default Rest scaled by the goal.
+     *
+     * @return array{min_target_reps: int, max_target_reps: int, rest_seconds: int}
+     */
+    private function matrixPrescription(Exercise $exercise, User $user): array
+    {
         $movementPatternCode = $exercise->movementPattern?->code;
-        $prescription = $this->prescriptionCalculator->defaults(
+
+        return $this->prescriptionCalculator->defaults(
             MovementClass::fromPattern($movementPatternCode),
-            $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness,
+            $user->fitnessGoal(),
             $exercise->default_rest_sec,
             $movementPatternCode,
         );
-
-        return [(int) $prescription['min_target_reps'], (int) $prescription['max_target_reps']];
     }
 
     /**

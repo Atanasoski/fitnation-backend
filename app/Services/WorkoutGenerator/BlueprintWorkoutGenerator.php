@@ -278,7 +278,7 @@ class BlueprintWorkoutGenerator
      */
     private function prescribeRows(array $filled, User $user, array $lastPerformances): array
     {
-        $goal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
+        $goal = $user->fitnessGoal();
         $experience = $user->profile?->training_experience;
 
         $rows = [];

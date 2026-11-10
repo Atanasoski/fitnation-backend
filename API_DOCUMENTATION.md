@@ -2590,15 +2590,17 @@ Frontend behavior:
 
 Progression behavior:
 
-- Weight increases only when all logged sets in the previous completed session hit `max_target_reps` at the same weight.
+- The previous completed working (non-deload) session is judged once, set by set, against each set's **Logged Range**: the `min_target_reps`–`max_target_reps` of the session exercise it was logged against (the default range for the exercise when that row stored none), not against today's range.
+- Weight increases one equipment step only when every set reached the top of its Logged Range, with the weight held across each row's sets. The same verdict sets `progression_status`, so the status and `target_weight` never disagree.
 - Otherwise, the target weight stays at the previous working weight.
+- In a deload session (`is_deload: true`) the target weight is the previous working weight, never raised, and `target_weight_lowered` is `null`.
 
 `progression_status` values (on `WorkoutSessionExerciseResource`):
 
-- `no_history`: user has no completed session logs for this exercise yet.
-- `below_min`: at least one set in the previous completed session was below `min_target_reps`.
-- `working`: previous session did not progress, but all sets met `min_target_reps`.
-- `ready`: all sets in the previous completed session hit `max_target_reps` at the same weight, so weight can increase.
+- `no_history`: user has no completed working session logs for this exercise yet.
+- `below_min`: at least one set in the previous completed session was below its Logged Range's minimum.
+- `working`: previous session did not progress, but all sets met their Logged Range's minimum. Always the value in a deload session that has history.
+- `ready`: every set in the previous completed session reached the top of its Logged Range, so the weight has increased.
 
 `progression_mode` values (on `WorkoutSessionExerciseResource`):
 

@@ -7,9 +7,9 @@ use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
-use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
+use Tests\Support\GeneratesOneDay;
 use Tests\TestCase;
 
 /**
@@ -24,16 +24,8 @@ use Tests\TestCase;
 class WorkoutGeneratorPrescriptionTest extends TestCase
 {
     use CreatesCatalogExercises;
+    use GeneratesOneDay;
     use RefreshDatabase;
-
-    private BlueprintWorkoutGenerator $generator;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->generator = app(BlueprintWorkoutGenerator::class);
-    }
 
     private function makeUser(Partner $partner, FitnessGoal $goal, TrainingExperience $experience = TrainingExperience::Intermediate): User
     {
@@ -62,10 +54,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $pushdown = $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE', null, ['default_rest_sec' => 60]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['UPPER_PUSH'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
         // main_press slot: 6–10; triceps slot: 10–15. Rest is each
         // exercise's own Default Rest at the muscle-gain multiplier (× 1.0).
@@ -91,10 +80,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $deadlift = $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 90]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['LOWER'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['LOWER'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
         $this->assertSame(90, $byId[$squat->id]['rest_seconds']); // 150 × 0.6
         $this->assertSame(60, $byId[$deadlift->id]['rest_seconds']); // 90 × 0.6 = 54 → compound floor 60
@@ -112,10 +98,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $curl = $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL', null, ['default_rest_sec' => 60]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PULL'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['UPPER_PULL'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
         $this->assertSame(90, $byId[$curl->id]['rest_seconds']); // 60 × 1.5
         $this->assertSame(10, $byId[$curl->id]['min_target_reps'], 'an isolation Slot keeps its range for strength');
@@ -173,10 +156,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         ]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $selectedIds = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PULL'],
-            'duration_minutes' => 30,
-        ])['exercises'])->pluck('exercise_id');
+        $selectedIds = collect($this->generateDay($user, ['UPPER_PULL'], ['duration_minutes' => 30])->rows)->pluck('exercise_id');
 
         $this->assertNotContains($deadlift->id, $selectedIds->all());
         $this->assertNotEmpty($selectedIds->all(), 'NULL and beginner difficulties stay reachable');
@@ -197,10 +177,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         ]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['UPPER_PUSH'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
         $this->assertIsInt($byId[$pushup->id]['min_target_reps']);
         $this->assertIsInt($byId[$pushup->id]['max_target_reps']);
@@ -273,8 +250,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
             ]);
         }
 
-        $rows = collect($this->generator->generatePlan($user, ['duration_minutes' => 60], [['LOWER']])[0]->rows)
-            ->keyBy('slot_key');
+        $rows = collect($this->generateDay($user, ['LOWER'], ['duration_minutes' => 60])->rows)->keyBy('slot_key');
 
         $this->assertSame($splitSquat->id, $rows['quad_iso']['exercise_id']);
         $this->assertEqualsWithDelta(12.0, (float) $rows['quad_iso']['target_weight'], 0.001, 'the history is read');

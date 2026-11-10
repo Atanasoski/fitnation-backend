@@ -97,21 +97,6 @@ class BlueprintWorkoutGenerator
     }
 
     /**
-     * One day: a single generated session is a one-day plan. Reads the
-     * day's regions from `target_regions` and returns its rows as
-     * `exercises` and its description as `rationale`.
-     *
-     * @param  array<string, mixed>  $preferences
-     * @return array{exercises: list<array<string, mixed>>, rationale: string}
-     */
-    public function generate(User $user, array $preferences = []): array
-    {
-        $day = $this->generatePlan($user, $preferences, [$preferences['target_regions'] ?? []])[0];
-
-        return ['exercises' => $day->rows, 'rationale' => $day->description];
-    }
-
-    /**
      * The tier's slots with their session set counts: Extended includes
      * every tier and adds one set to the first two tier-1 slots — on
      * blueprint days only. A fragment-composed day's volume is governed

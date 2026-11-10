@@ -9,11 +9,13 @@ use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\StubsPlanGeneration;
 use Tests\TestCase;
 
 class WorkoutSplitTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPlanGeneration;
 
     protected function setUp(): void
     {
@@ -78,15 +80,7 @@ class WorkoutSplitTest extends TestCase
             'workout_duration_minutes' => 60,
         ]);
 
-        // Mock the workout generator to avoid needing full exercise setup
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
-        $mockGenerator->method('generate')
-            ->willReturn([
-                'exercises' => [],
-                'rationale' => 'Test rationale',
-            ]);
-
-        $service = new WelcomePlanGenerationService($mockGenerator);
+        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
 
         // This should not throw an exception because balanced split exists
         $plan = $service->generateWelcomePlan($user);
@@ -109,15 +103,7 @@ class WorkoutSplitTest extends TestCase
             'workout_duration_minutes' => 60,
         ]);
 
-        // Mock the workout generator
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
-        $mockGenerator->method('generate')
-            ->willReturn([
-                'exercises' => [],
-                'rationale' => 'Test rationale',
-            ]);
-
-        $service = new WelcomePlanGenerationService($mockGenerator);
+        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
 
         // This should use lower_focus split
         $plan = $service->generateWelcomePlan($user);
@@ -136,15 +122,7 @@ class WorkoutSplitTest extends TestCase
             'workout_duration_minutes' => 60,
         ]);
 
-        // Mock the workout generator
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
-        $mockGenerator->method('generate')
-            ->willReturn([
-                'exercises' => [],
-                'rationale' => 'Test rationale',
-            ]);
-
-        $service = new WelcomePlanGenerationService($mockGenerator);
+        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
 
         // This should use balanced split (default)
         $plan = $service->generateWelcomePlan($user);

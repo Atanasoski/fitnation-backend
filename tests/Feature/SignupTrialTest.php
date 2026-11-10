@@ -7,10 +7,10 @@ use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Tests\Support\StubsPlanGeneration;
 use Tests\TestCase;
 
 /**
@@ -20,6 +20,7 @@ use Tests\TestCase;
 class SignupTrialTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPlanGeneration;
 
     protected function setUp(): void
     {
@@ -50,10 +51,7 @@ class SignupTrialTest extends TestCase
 
     private function completeOnboarding(User $user): void
     {
-        $generator = $this->createMock(BlueprintWorkoutGenerator::class);
-        $generator->method('generate')->willReturn(['exercises' => [], 'rationale' => 'test']);
-
-        (new WelcomePlanGenerationService($generator))->generateWelcomePlan($user);
+        (new WelcomePlanGenerationService($this->stubPlanGenerator()))->generateWelcomePlan($user);
     }
 
     public function test_completing_onboarding_starts_a_seven_day_trial(): void

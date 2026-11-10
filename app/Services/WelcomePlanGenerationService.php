@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\Gender;
+use App\Enums\MovementClass;
 use App\Enums\PlanType;
 use App\Enums\SplitFocus;
 use App\Models\Plan;
@@ -14,7 +15,6 @@ use App\Services\Plan\PlanActivation;
 use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use App\Services\WorkoutGenerator\GeneratedDay;
 use App\Services\WorkoutGenerator\Slots\FilledSlot;
-use App\Services\WorkoutGenerator\Slots\Slot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -214,7 +214,7 @@ class WelcomePlanGenerationService
             function (array $row) use ($patternByExerciseId, $sets, $compoundMinReps, $compoundMaxReps) {
                 $row['target_sets'] = $sets;
 
-                if (Slot::isCompoundPattern($patternByExerciseId[$row['exercise_id']] ?? null)) {
+                if (MovementClass::fromPattern($patternByExerciseId[$row['exercise_id']] ?? null)->isCompound()) {
                     $row['min_target_reps'] = $compoundMinReps;
                     $row['max_target_reps'] = $compoundMaxReps;
                 }

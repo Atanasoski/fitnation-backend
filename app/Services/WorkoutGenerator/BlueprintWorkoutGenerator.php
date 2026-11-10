@@ -6,6 +6,7 @@ namespace App\Services\WorkoutGenerator;
 
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
+use App\Models\EquipmentType;
 use App\Models\User;
 use App\Services\WorkoutGenerator\Slots\Blueprint;
 use App\Services\WorkoutGenerator\Slots\BlueprintResolver;
@@ -31,22 +32,6 @@ class BlueprintWorkoutGenerator
 
     /** A redistributed slot may grow by at most this many sets. */
     private const REDISTRIBUTION_HEADROOM = 1;
-
-    /**
-     * Equipment whose exercises live mostly in the FUNCTIONAL catalog: a
-     * member who selected any of these meant the equipment, so a
-     * client-sent BODYBUILDING-only default yields instead of starving
-     * the day.
-     *
-     * @var list<string>
-     */
-    private const FUNCTIONAL_EQUIPMENT_CODES = [
-        'TRX',
-        'LANDMINE',
-        'KETTLEBELL',
-        'BAND',
-        'MEDICINE_BALL',
-    ];
 
     public function __construct(
         private BlueprintResolver $resolver,
@@ -199,7 +184,7 @@ class BlueprintWorkoutGenerator
     private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
     {
         return collect($equipmentTypes)->contains(
-            fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
+            fn (string $code) => in_array($code, EquipmentType::FUNCTIONAL_CODES, true)
         );
     }
 

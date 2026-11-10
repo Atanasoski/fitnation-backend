@@ -531,14 +531,17 @@ interface ProfileUpdateRequest {
   weight?: number;                  // in the unit_system being submitted (kg if metric/omitted, lbs if imperial) - converted and stored as kg
   training_experience?: TrainingExperience; // enum value
   training_days_per_week?: number;  // 1-7
-  workout_duration_minutes?: number; // 1-600
+  workout_duration_minutes?: WorkoutDuration; // session length in minutes - menu values only, see below
 }
 
 type FitnessGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness';
 type Gender = 'male' | 'female' | 'other';
 type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
 type UnitSystem = 'metric' | 'imperial';
+type WorkoutDuration = 30 | 45 | 60 | 90 | 120;
 ```
+
+**Session length:** `workout_duration_minutes` accepts only the menu values 30, 45, 60, 90 and 120. Any other value is a 422 with `errors.workout_duration_minutes: ["Workout duration must be one of: 30, 45, 60, 90, 120 minutes."]`. Every stored profile value is on the menu, so a client can send `user.profile.workout_duration_minutes` back unchanged. The same menu applies to `duration_minutes` on [Generate](#generate-draft-workout-session) and [Regenerate](#regenerate-draft-workout-session).
 
 **Note:** `height`/`weight` validation bounds (50-300cm / 1-500kg) are checked *after* conversion, so they're always enforced in metric regardless of what unit the client submitted. A very large imperial value can still fail validation once converted (e.g. 1200 lbs → ~544kg, which exceeds the 500kg max) — the returned error message will reference kg, not lbs.
 
@@ -675,7 +678,7 @@ interface CompleteOnboardingResponse {
   - 5 days: Push, Legs, Pull, Lower Body, Upper Body
   - 6 days: Push, Pull, Legs, Push, Pull, Legs
   - 7 days: Push, Pull, Legs, Push, Pull, Legs, Full Body
-- Each workout template includes exercises selected by the workout generator based on the user's fitness goal, training experience, and workout duration preferences. The number of exercises is determined by how many fit within the specified duration (with a 10% buffer for warm-up/transitions), with safety rails of 3-12 exercises.
+- Each workout template is generated from the user's fitness goal, training experience and `workout_duration_minutes`. The duration picks each day's Tier, which decides how many exercises it gets: 30 → Express, 45 or 60 → Standard, 90 or 120 → Extended (see the session length notes under [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---
 
@@ -2046,10 +2049,11 @@ interface GenerateWorkoutRequest {
   movement_patterns?: string[];        // optional, e.g., ["PRESS", "FLY", "DIP"]
   angles?: string[];                   // optional, e.g., ["FLAT", "INCLINE", "DECLINE"]
   training_styles?: string[];          // optional, array of training style codes, e.g. ["FUNCTIONAL"] or ["BODYBUILDING", "FUNCTIONAL"]. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
-  duration_minutes?: number;           // optional, min 15, max 180 - uses profile default if not provided
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional - uses profile training_experience if not provided
+  duration_minutes?: 30 | 45 | 60 | 90 | 120;  // optional, session length in minutes - menu values only; uses profile workout_duration_minutes if not provided
 }
 ```
+
+There is no difficulty parameter: the user's profile `training_experience` always applies.
 
 **Defaults:**
 - If `target_regions` not provided → system generates full body workout (all target regions)
@@ -2060,8 +2064,7 @@ interface GenerateWorkoutRequest {
 - If multiple `equipment_types` are provided → exercises matching **any** listed equipment (OR), e.g. `["DUMBBELL", "TRX"]`
 - If multiple `training_styles` are provided → exercises tagged with **any** listed style (OR), e.g. `["FUNCTIONAL", "OLYMPIC"]`
 - If both `equipment_types` and `training_styles` are provided → exercises must satisfy **both** filters (AND), e.g. `["LANDMINE"]` + `["FUNCTIONAL"]` or `["TRX"]` + `["BODYBUILDING", "FUNCTIONAL"]`
-- If `duration_minutes` not provided → system uses user profile `workout_duration_minutes`
-- If `difficulty` not provided → system uses user profile `training_experience`
+- If `duration_minutes` not provided → system uses user profile `workout_duration_minutes` (60 if the profile has none)
 
 **Note:** The frontend should map user-friendly labels (e.g., "Push", "Pull", "Legs", "Full Body") to target region codes. For example:
 - "Push" → `["UPPER_PUSH"]`
@@ -2148,6 +2151,16 @@ interface GeneratedSessionResource extends WorkoutSessionResource {
   }
   ```
 
+- **422 Unprocessable Entity:** `duration_minutes` is not on the menu
+  ```typescript
+  {
+    message: "Duration must be one of: 30, 45, 60, 90, 120 minutes.",
+    errors: {
+      duration_minutes: ["Duration must be one of: 30, 45, 60, 90, 120 minutes."]
+    }
+  }
+  ```
+
 **Example Request:**
 ```json
 {
@@ -2162,11 +2175,11 @@ interface GeneratedSessionResource extends WorkoutSessionResource {
 - The session is stored in the database with all exercises
 - User can modify exercises using standard exercise management endpoints before confirming
 - Call regenerate endpoint to cancel this draft and create a new one
-- **Exercise Selection Logic:** Duration is the primary constraint for exercise selection. The system selects exercises that fit within the specified `duration_minutes` (with a 10% buffer reserved for warm-up and transitions). The number of exercises varies based on:
-  - **Fitness Goal:** Different goals have different rest periods and sets (e.g., strength: 180s rest, muscle gain: 90s rest, fat loss: 45s rest), which naturally results in different exercise counts for the same duration
-  - **Exercise Type:** Compound exercises take longer than isolation exercises due to more sets and longer rest periods
-  - **Safety Rails:** Minimum 3 exercises and maximum 12 exercises are enforced to prevent edge cases
-- Different fitness goals will naturally produce different exercise counts for the same duration (e.g., a 60-minute strength workout may have 4-5 exercises, while a 60-minute fat loss workout may have 8-10 exercises)
+- **Session length:** `duration_minutes` picks the session's Tier, and the Tier decides how many of the day's exercises are included:
+  - `30` → Express: the day's core exercises only
+  - `45`, `60` → Standard: core plus secondary exercises
+  - `90`, `120` → Extended: every exercise, plus one extra set on the first two core exercises (120 adds nothing beyond 90)
+- The exercise count comes from the day type and the Tier, not from the fitness goal. The goal shapes reps and rest.
 
 ---
 
@@ -2239,12 +2252,11 @@ interface RegenerateWorkoutRequest {
   movement_patterns?: string[];        // optional
   angles?: string[];                   // optional
   training_styles?: string[];          // optional, array of training style codes. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
-  duration_minutes?: number;           // optional, min 15, max 180
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional
+  duration_minutes?: 30 | 45 | 60 | 90 | 120;  // optional, menu values only; uses profile workout_duration_minutes if not provided
 }
 ```
 
-**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields.
+**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields. `duration_minutes` has the same menu, defaults and 422 as Generate. There is no difficulty parameter.
 
 **Response (201 Created):**
 ```typescript
@@ -2669,7 +2681,7 @@ interface UserProfileResource {
   unit_system: UnitSystem | null;     // 'metric' or 'imperial' - use as the display label for height/weight
   training_experience: TrainingExperience | null;
   training_days_per_week: number | null;  // 1-7
-  workout_duration_minutes: number | null;
+  workout_duration_minutes: WorkoutDuration | null;  // 30 | 45 | 60 | 90 | 120
 }
 
 interface UserPartner {

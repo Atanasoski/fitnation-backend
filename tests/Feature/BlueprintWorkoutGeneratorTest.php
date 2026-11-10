@@ -666,6 +666,33 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         ]);
     }
 
+    /**
+     * The beginner difficulty exclusion is the config value it appears to
+     * be (#123): changing which difficulties are excluded changes which
+     * exercise a beginner's main press can be.
+     */
+    public function test_the_beginner_difficulty_exclusion_is_read_from_config(): void
+    {
+        $this->user->profile->update(['training_experience' => TrainingExperience::Beginner]);
+        $intermediatePress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['difficulty' => 'intermediate']);
+        $advancedPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['difficulty' => 'advanced']);
+
+        $pickedIds = fn () => array_column($this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 30,
+        ])['exercises'], 'exercise_id');
+
+        $byDefault = $pickedIds();
+        $this->assertContains($intermediatePress->id, $byDefault);
+        $this->assertNotContains($advancedPress->id, $byDefault);
+
+        config(['workout_generator.beginner_excluded_difficulties' => ['intermediate']]);
+
+        $reconfigured = $pickedIds();
+        $this->assertContains($advancedPress->id, $reconfigured);
+        $this->assertNotContains($intermediatePress->id, $reconfigured);
+    }
+
     public function test_a_standard_push_day_is_the_push_blueprints_tier_one_and_two_slots_in_order(): void
     {
         $this->seedFullGymCatalog();

@@ -5,9 +5,11 @@ namespace App\Enums;
 /**
  * The fixed menu of session lengths a member can request (issue #109).
  *
- * Validation accepts only these values; stored profile durations predating
- * the menu (e.g. 75) are still read as-is, so generation never needs them
- * migrated.
+ * Every endpoint that takes a duration accepts only these values: API and
+ * web profile update, session generate and regenerate, and the admin
+ * preview. Stored durations predating the menu (75) were migrated to the
+ * nearest menu value of the same Tier, so a client can always echo the
+ * stored value back.
  */
 enum WorkoutDuration: int
 {

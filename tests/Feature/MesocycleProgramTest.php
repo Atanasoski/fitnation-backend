@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
 use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
+use App\Services\WorkoutGenerator\Slots\Blueprint;
+use App\Services\WorkoutGenerator\Slots\BlueprintRepository;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
@@ -47,8 +49,7 @@ class MesocycleProgramTest extends TestCase
         Exercise::factory()->row()->barbell()->lowToHigh()->create(['name' => 'Landmine Row']);
 
         // An isolation movement, so the deload's compound/isolation split is
-        // observable. With five compounds and a six-exercise target, this curl
-        // is always selected.
+        // observable: this curl fills a Full Body day's isolation Slot.
         $elbowFlexion = MovementPattern::firstOrCreate(
             ['code' => 'ELBOW_FLEXION'],
             ['name' => 'Elbow Flexion', 'display_order' => 200]
@@ -159,7 +160,7 @@ class MesocycleProgramTest extends TestCase
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
-        $plan->load('workoutTemplates.workoutTemplateExercises.exercise.movementPattern');
+        $plan->load('workoutTemplates.workoutTemplateExercises');
 
         $deloadTemplates = $plan->workoutTemplates->where('week_number', 8);
         $this->assertCount(3, $deloadTemplates);
@@ -185,17 +186,15 @@ class MesocycleProgramTest extends TestCase
             foreach ($template->workoutTemplateExercises as $row) {
                 $this->assertSame(2, $row->target_sets);
 
-                $isCompound = MovementClass::fromPattern(
-                    $row->exercise->movementPattern?->code
-                )->isCompound();
-
-                if ($isCompound) {
+                // The Slot's class decides the deload reps, not the
+                // exercise's (ADR-0010).
+                if ($this->slotClass($row->slot_key)->isCompound()) {
                     $this->assertSame(3, $row->min_target_reps);
                     $this->assertSame(4, $row->max_target_reps);
                 } else {
                     $isolationRowsSeen++;
                     $weekOneRow = $weekOne->workoutTemplateExercises
-                        ->firstWhere('exercise_id', $row->exercise_id);
+                        ->firstWhere('slot_key', $row->slot_key);
                     $this->assertSame($weekOneRow->min_target_reps, $row->min_target_reps);
                     $this->assertSame($weekOneRow->max_target_reps, $row->max_target_reps);
                 }
@@ -204,6 +203,24 @@ class MesocycleProgramTest extends TestCase
 
         // The isolation branch must actually have been exercised.
         $this->assertGreaterThan(0, $isolationRowsSeen);
+    }
+
+    /**
+     * The class of the Slot a generated row fills, from its slot_key. A key
+     * names the same role in every Blueprint and Fragment it appears in.
+     */
+    private function slotClass(string $slotKey): MovementClass
+    {
+        $repository = new BlueprintRepository;
+        $slots = array_merge(
+            ...array_map(fn (Blueprint $blueprint) => $blueprint->slots(), $repository->blueprints()),
+            ...array_values($repository->fragments()),
+        );
+
+        $slot = collect($slots)->firstWhere('key', $slotKey);
+        $this->assertNotNull($slot, "No Slot has the key {$slotKey}");
+
+        return $slot->movementClass();
     }
 
     /**

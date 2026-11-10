@@ -281,6 +281,40 @@ class WorkoutBlueprintConfigTest extends TestCase
     }
 
     /**
+     * A generated row names its Slot by slot_key, and the Deload Week finds
+     * the Slot (and so its class) by that key — so keys must be unique
+     * within any day: within each Blueprint, and across all Fragments,
+     * since a composed day may draw on every one.
+     */
+    public function test_slot_keys_are_unique_within_any_day(): void
+    {
+        foreach (config('workout_blueprints.blueprints') as $code => $blueprint) {
+            $keys = array_column($blueprint['slots'], 'key');
+            $this->assertSame(array_values(array_unique($keys)), $keys, "blueprint {$code} repeats a slot key");
+        }
+
+        $fragmentKeys = array_column(array_merge(...array_column(config('workout_blueprints.fragments'), 'slots')), 'key');
+        $this->assertSame(array_values(array_unique($fragmentKeys)), $fragmentKeys, 'two Fragments share a slot key');
+    }
+
+    /**
+     * The skip note joins the labels of the Slots a day could not fill
+     * with "or" ("side delts, triceps or chest fly"), so a label holding
+     * the word itself would read as two roles.
+     */
+    public function test_no_slot_label_contains_the_word_or(): void
+    {
+        $slots = array_merge(
+            ...array_column(config('workout_blueprints.blueprints'), 'slots'),
+            ...array_column(config('workout_blueprints.fragments'), 'slots'),
+        );
+
+        foreach ($slots as $slot) {
+            $this->assertDoesNotMatchRegularExpression('/\bor\b/i', $slot['label'], "slot {$slot['key']}");
+        }
+    }
+
+    /**
      * A slot table as signed off: its labels are wording, not programming.
      *
      * @param  list<array<string, mixed>>  $slots

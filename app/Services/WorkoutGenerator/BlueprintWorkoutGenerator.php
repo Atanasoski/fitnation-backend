@@ -97,21 +97,6 @@ class BlueprintWorkoutGenerator
     }
 
     /**
-     * One day: a single generated session is a one-day plan. Reads the
-     * day's regions from `target_regions` and returns its rows as
-     * `exercises` and its description as `rationale`.
-     *
-     * @param  array<string, mixed>  $preferences
-     * @return array{exercises: list<array<string, mixed>>, rationale: string}
-     */
-    public function generate(User $user, array $preferences = []): array
-    {
-        $day = $this->generatePlan($user, $preferences, [$preferences['target_regions'] ?? []])[0];
-
-        return ['exercises' => $day->rows, 'rationale' => $day->description];
-    }
-
-    /**
      * The tier's slots with their session set counts: Extended includes
      * every tier and adds one set to the first two tier-1 slots — on
      * blueprint days only. A fragment-composed day's volume is governed
@@ -278,7 +263,7 @@ class BlueprintWorkoutGenerator
      */
     private function prescribeRows(array $filled, User $user, array $lastPerformances): array
     {
-        $goal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
+        $goal = $user->fitnessGoal();
         $experience = $user->profile?->training_experience;
 
         $rows = [];
@@ -338,8 +323,10 @@ class BlueprintWorkoutGenerator
      * The description members read as session notes and as a program
      * workout's description (#131): "Push day, 60 min: 5 exercises, heavy
      * compound lifts first, then isolation work.", plus the roles the day
-     * could not fill. It names the same day type as the workout name; the
-     * tier and relaxation detail stay in the logs.
+     * could not fill. The order of work is named only when the filled Slots
+     * include both classes; a day of one kind ends "…: 2 exercises.". It
+     * names the same day type as the workout name; the tier and relaxation
+     * detail stay in the logs.
      *
      * @param  list<FilledSlot>  $filled
      * @param  list<Slot>  $skipped
@@ -347,8 +334,11 @@ class BlueprintWorkoutGenerator
     private function describeDay(Blueprint $blueprint, int $durationMinutes, array $filled, array $skipped): string
     {
         $exercises = count($filled) === 1 ? '1 exercise' : count($filled).' exercises';
-        $description = "{$blueprint->label} day, {$durationMinutes} min: {$exercises}, "
-            .'heavy compound lifts first, then isolation work.';
+        $fillsBothClasses = collect($filled)->contains(fn (FilledSlot $filledSlot) => $filledSlot->slot->isCompound())
+            && collect($filled)->contains(fn (FilledSlot $filledSlot) => ! $filledSlot->slot->isCompound());
+
+        $description = "{$blueprint->label} day, {$durationMinutes} min: {$exercises}"
+            .($fillsBothClasses ? ', heavy compound lifts first, then isolation work.' : '.');
 
         if ($skipped === []) {
             return $description;

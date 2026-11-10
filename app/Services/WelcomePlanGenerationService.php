@@ -13,7 +13,6 @@ use App\Models\WorkoutTemplateExercise;
 use App\Services\Plan\PlanActivation;
 use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use App\Services\WorkoutGenerator\GeneratedDay;
-use App\Services\WorkoutGenerator\Slots\FilledSlot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -208,12 +207,11 @@ class WelcomePlanGenerationService
         $compoundMinReps = $deload['compound_min_reps'] ?? 3;
         $compoundMaxReps = $deload['compound_max_reps'] ?? 4;
 
-        // One filled Slot per row, in session order.
         return $generatedWorkout->withRows(array_map(
-            function (array $row, FilledSlot $filled) use ($sets, $compoundMinReps, $compoundMaxReps) {
+            function (array $row) use ($generatedWorkout, $sets, $compoundMinReps, $compoundMaxReps) {
                 $row['target_sets'] = $sets;
 
-                if ($filled->slot->isCompound()) {
+                if ($generatedWorkout->slotFor($row)->isCompound()) {
                     $row['min_target_reps'] = $compoundMinReps;
                     $row['max_target_reps'] = $compoundMaxReps;
                 }
@@ -221,7 +219,6 @@ class WelcomePlanGenerationService
                 return $row;
             },
             $generatedWorkout->rows,
-            $generatedWorkout->filledSlots,
         ));
     }
 
@@ -255,7 +252,7 @@ class WelcomePlanGenerationService
                 'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
-                'slot_key' => $exerciseData['slot_key'] ?? null,
+                'slot_key' => $exerciseData['slot_key'],
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Enums\ProgressionStatus;
 use App\Enums\UnitSystem;
 use App\Http\Resources\Concerns\FormatsMeasurements;
 use App\Models\User;
@@ -36,7 +37,7 @@ class WorkoutSessionExerciseResource extends JsonResource
      */
     private ?array $resolvedTargets = null;
 
-    private ?string $resolvedStatus = null;
+    private ?ProgressionStatus $resolvedStatus = null;
 
     /**
      * Serialize a row whose detail SessionDetail has already resolved.
@@ -122,7 +123,7 @@ class WorkoutSessionExerciseResource extends JsonResource
             'min_target_reps' => $targets['min_target_reps'],
             'max_target_reps' => $targets['max_target_reps'],
             'progression_mode' => $targets['progression_mode'],
-            'progression_status' => $progressionStatus,
+            'progression_status' => $progressionStatus->value,
             'target_weight' => $this->formatMeasured($targets['target_weight'], 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
             // Same measured kind as target_weight: the equipment step and one step below the target.
             'weight_step' => $this->formatMeasured($targets['weight_step'] ?? null, 'workout_session_exercises', 'target_weight', $user?->unitSystem()),
@@ -139,7 +140,7 @@ class WorkoutSessionExerciseResource extends JsonResource
      * Use the injected progression when the caller batched it, otherwise fall
      * back to resolving this single row's own.
      *
-     * @return array{0: array<string, mixed>, 1: string}
+     * @return array{0: array<string, mixed>, 1: ProgressionStatus}
      */
     private function resolveOwnDetail(?User $user): array
     {

@@ -34,11 +34,16 @@ class PrescriptionCalculator
         return array_merge([
             'min_target_reps' => $minReps,
             'max_target_reps' => $maxReps,
-            'rest_seconds' => $this->rest($goal, $defaultRestSec, $class->value),
+            'rest_seconds' => $this->rest($goal, $defaultRestSec, $class),
         ], $override);
     }
 
-    private function rest(FitnessGoal $goal, int $defaultRestSec, string $tier): int
+    /**
+     * The Default Rest scaled by the goal, clamped between the class's
+     * floor (rest_bounds compound_min / isolation_min) and the ceiling, then
+     * rounded.
+     */
+    private function rest(FitnessGoal $goal, int $defaultRestSec, MovementClass $class): int
     {
         $multiplier = config("workout_generator.rest_multipliers.{$goal->value}", 1.0);
         $bounds = config('workout_generator.rest_bounds', []);
@@ -46,7 +51,7 @@ class PrescriptionCalculator
 
         $rest = max(
             min($defaultRestSec * $multiplier, $bounds['max'] ?? 240),
-            $bounds["{$tier}_min"] ?? 30,
+            $bounds["{$class->value}_min"] ?? 30,
         );
 
         return (int) (round($rest / $roundTo) * $roundTo);

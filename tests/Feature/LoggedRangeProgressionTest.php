@@ -212,13 +212,9 @@ class LoggedRangeProgressionTest extends TestCase
      */
     private function template(User $member, array $rows, bool $isDeload = false): WorkoutTemplate
     {
-        $template = WorkoutTemplate::create([
+        $template = WorkoutTemplate::factory()->create([
             'plan_id' => Plan::factory()->create(['user_id' => $member->id])->id,
-            'name' => 'Day',
-            'day_of_week' => 0,
-            'week_number' => 1,
             'is_deload' => $isDeload,
-            'order_index' => 0,
         ]);
 
         foreach ($rows as $order => [$exercise, $minReps, $maxReps]) {

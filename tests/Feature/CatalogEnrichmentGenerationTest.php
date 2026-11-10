@@ -7,10 +7,10 @@ use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
-use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Database\Seeders\CatalogEnrichmentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\GeneratesOneDay;
 use Tests\TestCase;
 
 /**
@@ -23,9 +23,8 @@ use Tests\TestCase;
  */
 class CatalogEnrichmentGenerationTest extends TestCase
 {
+    use GeneratesOneDay;
     use RefreshDatabase;
-
-    private BlueprintWorkoutGenerator $generator;
 
     private User $member;
 
@@ -37,8 +36,6 @@ class CatalogEnrichmentGenerationTest extends TestCase
         config(['partners.house_partner_id' => $house->id]);
 
         $this->seed(CatalogEnrichmentSeeder::class);
-
-        $this->generator = app(BlueprintWorkoutGenerator::class);
 
         $this->member = User::factory()->create(['partner_id' => $house->id]);
         $this->member->profile->update([
@@ -67,10 +64,7 @@ class CatalogEnrichmentGenerationTest extends TestCase
     #[DataProvider('dayRequests')]
     public function test_a_full_gym_member_on_the_default_style_never_receives_a_band_or_kettlebell_import(array $regions): void
     {
-        $equipment = $this->equipmentOfGeneratedRows([
-            'target_regions' => $regions,
-            'duration_minutes' => 90,
-        ]);
+        $equipment = $this->equipmentOfGeneratedRows($regions, ['duration_minutes' => 90]);
 
         $this->assertNotEmpty($equipment);
         $this->assertNotContains('BAND', $equipment);
@@ -91,8 +85,7 @@ class CatalogEnrichmentGenerationTest extends TestCase
     #[DataProvider('functionalEquipment')]
     public function test_a_member_with_only_functional_equipment_receives_its_imports(string $equipmentCode): void
     {
-        $equipment = $this->equipmentOfGeneratedRows([
-            'target_regions' => ['UPPER_PUSH'],
+        $equipment = $this->equipmentOfGeneratedRows(['UPPER_PUSH'], [
             'duration_minutes' => 60,
             'equipment_types' => [$equipmentCode],
             'training_styles' => ['BODYBUILDING'],
@@ -102,12 +95,13 @@ class CatalogEnrichmentGenerationTest extends TestCase
     }
 
     /**
+     * @param  list<string>  $regions
      * @param  array<string, mixed>  $preferences
      * @return list<string>
      */
-    private function equipmentOfGeneratedRows(array $preferences): array
+    private function equipmentOfGeneratedRows(array $regions, array $preferences): array
     {
-        $rows = $this->generator->generate($this->member, $preferences)['exercises'];
+        $rows = $this->generateDay($this->member, $regions, $preferences)->rows;
 
         return Exercise::query()
             ->with('equipmentType')

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Enums\Gender;
+use App\Enums\ProgressionStatus;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Angle;
@@ -736,7 +737,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     {
         $status = $this->service->getProgressionStatus(null, 8, 12);
 
-        $this->assertSame('no_history', $status);
+        $this->assertSame(ProgressionStatus::NoHistory, $status);
     }
 
     public function test_progression_status_is_ready_when_all_sets_hit_max_reps_at_same_weight(): void
@@ -748,7 +749,7 @@ class ProgressionCalculatorServiceTest extends TestCase
 
         $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
 
-        $this->assertSame('ready', $status);
+        $this->assertSame(ProgressionStatus::Ready, $status);
     }
 
     public function test_progression_status_is_below_min_when_any_set_is_under_min_reps(): void
@@ -760,7 +761,7 @@ class ProgressionCalculatorServiceTest extends TestCase
 
         $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
 
-        $this->assertSame('below_min', $status);
+        $this->assertSame(ProgressionStatus::BelowMin, $status);
     }
 
     public function test_progression_status_is_working_when_sets_meet_min_but_not_ready_to_progress(): void
@@ -772,7 +773,7 @@ class ProgressionCalculatorServiceTest extends TestCase
 
         $status = $this->service->getProgressionStatus($lastPerformance, 8, 12);
 
-        $this->assertSame('working', $status);
+        $this->assertSame(ProgressionStatus::Working, $status);
     }
 
     public function test_bodyweight_exercise_returns_total_reps_mode(): void
@@ -850,7 +851,7 @@ class ProgressionCalculatorServiceTest extends TestCase
 
         $status = $this->service->getProgressionStatus($lastPerformance, 8, 12, $exercise);
 
-        $this->assertSame('working', $status);
+        $this->assertSame(ProgressionStatus::Working, $status);
     }
 
     public function test_weighted_exercise_returns_double_progression_mode(): void

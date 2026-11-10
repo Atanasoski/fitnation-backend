@@ -28,15 +28,11 @@ class DeloadSessionTest extends TestCase
 
     private function templateFor(User $user, bool $isDeload): WorkoutTemplate
     {
-        $plan = Plan::factory()->create(['user_id' => $user->id]);
-
-        return WorkoutTemplate::create([
-            'plan_id' => $plan->id,
+        return WorkoutTemplate::factory()->create([
+            'plan_id' => Plan::factory()->create(['user_id' => $user->id])->id,
             'name' => $isDeload ? 'Push Day (Deload)' : 'Push Day',
-            'day_of_week' => 0,
             'week_number' => $isDeload ? 8 : 1,
             'is_deload' => $isDeload,
-            'order_index' => 0,
         ]);
     }
 

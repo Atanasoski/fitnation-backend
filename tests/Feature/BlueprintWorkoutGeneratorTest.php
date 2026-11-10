@@ -485,7 +485,9 @@ class BlueprintWorkoutGeneratorTest extends TestCase
      * Members read the description as session notes and as a program
      * workout's description (#131): the day type, its length and its
      * exercise count in plain words — never blueprint, slot or tier
-     * wording.
+     * wording. The order of work is named only when the day fills both
+     * compound and isolation Slots (by Slot class); a day of one kind
+     * stops at its exercise count.
      *
      * @return array<string, array{0: list<string>, 1: int, 2: string}>
      */
@@ -494,11 +496,12 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $order = 'heavy compound lifts first, then isolation work.';
 
         return [
-            'push standard' => [['UPPER_PUSH'], 60, "Push day, 60 min: 5 exercises, {$order}"],
-            'legs express' => [['LOWER', 'CORE'], 30, "Legs day, 30 min: 3 exercises, {$order}"],
+            'a mixed push day names the order of work' => [['UPPER_PUSH'], 60, "Push day, 60 min: 5 exercises, {$order}"],
+            'a mixed legs day names the order of work' => [['LOWER', 'CORE'], 30, "Legs day, 30 min: 3 exercises, {$order}"],
             'push+pull+arms is an upper day' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, "Upper Body day, 90 min: 6 exercises, {$order}"],
             'full body names no focus' => [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 60, "Full Body day, 60 min: 5 exercises, {$order}"],
-            'a composed day is named from its regions' => [['ARMS', 'CORE'], 45, "Arms & Core day, 45 min: 5 exercises, {$order}"],
+            'an all-isolation composed day is named from its regions' => [['ARMS', 'CORE'], 45, 'Arms & Core day, 45 min: 5 exercises.'],
+            'an all-isolation core day' => [['CORE'], 60, 'Core day, 60 min: 2 exercises.'],
         ];
     }
 
@@ -522,16 +525,17 @@ class BlueprintWorkoutGeneratorTest extends TestCase
      * A day that came out short says which roles had no suitable exercise
      * and where their sets went, so it reads as deliberate (#131). This
      * catalog holds presses only: no isolation can stand in for the side
-     * delts, triceps or chest fly Slots, even after relaxation.
+     * delts, triceps or chest fly Slots, even after relaxation — so the
+     * day fills compound Slots only and names no order of work.
      *
      * @return array<string, array{0: int, 1: string}>
      */
     public static function skippedSlotDescriptionTable(): array
     {
         return [
-            'two skipped slots' => [60, 'Push day, 60 min: 3 exercises, heavy compound lifts first, then isolation work. '
+            'two skipped slots' => [60, 'Push day, 60 min: 3 exercises. '
                 .'No suitable exercise was available for side delts or triceps, so their sets went to earlier exercises.'],
-            'three skipped slots' => [90, 'Push day, 90 min: 3 exercises, heavy compound lifts first, then isolation work. '
+            'three skipped slots' => [90, 'Push day, 90 min: 3 exercises. '
                 .'No suitable exercise was available for side delts, triceps or chest fly, so their sets went to earlier exercises.'],
         ];
     }
@@ -549,6 +553,31 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         ])['rationale'];
 
         $this->assertSame($expected, $description);
+    }
+
+    /**
+     * An Arms day whose catalog has no press fills only its isolation
+     * Slots: the overhead press skips, and the description names no order
+     * of work.
+     */
+    public function test_an_arms_day_filling_only_isolation_slots_names_no_order_of_work(): void
+    {
+        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL');
+        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'CABLE');
+        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
+        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'BARBELL');
+        $this->catalogExercise('SHOULDER_RAISE', 'UPPER_PUSH', 'DUMBBELL');
+
+        $description = $this->generator->generate($this->user, [
+            'target_regions' => ['ARMS'],
+            'duration_minutes' => 60,
+        ])['rationale'];
+
+        $this->assertSame(
+            'Arms day, 60 min: 4 exercises. '
+                .'No suitable exercise was available for overhead press, so their sets went to earlier exercises.',
+            $description,
+        );
     }
 
     /**
@@ -616,7 +645,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         ])['rationale'];
 
         $this->assertSame(
-            'Push day, 30 min: 1 exercise, heavy compound lifts first, then isolation work. '
+            'Push day, 30 min: 1 exercise. '
                 .'No suitable exercise was available for overhead press or triceps, so their sets went to earlier exercises.',
             $description,
         );

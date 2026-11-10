@@ -11,4 +11,5 @@ The Working Weight raise and `progression_status` used two different rep ceiling
 
 - Supersedes ADR-0007's invariant about deload reps staying below an experience-tier max (that mechanism is gone; ADR-0008 already keeps deload sessions out of history) and ADR-0009's transitional note (rows storing the old 8–12 bounds are now judged against those bounds, so display and raise agree).
 - When one exercise occupies two rows of a session (a top set and a back-off block), each row's sets are judged against that row's range; the session tops only if every set topped its own.
+- Topped also requires one weight per row: double progression's same-weight rule, applied per row so a lighter back-off row doesn't block the raise.
 - Sets on rows that stored no bounds are judged against the matrix range at read time — what the member was shown, unless the matrix has changed since.

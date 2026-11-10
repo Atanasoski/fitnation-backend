@@ -162,6 +162,20 @@ class BlueprintResolverTest extends TestCase
         $this->assertSame([], $alone->slots());
     }
 
+    public function test_full_body_inside_a_larger_combination_contributes_no_slots(): void
+    {
+        // Only the lone literal maps to the FULL_BODY blueprint; inside a
+        // combination the region declares no Fragment, so — like
+        // CONDITIONING — it adds nothing to the composed day.
+        $blueprint = (new BlueprintResolver)->resolve(['FULL_BODY', 'ARMS'], SessionTier::Standard);
+
+        $this->assertTrue($blueprint->fragmentComposed);
+        $this->assertSame(
+            ['biceps', 'triceps', 'side_delts'],
+            array_column($blueprint->slots(), 'key'),
+        );
+    }
+
     public function test_fragment_composition_follows_the_request_order_not_a_canonical_one(): void
     {
         $blueprint = (new BlueprintResolver)->resolve(['CORE', 'ARMS'], SessionTier::Standard);

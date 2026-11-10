@@ -74,7 +74,7 @@ A single-joint Exercise, classified by its movement pattern. Fills a Blueprint's
 _Avoid_: accessory, auxiliary
 
 **Blueprint**:
-The declared shape of one workout day type: an ordered list of Slots. Six exist — Push, Pull, Upper, Lower, Full Body, Arms. A day's composition is read off its Blueprint, never emergent from selection rules.
+The declared shape of one workout day type: an ordered list of Slots. Six exist — Push, Pull, Upper, Lower, Full Body, Arms. A day's composition is read off its Blueprint, never emergent from selection rules. A fragment-composed day reuses the Blueprint shape (its Slots come from Fragments, tier-filtered and budget-trimmed) without being one of the six.
 _Avoid_: template (collides with WorkoutTemplate), day plan
 
 **Slot**:

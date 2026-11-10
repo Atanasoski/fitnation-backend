@@ -249,15 +249,13 @@ class BlueprintWorkoutGenerator
 
     private function buildRationale(Blueprint $blueprint, SessionTier $tier, int $durationMinutes, int $filledSlots): string
     {
-        if ($blueprint->fragmentComposed) {
-            $dayName = str_replace(['_', '+'], [' ', ' + '], strtolower($blueprint->code));
+        $dayName = str_replace(['_', '+'], [' ', ' + '], strtolower($blueprint->code));
 
+        if ($blueprint->fragmentComposed) {
             return "Composed a {$dayName} day from its region fragments at the {$tier->value} tier "
                 ."({$durationMinutes} minutes): {$filledSlots} slots filled in request order, "
                 ."trimmed to the tier's set budget.";
         }
-
-        $dayName = str_replace('_', ' ', strtolower($blueprint->code));
 
         return "Generated a {$dayName} day from its blueprint at the {$tier->value} tier "
             ."({$durationMinutes} minutes): {$filledSlots} slots filled in blueprint order, "

@@ -6,7 +6,8 @@ namespace App\Services\WorkoutGenerator\Slots;
 
 /**
  * The declared shape of one workout day type: an ordered list of Slots
- * (GLOSSARY: Blueprint). Six exist — see config/workout_blueprints.php.
+ * (GLOSSARY: Blueprint). Six declared day types exist — see
+ * config/workout_blueprints.php.
  *
  * A fragment-composed day (#112) is also a Blueprint: its slots come from
  * per-region Fragments, already tier-filtered and trimmed to the tier's

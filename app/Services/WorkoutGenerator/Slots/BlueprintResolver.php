@@ -22,15 +22,15 @@ final class BlueprintResolver
         'ARMS' => 'ARMS',
     ];
 
-    public function __construct(
-        private readonly BlueprintRepository $blueprints = new BlueprintRepository,
-    ) {}
-
     private const FULL_BODY_TRIO = ['LOWER', 'UPPER_PULL', 'UPPER_PUSH'];
 
     private const ALL_REGIONS = ['ARMS', 'CORE', 'LOWER', 'UPPER_PULL', 'UPPER_PUSH'];
 
     private const DEFAULT_FOCUS = 'UPPER_PUSH';
+
+    public function __construct(
+        private readonly BlueprintRepository $blueprints = new BlueprintRepository,
+    ) {}
 
     /**
      * @param  list<string>  $regions  requested target-region codes
@@ -69,17 +69,24 @@ final class BlueprintResolver
     }
 
     /**
-     * Focus-first reorder: the slots serving the focus region move to the
-     * front, everything keeps its blueprint order otherwise — one
-     * blueprint, no variants (ADR-0010).
+     * Focus-first reorder — one blueprint, no variants (ADR-0010).
+     * Compound slots stay ahead of isolation slots (a short session must
+     * still lead with the heavy lifts, #107 user story 5); within each
+     * class, the slots serving the focus region move to the front and
+     * everything else keeps its blueprint order.
      */
     private function fullBodyFocusedOn(string $focus): Blueprint
     {
         $blueprint = $this->blueprints->blueprint('FULL_BODY');
 
-        $focused = array_filter($blueprint->slots(), fn (Slot $slot) => in_array($focus, $slot->regions, true));
-        $rest = array_filter($blueprint->slots(), fn (Slot $slot) => ! in_array($focus, $slot->regions, true));
+        $slots = collect($blueprint->slots())
+            ->sortBy(fn (Slot $slot) => [
+                $slot->isCompound() ? 0 : 1,
+                in_array($focus, $slot->regions, true) ? 0 : 1,
+            ])
+            ->values()
+            ->all();
 
-        return new Blueprint($blueprint->code, [...array_values($focused), ...array_values($rest)]);
+        return new Blueprint($blueprint->code, $slots);
     }
 }

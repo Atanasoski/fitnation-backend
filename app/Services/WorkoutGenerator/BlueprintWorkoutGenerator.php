@@ -93,6 +93,9 @@ class BlueprintWorkoutGenerator
         }, $slots);
     }
 
+    /**
+     * @param  array<string, mixed>  $preferences
+     */
     private function constraintsFor(User $user, array $preferences): SlotConstraints
     {
         $experience = $user->profile?->training_experience ?? TrainingExperience::Beginner;
@@ -120,13 +123,13 @@ class BlueprintWorkoutGenerator
 
         $filled = [];
         $pickedIds = [];
-        $orphanedSets = 0;
+        $skippedSlotSets = 0;
 
         foreach ($slotSets as ['slot' => $slot, 'sets' => $sets]) {
             $result = $this->filler->fill($slot, $pool, $pickedIds);
 
             if ($result->isSkipped()) {
-                $orphanedSets += $sets;
+                $skippedSlotSets += $sets;
 
                 continue;
             }
@@ -135,26 +138,26 @@ class BlueprintWorkoutGenerator
             $pickedIds[] = $result->exercise->id;
         }
 
-        return $this->redistribute($filled, $orphanedSets);
+        return $this->redistribute($filled, $skippedSlotSets);
     }
 
     /**
      * @param  list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise, cap: int}>  $filled
      * @return list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise}>
      */
-    private function redistribute(array $filled, int $orphanedSets): array
+    private function redistribute(array $filled, int $skippedSlotSets): array
     {
-        while ($orphanedSets > 0) {
+        while ($skippedSlotSets > 0) {
             $placed = false;
 
             foreach ($filled as &$row) {
-                if ($orphanedSets === 0) {
+                if ($skippedSlotSets === 0) {
                     break;
                 }
 
                 if ($row['sets'] < $row['cap']) {
                     $row['sets']++;
-                    $orphanedSets--;
+                    $skippedSlotSets--;
                     $placed = true;
                 }
             }
@@ -244,7 +247,7 @@ class BlueprintWorkoutGenerator
 
         return "Generated a {$dayName} day from its blueprint at the {$tier->value} tier "
             ."({$durationMinutes} minutes): {$filledSlots} slots filled in blueprint order, "
-            .'compound lifts first, with sets and rep ranges read off each slot.';
+            .'heavy lifts leading, with sets and rep ranges read off each slot.';
     }
 
     /**

@@ -109,8 +109,8 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'LOWER standard' => [['LOWER'], 60, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves'], [3, 3, 3, 3, 3]],
             'LOWER extended' => [['LOWER'], 90, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves', 'abs'], [4, 4, 3, 3, 3, 3]],
             'FULL_BODY express' => [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 30, 'FULL_BODY', ['lower_compound', 'push', 'pull'], [3, 3, 3]],
-            'FULL_BODY standard' => [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 60, 'FULL_BODY', ['lower_compound', 'lower_iso', 'push', 'pull', 'delts_arms'], [3, 3, 3, 3, 3]],
-            'FULL_BODY extended' => [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 90, 'FULL_BODY', ['lower_compound', 'lower_iso', 'push', 'pull', 'delts_arms', 'core'], [4, 3, 4, 3, 3, 3]],
+            'FULL_BODY standard' => [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 60, 'FULL_BODY', ['lower_compound', 'push', 'pull', 'lower_iso', 'delts_arms'], [3, 3, 3, 3, 3]],
+            'FULL_BODY extended' => [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 90, 'FULL_BODY', ['lower_compound', 'push', 'pull', 'lower_iso', 'delts_arms', 'core'], [4, 4, 3, 3, 3, 3]],
             'ARMS express' => [['ARMS'], 30, 'ARMS', ['overhead_press', 'biceps_heavy', 'triceps_heavy'], [3, 3, 3]],
             'ARMS standard' => [['ARMS'], 60, 'ARMS', ['overhead_press', 'biceps_heavy', 'triceps_heavy', 'side_delts', 'arms_finisher'], [3, 3, 3, 3, 3]],
             'ARMS extended' => [['ARMS'], 90, 'ARMS', ['overhead_press', 'biceps_heavy', 'triceps_heavy', 'side_delts', 'arms_finisher', 'rear_delts'], [4, 4, 3, 3, 3, 3]],
@@ -303,8 +303,12 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertSame([4, 4], array_column($rows, 'target_sets'));
     }
 
-    public function test_regeneration_varies_picks_where_the_pool_allows(): void
+    public function test_duplicate_day_types_in_a_split_fill_independently(): void
     {
+        // A split with two push days calls the generator once per day:
+        // each fill shuffles its own picks, so the week gets variety while
+        // both days stay proper push days (#107 stories 17 and 19 —
+        // regenerating a draft rides the same mechanism).
         $this->seedFullGymCatalog();
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
 
@@ -318,6 +322,30 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertGreaterThan(1, $mainPressPicks->count());
     }
 
+    public function test_redistribution_caps_at_the_sessions_tier_adjusted_sets_plus_one(): void
+    {
+        // Extended push day, same thin catalog: side_delts and chest_iso
+        // skip (6 orphaned sets). The two Extended-bonused tier-1 slots sit
+        // at 4 sets, so their cap is 5 — the cap reads the session's
+        // tier-adjusted sets, not the blueprint base. Four sets land, two
+        // fit nowhere and are dropped.
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'INCLINE');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
+        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['UPPER_PUSH'],
+            'duration_minutes' => 90,
+        ])['exercises'];
+
+        $this->assertSame(
+            ['main_press', 'incline_press', 'overhead_press', 'triceps'],
+            array_column($rows, 'slot_key'),
+        );
+        $this->assertSame([5, 4, 5, 4], array_column($rows, 'target_sets'));
+    }
+
     public function test_no_requested_regions_means_a_push_focused_full_body_day(): void
     {
         $this->seedFullGymCatalog();
@@ -327,7 +355,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         ])['exercises'];
 
         $this->assertSame(
-            ['push', 'delts_arms', 'lower_compound', 'pull', 'lower_iso'],
+            ['push', 'lower_compound', 'pull', 'delts_arms', 'lower_iso'],
             array_column($rows, 'slot_key'),
         );
     }

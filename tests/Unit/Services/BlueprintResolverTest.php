@@ -52,7 +52,7 @@ class BlueprintResolverTest extends TestCase
 
         $this->assertSame('FULL_BODY', $blueprint->code);
         $this->assertSame(
-            ['push', 'delts_arms', 'lower_compound', 'pull', 'lower_iso', 'core'],
+            ['push', 'lower_compound', 'pull', 'delts_arms', 'lower_iso', 'core'],
             array_column($blueprint->slots(), 'key'),
         );
     }
@@ -63,7 +63,7 @@ class BlueprintResolverTest extends TestCase
 
         $this->assertSame('FULL_BODY', $blueprint->code);
         $this->assertSame(
-            ['lower_compound', 'lower_iso', 'push', 'pull', 'delts_arms', 'core'],
+            ['lower_compound', 'push', 'pull', 'lower_iso', 'delts_arms', 'core'],
             array_column($blueprint->slots(), 'key'),
         );
     }
@@ -77,6 +77,17 @@ class BlueprintResolverTest extends TestCase
             ['pull', 'lower_compound', 'push', 'lower_iso', 'delts_arms', 'core'],
             array_column($blueprint->slots(), 'key'),
         );
+    }
+
+    public function test_focus_reorder_never_lifts_an_isolation_slot_above_the_compounds(): void
+    {
+        // Push focus moves delts_arms (isolation, UPPER_PUSH) ahead of the
+        // other isolations only — the heavy lifts still lead (#107 story 5).
+        $blueprint = (new BlueprintResolver)->resolve([]);
+
+        $classes = array_map(fn ($slot) => $slot->isCompound(), $blueprint->slots());
+
+        $this->assertSame([true, true, true, false, false, false], $classes);
     }
 
     public function test_all_regions_resolve_to_full_body_focused_on_the_first_region(): void

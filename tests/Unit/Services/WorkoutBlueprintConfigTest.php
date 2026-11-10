@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use Database\Seeders\TargetRegionSeeder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -256,9 +257,22 @@ class WorkoutBlueprintConfigTest extends TestCase
         );
     }
 
+    public function test_every_requestable_region_declares_a_fragment(): void
+    {
+        // A region without a Fragment could only shrink a composed day
+        // (#127). FULL_BODY is requested alone and maps to its Blueprint,
+        // so it is never composed.
+        $combinableRegions = array_diff(array_column(TargetRegionSeeder::REGIONS, 'code'), ['FULL_BODY']);
+
+        $this->assertNotEmpty($combinableRegions);
+        foreach ($combinableRegions as $region) {
+            $this->assertArrayHasKey($region, config('workout_blueprints.fragments'), "Region {$region} declares no Fragment");
+        }
+    }
+
     public function test_every_slot_region_and_pattern_is_a_known_catalog_code(): void
     {
-        $knownRegions = ['UPPER_PUSH', 'UPPER_PULL', 'LOWER', 'ARMS', 'CORE', 'FULL_BODY', 'CONDITIONING'];
+        $knownRegions = array_column(TargetRegionSeeder::REGIONS, 'code');
 
         // The movement_patterns catalog codes, listed here rather than read
         // from config/workout_generator.php: its isolation_patterns key was

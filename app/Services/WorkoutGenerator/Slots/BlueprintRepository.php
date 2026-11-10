@@ -34,15 +34,6 @@ final class BlueprintRepository
     }
 
     /**
-     * Whether a target region declares a Fragment. CONDITIONING never does
-     * (#107); it contributes nothing to a composed day.
-     */
-    public function hasFragment(string $region): bool
-    {
-        return config("workout_blueprints.fragments.{$region}") !== null;
-    }
-
-    /**
      * A target region's short, ordered Slot list (GLOSSARY: Fragment).
      *
      * @return list<Slot>

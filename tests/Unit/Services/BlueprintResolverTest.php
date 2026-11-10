@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\WorkoutGenerator\Slots\BlueprintResolver;
 use App\Services\WorkoutGenerator\Slots\SessionTier;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -25,6 +26,11 @@ class BlueprintResolverTest extends TestCase
             'pull preset' => [['UPPER_PULL'], 'PULL'],
             'pull plus arms' => [['UPPER_PULL', 'ARMS'], 'PULL'],
             'upper preset' => [['UPPER_PUSH', 'UPPER_PULL'], 'UPPER'],
+            // The split seeder's "Upper Body" day: a complete upper day,
+            // not a composed day with biceps but no triceps (#127).
+            'push plus pull plus arms' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 'UPPER'],
+            'push plus pull plus arms, arms first' => [['ARMS', 'UPPER_PULL', 'UPPER_PUSH'], 'UPPER'],
+            'push plus pull plus arms, pull first' => [['UPPER_PULL', 'ARMS', 'UPPER_PUSH'], 'UPPER'],
             'lower preset' => [['LOWER'], 'LOWER'],
             'lower plus core' => [['LOWER', 'CORE'], 'LOWER'],
             'arms preset' => [['ARMS'], 'ARMS'],
@@ -135,45 +141,79 @@ class BlueprintResolverTest extends TestCase
         );
     }
 
-    public function test_fragment_composition_trims_trailing_slots_to_the_tiers_set_budget(): void
+    /**
+     * Fair trim (#127): two regions over the Express 10-set budget hold 6
+     * sets each, so the tie goes against the later-requested region.
+     *
+     * @return array<string, array{0: list<string>, 1: list<string>}>
+     */
+    public static function twoRegionExpressTrims(): array
     {
-        // Standard, three regions: 7 tier-filtered slots × 3 sets = 21 >
-        // the 16-set budget, so the trailing side_delts and triceps slots
-        // trim — whole slots, from the end, never from the front.
-        $blueprint = (new BlueprintResolver)->resolve(['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], SessionTier::Standard);
+        return [
+            'arms then lower' => [['ARMS', 'LOWER'], ['biceps', 'triceps', 'quad_compound']],
+            'lower then arms' => [['LOWER', 'ARMS'], ['quad_compound', 'hinge', 'biceps']],
+        ];
+    }
+
+    #[DataProvider('twoRegionExpressTrims')]
+    public function test_a_two_region_tie_over_budget_trims_the_later_requested_region(array $regions, array $expectedKeys): void
+    {
+        $blueprint = (new BlueprintResolver)->resolve($regions, SessionTier::Express);
+
+        $this->assertSame($expectedKeys, array_column($blueprint->slots(), 'key'));
+        $this->assertSame(9, array_sum(array_column($blueprint->slots(), 'sets')));
+    }
+
+    public function test_the_region_holding_the_most_sets_loses_its_last_slot_first(): void
+    {
+        // Standard: ARMS 9 sets, CORE 6, UPPER_PUSH 6 = 21 > 16. ARMS holds
+        // the most and loses side_delts; then all three tie at 6 and the
+        // later-requested UPPER_PUSH loses secondary_press — not the
+        // trailing slots of the request.
+        $blueprint = (new BlueprintResolver)->resolve(['ARMS', 'CORE', 'UPPER_PUSH'], SessionTier::Standard);
 
         $this->assertSame(
-            ['main_press', 'secondary_press', 'vertical_pull', 'row', 'biceps'],
+            ['biceps', 'triceps', 'trunk_flexion', 'rotation', 'main_press'],
             array_column($blueprint->slots(), 'key'),
         );
         $this->assertSame(15, array_sum(array_column($blueprint->slots(), 'sets')));
     }
 
-    public function test_a_region_with_no_fragment_contributes_no_slots(): void
+    public function test_a_four_region_express_day_keeps_every_region_until_each_is_down_to_one_slot(): void
     {
-        // CONDITIONING has no Fragment by design (#107): it adds nothing
-        // to a combination, and alone it composes an empty day for the
-        // generator to refuse with its ordinary "no exercises" error.
-        $withCore = (new BlueprintResolver)->resolve(['CORE', 'CONDITIONING'], SessionTier::Standard);
-        $this->assertSame(['trunk_flexion', 'rotation'], array_column($withCore->slots(), 'key'));
+        // Express: ARMS 6, CORE 3, LOWER 6, UPPER_PUSH 3 = 18 > 10. LOWER
+        // (later of the 6-set tie) loses hinge, then ARMS loses triceps;
+        // with every region down to one Slot, the later-requested
+        // UPPER_PUSH goes. No region empties while another keeps two.
+        $blueprint = (new BlueprintResolver)->resolve(['ARMS', 'CORE', 'LOWER', 'UPPER_PUSH'], SessionTier::Express);
 
-        $alone = (new BlueprintResolver)->resolve(['CONDITIONING'], SessionTier::Standard);
-        $this->assertTrue($alone->fragmentComposed);
-        $this->assertSame([], $alone->slots());
-    }
-
-    public function test_full_body_inside_a_larger_combination_contributes_no_slots(): void
-    {
-        // Only the lone literal maps to the FULL_BODY blueprint; inside a
-        // combination the region declares no Fragment, so — like
-        // CONDITIONING — it adds nothing to the composed day.
-        $blueprint = (new BlueprintResolver)->resolve(['FULL_BODY', 'ARMS'], SessionTier::Standard);
-
-        $this->assertTrue($blueprint->fragmentComposed);
         $this->assertSame(
-            ['biceps', 'triceps', 'side_delts'],
+            ['biceps', 'trunk_flexion', 'quad_compound'],
             array_column($blueprint->slots(), 'key'),
         );
+    }
+
+    public function test_a_region_down_to_one_slot_keeps_it_while_another_region_has_two(): void
+    {
+        // Express, 13 sets > 10: a single 7-set CORE slot holds more sets
+        // than ARMS's two 3-set slots, yet ARMS loses triceps: a region
+        // loses its first Slot only once every region is down to one.
+        config()->set('workout_blueprints.fragments.CORE.0.sets', 7);
+
+        $blueprint = (new BlueprintResolver)->resolve(['ARMS', 'CORE'], SessionTier::Express);
+
+        $this->assertSame(['biceps', 'trunk_flexion'], array_column($blueprint->slots(), 'key'));
+    }
+
+    public function test_full_body_inside_a_larger_combination_is_refused_not_silently_dropped(): void
+    {
+        // FULL_BODY is requested alone or not at all (#127): validation
+        // rejects a combination before it reaches the resolver, and a
+        // region without a Fragment never shrinks a day unnoticed.
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No fragment for region [FULL_BODY]');
+
+        (new BlueprintResolver)->resolve(['FULL_BODY', 'ARMS'], SessionTier::Standard);
     }
 
     public function test_fragment_composition_follows_the_request_order_not_a_canonical_one(): void

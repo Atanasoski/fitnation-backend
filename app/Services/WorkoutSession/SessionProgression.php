@@ -2,6 +2,7 @@
 
 namespace App\Services\WorkoutSession;
 
+use App\Enums\ProgressionStatus;
 use App\Models\Exercise;
 use App\Models\User;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
@@ -105,7 +106,7 @@ class SessionProgression
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
                 'rest_seconds' => $exercise->default_rest_sec ?? 90,
-                'progression_status' => 'no_history',
+                'progression_status' => ProgressionStatus::NoHistory,
             ],
             'last_performance' => null,
         ];
@@ -193,12 +194,12 @@ class SessionProgression
      * @param  \App\Models\WorkoutSessionExercise  $row
      * @param  array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}  $resolved
      */
-    public function statusFor($row, array $resolved): string
+    public function statusFor($row, array $resolved): ProgressionStatus
     {
         if ($row->workoutSession?->is_deload) {
-            return $resolved['last_performance'] !== null ? 'working' : 'no_history';
+            return ProgressionStatus::unjudged($resolved['last_performance'] !== null);
         }
 
-        return $resolved['targets']['progression_status'] ?? 'no_history';
+        return $resolved['targets']['progression_status'] ?? ProgressionStatus::NoHistory;
     }
 }

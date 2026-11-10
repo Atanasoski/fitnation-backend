@@ -3,6 +3,7 @@
 namespace App\Services\WorkoutGenerator;
 
 use App\Enums\MovementClass;
+use App\Enums\ProgressionStatus;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
@@ -20,15 +21,6 @@ class ProgressionCalculatorService
      * Decimal places SetLog casts `weight` to. Kept in step with that cast.
      */
     private const WEIGHT_PRECISION = 1;
-
-    /**
-     * The three verdicts on a working session's performance (see verdict()).
-     */
-    private const TOPPED = 'topped';
-
-    private const WORKING = 'working';
-
-    private const BELOW_MIN = 'below_min';
 
     /**
      * Calculate target sets, reps, and weight for an exercise based on user history
@@ -74,7 +66,7 @@ class ProgressionCalculatorService
                 'total_reps_target' => $totalRepsTarget,
                 'rest_seconds' => $lastPerformance['rest_seconds'] ?? $prescription['rest_seconds'],
                 // Total-reps progression has no rep range to judge against.
-                'progression_status' => $lastPerformance ? 'working' : 'no_history',
+                'progression_status' => ProgressionStatus::unjudged((bool) $lastPerformance),
             ];
         }
 
@@ -88,7 +80,7 @@ class ProgressionCalculatorService
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
                 'rest_seconds' => $prescription['rest_seconds'],
-                'progression_status' => 'no_history',
+                'progression_status' => ProgressionStatus::NoHistory,
             ];
         }
 
@@ -342,7 +334,7 @@ class ProgressionCalculatorService
 
         if (
             // The floor plays no part in whether a session topped.
-            $this->verdict($lastPerformance, 0, $maxTargetReps) === self::TOPPED
+            $this->verdict($lastPerformance, 0, $maxTargetReps) === ProgressionStatus::Ready
             && $weight > 0
             && $increment > 0
         ) {
@@ -379,39 +371,35 @@ class ProgressionCalculatorService
      * @param  int  $minTargetReps  the floor for a set that carries no Logged Range of its own
      * @param  int  $maxTargetReps  the ceiling for a set that carries no Logged Range of its own
      */
-    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps, ?Exercise $exercise = null): string
+    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps, ?Exercise $exercise = null): ProgressionStatus
     {
         if ($exercise && $this->isBodyweight($exercise)) {
-            return $lastPerformance ? 'working' : 'no_history';
+            return ProgressionStatus::unjudged((bool) $lastPerformance);
         }
 
         if (! $lastPerformance) {
-            return 'no_history';
+            return ProgressionStatus::NoHistory;
         }
 
-        return match ($this->verdict($lastPerformance, $minTargetReps, $maxTargetReps)) {
-            self::TOPPED => 'ready',
-            self::BELOW_MIN => 'below_min',
-            default => 'working',
-        };
+        return $this->verdict($lastPerformance, $minTargetReps, $maxTargetReps);
     }
 
     /**
      * The one verdict on a working session's performance (ADR-0011), judged
      * set by set against each set's own Logged Range:
      *
-     * - topped: every set reached the top of its Logged Range, and the weight
-     *   held across each row's sets (a lighter back-off row does not count
-     *   against the top set, but dropping load within a row does);
-     * - below_min: any set fell under its Logged Range's minimum;
-     * - working: anything else.
+     * - topped (Ready): every set reached the top of its Logged Range, and
+     *   the weight held across each row's sets (a lighter back-off row does
+     *   not count against the top set, but dropping load within a row does);
+     * - BelowMin: any set fell under its Logged Range's minimum;
+     * - Working: anything else.
      *
      * A set with no Logged Range (a performance built by hand) is judged
      * against the matrix range.
      *
      * @param  array<string, mixed>  $lastPerformance
      */
-    private function verdict(array $lastPerformance, int $matrixMin, int $matrixMax): string
+    private function verdict(array $lastPerformance, int $matrixMin, int $matrixMax): ProgressionStatus
     {
         $reps = array_values($lastPerformance['reps'] ?? []);
         $weights = array_values($lastPerformance['weights'] ?? []);
@@ -438,9 +426,9 @@ class ProgressionCalculatorService
         }
 
         return match (true) {
-            $topped => self::TOPPED,
-            $belowMin => self::BELOW_MIN,
-            default => self::WORKING,
+            $topped => ProgressionStatus::Ready,
+            $belowMin => ProgressionStatus::BelowMin,
+            default => ProgressionStatus::Working,
         };
     }
 

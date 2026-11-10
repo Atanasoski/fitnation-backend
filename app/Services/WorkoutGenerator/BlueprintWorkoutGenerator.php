@@ -16,6 +16,7 @@ use App\Services\WorkoutGenerator\Slots\Slot;
 use App\Services\WorkoutGenerator\Slots\SlotConstraints;
 use App\Services\WorkoutGenerator\Slots\SlotFiller;
 use App\Services\WorkoutGenerator\Slots\SlotPool;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Generates a plan's days from their Blueprints (ADR-0010): per day, the
@@ -67,6 +68,13 @@ class BlueprintWorkoutGenerator
                 throw new \Exception('No exercises available matching the specified criteria');
             }
 
+            Log::info('workout.day_generated', [
+                'blueprint' => $blueprint->code,
+                'tier' => $tier->value,
+                'filled_slots' => array_map(fn (FilledSlot $filledSlot) => $filledSlot->slot->key, $filled),
+                'skipped_slots' => array_map(fn (Slot $slot) => $slot->key, $skipped),
+            ]);
+
             return ['blueprint' => $blueprint, 'filled' => $filled, 'skipped' => $skipped];
         }, array_values($days));
 
@@ -84,7 +92,7 @@ class BlueprintWorkoutGenerator
             filledSlots: $fill['filled'],
             skippedSlots: $fill['skipped'],
             rows: $this->prescribeRows($fill['filled'], $user, $lastPerformances),
-            description: $this->buildRationale($fill['blueprint'], $tier, $durationMinutes, count($fill['filled'])),
+            description: $this->describeDay($fill['blueprint'], $durationMinutes, $fill['filled'], $fill['skipped']),
         ), $fills);
     }
 
@@ -326,19 +334,41 @@ class BlueprintWorkoutGenerator
         };
     }
 
-    private function buildRationale(Blueprint $blueprint, SessionTier $tier, int $durationMinutes, int $filledSlots): string
+    /**
+     * The description members read as session notes and as a program
+     * workout's description (#131): "Push day, 60 min: 5 exercises, heavy
+     * compound lifts first, then isolation work.", plus the roles the day
+     * could not fill. It names the same day type as the workout name; the
+     * tier and relaxation detail stay in the logs.
+     *
+     * @param  list<FilledSlot>  $filled
+     * @param  list<Slot>  $skipped
+     */
+    private function describeDay(Blueprint $blueprint, int $durationMinutes, array $filled, array $skipped): string
     {
-        $dayName = str_replace(['_', '+'], [' ', ' + '], strtolower($blueprint->code));
+        $exercises = count($filled) === 1 ? '1 exercise' : count($filled).' exercises';
+        $description = "{$blueprint->label} day, {$durationMinutes} min: {$exercises}, "
+            .'heavy compound lifts first, then isolation work.';
 
-        if ($blueprint->fragmentComposed) {
-            return "Composed a {$dayName} day from its region fragments at the {$tier->value} tier "
-                ."({$durationMinutes} minutes): {$filledSlots} slots filled in request order, "
-                ."trimmed to the tier's set budget.";
+        if ($skipped === []) {
+            return $description;
         }
 
-        return "Generated a {$dayName} day from its blueprint at the {$tier->value} tier "
-            ."({$durationMinutes} minutes): {$filledSlots} slots filled in blueprint order, "
-            .'heavy lifts leading, with sets and rep ranges read off each slot.';
+        $roles = $this->joinWithOr(array_values(array_unique(array_map(fn (Slot $slot) => $slot->label, $skipped))));
+
+        return "{$description} No suitable exercise was available for {$roles}, so their sets went to earlier exercises.";
+    }
+
+    /**
+     * "a", "a or b", "a, b or c".
+     *
+     * @param  non-empty-list<string>  $items
+     */
+    private function joinWithOr(array $items): string
+    {
+        $last = array_pop($items);
+
+        return $items === [] ? $last : implode(', ', $items)." or {$last}";
     }
 
     /**

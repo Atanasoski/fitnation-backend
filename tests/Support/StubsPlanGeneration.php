@@ -21,7 +21,7 @@ trait StubsPlanGeneration
         $generator->method('generatePlan')->willReturnCallback(
             fn ($user, array $preferences, array $days) => array_map(
                 fn () => new GeneratedDay(
-                    blueprint: new Blueprint('PUSH', []),
+                    blueprint: new Blueprint('PUSH', 'Push', []),
                     tier: SessionTier::Standard,
                     durationMinutes: 60,
                     filledSlots: [],

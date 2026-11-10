@@ -126,26 +126,8 @@ class WorkoutSessionController extends Controller
                     'is_deload' => (bool) $template?->is_deload,
                 ]);
 
-                // Snapshot template exercises if template is provided
-                if ($template && $template->workoutTemplateExercises->isNotEmpty()) {
-                    // Bulk insert instead of individual creates
-                    $now = now();
-                    $exercisesToInsert = $template->workoutTemplateExercises->map(function ($templateExercise) use ($newSession, $now) {
-                        return [
-                            'workout_session_id' => $newSession->id,
-                            'exercise_id' => $templateExercise->exercise_id,
-                            'order' => $templateExercise->order,
-                            'target_sets' => $templateExercise->target_sets,
-                            'min_target_reps' => $templateExercise->min_target_reps,
-                            'max_target_reps' => $templateExercise->max_target_reps,
-                            'target_weight' => $templateExercise->target_weight,
-                            'rest_seconds' => $templateExercise->rest_seconds,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
-                    })->toArray();
-
-                    WorkoutSessionExercise::insert($exercisesToInsert);
+                if ($template) {
+                    WorkoutSessionExercise::copyFromTemplate($newSession, $template->workoutTemplateExercises);
                 }
 
                 return $newSession;

@@ -41,7 +41,7 @@ final class SessionDetail
 
         $rows = $session->workoutSessionExercises;
 
-        // targetsFor() reads the row's session (deload flag); hand it the one
+        // targetsFor() and statusFor() read the row's session (deload flag); hand it the one
         // already in memory so no row lazy-loads it back from the database.
         $rows->each->setRelation('workoutSession', $session);
 
@@ -63,7 +63,7 @@ final class SessionDetail
             $resolved = $progression[$row->exercise_id]
                 ?? $progressions->withoutUser($row->exercise);
 
-            $targets = $progressions->targetsFor($row, $resolved['targets']);
+            $targets = $progressions->targetsFor($row, $resolved);
 
             $loggedSets = $ownership->setsFor($row);
 

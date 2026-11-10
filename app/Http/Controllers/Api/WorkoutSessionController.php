@@ -309,6 +309,7 @@ class WorkoutSessionController extends Controller
         ]);
 
         $sessionExercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
+        $sessionExercise->setRelation('workoutSession', $session);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($sessionExercise),
@@ -360,6 +361,7 @@ class WorkoutSessionController extends Controller
         ]));
 
         $exercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
+        $exercise->setRelation('workoutSession', $session);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($exercise),
@@ -413,6 +415,10 @@ class WorkoutSessionController extends Controller
             fn (string $relation) => 'workoutSessionExercises.'.$relation,
             WorkoutSessionExercise::EXERCISE_RELATIONS
         ));
+
+        // Targets read each row's session (deload flag); hand it the one in
+        // memory so no row lazy-loads it back.
+        $session->workoutSessionExercises->each->setRelation('workoutSession', $session);
 
         return response()->json([
             // collectionForRows, not ::collection(): the latter leaves every row

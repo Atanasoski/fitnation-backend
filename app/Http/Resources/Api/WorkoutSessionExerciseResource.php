@@ -152,7 +152,7 @@ class WorkoutSessionExerciseResource extends JsonResource
         };
 
         return [
-            $progressions->targetsFor($this->resource, $resolved['targets']),
+            $progressions->targetsFor($this->resource, $resolved),
             $progressions->statusFor($this->resource, $resolved),
         ];
     }

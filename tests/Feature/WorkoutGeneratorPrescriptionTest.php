@@ -4,46 +4,34 @@ namespace Tests\Feature;
 
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
-use App\Models\Angle;
 use App\Models\Exercise;
-use App\Models\MovementPattern;
 use App\Models\Partner;
-use App\Models\TargetRegion;
-use App\Models\TrainingStyle;
 use App\Models\User;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 /**
- * ADR-0009: day shape comes from per-region compound caps, not aliases, and a
- * no-history Prescription comes from the compound/isolation × goal matrix with
- * rest scaled from the exercise's Default Rest.
+ * Prescription precedence at the generator seam (ADR-0009/0010): logged
+ * history outranks everything; without history a generated row reads reps
+ * off its Slot and rest off the goal default; the ADR-0009 matrix survives
+ * as the fallback for non-generated rows. Day shape itself is read off the
+ * Blueprint and asserted in BlueprintWorkoutGeneratorTest, not here — the
+ * legacy compound-cap cases died with the caps.
  */
 class WorkoutGeneratorPrescriptionTest extends TestCase
 {
+    use CreatesCatalogExercises;
     use RefreshDatabase;
 
-    private DeterministicWorkoutGenerator $generator;
+    private BlueprintWorkoutGenerator $generator;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->generator = app(DeterministicWorkoutGenerator::class);
-    }
-
-    private function attachToPartnerAndBodybuildingStyle(iterable $exercises, Partner $partner): void
-    {
-        $bodybuilding = TrainingStyle::firstOrCreate(
-            ['code' => 'BODYBUILDING'],
-            ['code' => 'BODYBUILDING', 'name' => 'Bodybuilding', 'display_order' => 10]
-        );
-
-        foreach ($exercises as $exercise) {
-            $exercise->partners()->syncWithoutDetaching([$partner->id]);
-            $exercise->trainingStyles()->syncWithoutDetaching([$bodybuilding->id]);
-        }
+        $this->generator = app(BlueprintWorkoutGenerator::class);
     }
 
     private function makeUser(Partner $partner, FitnessGoal $goal, TrainingExperience $experience = TrainingExperience::Intermediate): User
@@ -57,85 +45,37 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         return $user;
     }
 
-    private function isolation(string $name, string $patternCode, string $regionCode, ?string $angleCode = null, array $attributes = []): Exercise
+    private function attachToPartner(iterable $exercises, Partner $partner): void
     {
-        $state = [
-            'name' => $name,
-            'movement_pattern_id' => MovementPattern::firstOrCreate(
-                ['code' => $patternCode], ['name' => $patternCode, 'display_order' => 50]
-            )->id,
-            'target_region_id' => TargetRegion::firstOrCreate(
-                ['code' => $regionCode], ['name' => $regionCode, 'display_order' => 50]
-            )->id,
-        ];
-
-        if ($angleCode !== null) {
-            $state['angle_id'] = Angle::firstOrCreate(
-                ['code' => $angleCode], ['name' => $angleCode, 'display_order' => 50]
-            )->id;
+        foreach ($exercises as $exercise) {
+            $exercise->partners()->syncWithoutDetaching([$partner->id]);
         }
-
-        return Exercise::factory()->create($state + $attributes);
     }
 
-    public function test_a_push_day_paired_with_arms_holds_at_most_two_compounds(): void
+    public function test_no_history_rows_read_reps_off_the_slot_and_rest_off_the_goal_default(): void
     {
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
 
-        // Four presses at distinct angles: four selectable compound slots.
-        Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
-        Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Barbell Bench Press']);
-        Exercise::factory()->press()->barbell()->vertical()->create(['name' => 'Overhead Barbell Press']);
-        Exercise::factory()->press()->barbell()->lowToHigh()->create(['name' => 'Landmine Press']);
-
-        $raise = $this->isolation('Dumbbell Lateral Raises', 'SHOULDER_RAISE', 'UPPER_PUSH', 'HORIZONTAL');
-        $fly = $this->isolation('Cable Fly', 'FLY', 'UPPER_PUSH', 'FLAT');
-        $this->isolation('Triceps Pushdown', 'ELBOW_EXTENSION', 'ARMS');
-        $this->isolation('Skull Crushers', 'ELBOW_EXTENSION', 'ARMS', 'FLAT');
-
-        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
-
-        $result = $this->generator->generate($user, [
-            'target_regions' => ['UPPER_PUSH', 'ARMS'],
-            'duration_minutes' => 60,
-        ]);
-
-        $selected = Exercise::findMany(collect($result['exercises'])->pluck('exercise_id'));
-        $compounds = $selected->filter(
-            fn (Exercise $e) => in_array($e->movementPattern->code, config('workout_generator.compound_patterns'))
-        );
-
-        $this->assertCount(2, $compounds, 'compounds must stop at the UPPER_PUSH cap');
-        $this->assertContains($raise->id, $selected->pluck('id')->all(), 'the freed slot goes to the raise');
-        $this->assertContains($fly->id, $selected->pluck('id')->all(), 'and the fly');
-    }
-
-    public function test_no_history_prescriptions_follow_the_matrix_and_the_exercise_default_rest(): void
-    {
-        $partner = Partner::factory()->create();
-        $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
-
-        $press = Exercise::factory()->press()->barbell()->flat()->create([
-            'name' => 'Barbell Bench Press',
-            'default_rest_sec' => 120,
-        ]);
-        $fly = $this->isolation('Cable Fly', 'FLY', 'UPPER_PUSH', 'FLAT', ['default_rest_sec' => 60]);
-
-        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+        $press = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['default_rest_sec' => 120]);
+        $pushdown = $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE', null, ['default_rest_sec' => 60]);
+        $this->attachToPartner(Exercise::all(), $partner);
 
         $byId = collect($this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH'],
             'duration_minutes' => 30,
         ])['exercises'])->keyBy('exercise_id');
 
+        // main_press slot: 6–10; triceps slot: 10–15. Rest comes from the
+        // muscle-gain goal default (90s), not the exercise's Default Rest —
+        // that scaling now serves only rows with logged history.
         $this->assertSame(6, $byId[$press->id]['min_target_reps']);
         $this->assertSame(10, $byId[$press->id]['max_target_reps']);
-        $this->assertSame(120, $byId[$press->id]['rest_seconds']);
+        $this->assertSame(90, $byId[$press->id]['rest_seconds']);
 
-        $this->assertSame(10, $byId[$fly->id]['min_target_reps']);
-        $this->assertSame(15, $byId[$fly->id]['max_target_reps']);
-        $this->assertSame(60, $byId[$fly->id]['rest_seconds']);
+        $this->assertSame(10, $byId[$pushdown->id]['min_target_reps']);
+        $this->assertSame(15, $byId[$pushdown->id]['max_target_reps']);
+        $this->assertSame(90, $byId[$pushdown->id]['rest_seconds']);
     }
 
     /**
@@ -148,10 +88,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
 
-        $press = Exercise::factory()->press()->barbell()->flat()->create([
-            'name' => 'Barbell Bench Press',
-            'default_rest_sec' => 120,
-        ]);
+        $press = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['default_rest_sec' => 120]);
 
         $targets = app(\App\Services\WorkoutGenerator\ProgressionCalculatorService::class)
             ->calculateTargetsFrom($press, $user, TrainingExperience::Intermediate, [
@@ -178,20 +115,19 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain, TrainingExperience::Beginner);
 
-        $deadlift = Exercise::factory()->row()->barbell()->horizontal()->create([
+        $deadlift = $this->catalogExercise('ROW', 'UPPER_PULL', 'BARBELL', 'HORIZONTAL', [
             'name' => 'Deadlift',
             'difficulty' => 'advanced',
         ]);
-        Exercise::factory()->row()->barbell()->lowToHigh()->create([
+        $this->catalogExercise('ROW', 'UPPER_PULL', 'BARBELL', 'LOW_TO_HIGH', [
             'name' => 'Landmine Row',
             'difficulty' => null,
         ]);
-        Exercise::factory()->row()->barbell()->vertical()->create([
+        $this->catalogExercise('ROW', 'UPPER_PULL', 'MACHINE', 'VERTICAL', [
             'name' => 'Machine Row',
             'difficulty' => 'beginner',
         ]);
-
-        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+        $this->attachToPartner(Exercise::all(), $partner);
 
         $selectedIds = collect($this->generator->generate($user, [
             'target_regions' => ['UPPER_PULL'],
@@ -204,21 +140,18 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
 
     /**
      * Bodyweight (total_reps) targets carry null rep bounds, but template rows
-     * are NOT NULL columns: the generator fills them with the goal defaults,
-     * the final fallback of the Prescription precedence chain.
+     * are NOT NULL columns: a generated row's bounds come from its Slot, so
+     * they are always integers.
      */
     public function test_a_bodyweight_exercise_gets_non_null_rep_bounds(): void
     {
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
 
-        $pushup = $this->isolation('Push-ups', 'PUSHUP', 'UPPER_PUSH', 'HORIZONTAL', [
-            'equipment_type_id' => \App\Models\EquipmentType::firstOrCreate(
-                ['code' => 'BODYWEIGHT'], ['name' => 'Bodyweight', 'display_order' => 50]
-            )->id,
+        $pushup = $this->catalogExercise('PUSHUP', 'UPPER_PUSH', 'BODYWEIGHT', 'HORIZONTAL', [
+            'name' => 'Push-ups',
         ]);
-
-        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
+        $this->attachToPartner(Exercise::all(), $partner);
 
         $byId = collect($this->generator->generate($user, [
             'target_regions' => ['UPPER_PUSH'],
@@ -230,46 +163,6 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
     }
 
     /**
-     * The compound cap only yields when the day truly cannot otherwise fill:
-     * duplicate-key isolations are taken (relaxed pass) before an over-cap
-     * compound is (fill pass).
-     */
-    public function test_duplicate_key_isolations_fill_before_the_cap_yields(): void
-    {
-        $partner = Partner::factory()->create();
-        $user = $this->makeUser($partner, FitnessGoal::FatLoss); // 30 min → 5 exercises
-
-        Exercise::factory()->create([
-            'name' => 'Back Squat',
-            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'SQUAT'], ['name' => 'Squat', 'display_order' => 210])->id,
-            'target_region_id' => TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower', 'display_order' => 30])->id,
-        ]);
-        Exercise::factory()->create([
-            'name' => 'Deadlift',
-            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'HINGE'], ['name' => 'Hinge', 'display_order' => 220])->id,
-            'target_region_id' => TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower', 'display_order' => 30])->id,
-        ]);
-        Exercise::factory()->create([
-            'name' => 'Leg Press',
-            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'LEG_PRESS'], ['name' => 'Leg Press', 'display_order' => 240])->id,
-            'target_region_id' => TargetRegion::firstOrCreate(['code' => 'LOWER'], ['name' => 'Lower', 'display_order' => 30])->id,
-        ]);
-        $extensionOne = $this->isolation('Leg Extensions', 'KNEE_EXTENSION', 'LOWER');
-        $extensionTwo = $this->isolation('Single-Leg Extension', 'KNEE_EXTENSION', 'LOWER');
-
-        $this->attachToPartnerAndBodybuildingStyle(Exercise::all(), $partner);
-
-        $selectedIds = collect($this->generator->generate($user, [
-            'target_regions' => ['LOWER'],
-            'duration_minutes' => 30,
-        ])['exercises'])->pluck('exercise_id');
-
-        $this->assertContains($extensionOne->id, $selectedIds->all());
-        $this->assertContains($extensionTwo->id, $selectedIds->all(), 'the same-key isolation beats a third compound');
-        $this->assertCount(5, $selectedIds, 'and the day still fills, over the cap, once isolations run out');
-    }
-
-    /**
      * History without a logged rest falls back to the goal-scaled Default
      * Rest, not the raw column.
      */
@@ -278,10 +171,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::FatLoss);
 
-        $press = Exercise::factory()->press()->barbell()->flat()->create([
-            'name' => 'Barbell Bench Press',
-            'default_rest_sec' => 120,
-        ]);
+        $press = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['default_rest_sec' => 120]);
 
         $targets = app(\App\Services\WorkoutGenerator\ProgressionCalculatorService::class)
             ->calculateTargetsFrom($press, $user, TrainingExperience::Intermediate, [

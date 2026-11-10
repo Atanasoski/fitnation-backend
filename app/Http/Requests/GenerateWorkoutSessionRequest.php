@@ -35,10 +35,6 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'training_styles' => 'nullable|array',
             'training_styles.*' => 'string|exists:training_styles,code',
             'duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
-            'difficulty' => [
-                'nullable',
-                Rule::in(['beginner', 'intermediate', 'advanced']),
-            ],
         ];
     }
 
@@ -62,7 +58,6 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'training_styles.*.exists' => 'One or more training style codes do not exist.',
             'duration_minutes.integer' => 'Duration must be an integer.',
             'duration_minutes.in' => 'Duration must be one of: '.implode(', ', WorkoutDuration::values()).' minutes.',
-            'difficulty.in' => 'Difficulty must be one of: beginner, intermediate, advanced.',
         ];
     }
 }

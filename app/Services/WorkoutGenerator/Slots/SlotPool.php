@@ -58,6 +58,10 @@ final class SlotPool
             $query->whereHas('movementPattern', fn ($q) => $q->whereIn('code', $constraints->movementPatterns));
         }
 
+        if ($constraints->trainingStyles !== null) {
+            $query->whereHas('trainingStyles', fn ($q) => $q->whereIn('code', $constraints->trainingStyles));
+        }
+
         if ($constraints->angles !== null) {
             $query->where(function ($q) use ($constraints) {
                 $q->whereHas('angle', fn ($sub) => $sub->whereIn('code', $constraints->angles))

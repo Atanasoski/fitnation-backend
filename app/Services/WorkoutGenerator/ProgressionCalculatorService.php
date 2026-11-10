@@ -558,16 +558,4 @@ class ProgressionCalculatorService
             default => 0.30,                          // Conservative fallback
         };
     }
-
-    /**
-     * Check if a movement is lower body focused
-     */
-    private function isLowerBodyMovement(string $movementCode): bool
-    {
-        return in_array($movementCode, [
-            'SQUAT', 'HINGE', 'LUNGE_SPLIT_SQUAT', 'LEG_PRESS',
-            'KNEE_EXTENSION', 'KNEE_FLEXION', 'HIP_THRUST_BRIDGE',
-            'HIP_ABDUCTION', 'CALF_RAISE', 'BACK_EXTENSION',
-        ]);
-    }
 }

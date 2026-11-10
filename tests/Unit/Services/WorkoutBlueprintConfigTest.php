@@ -261,8 +261,8 @@ class WorkoutBlueprintConfigTest extends TestCase
         $knownRegions = ['UPPER_PUSH', 'UPPER_PULL', 'LOWER', 'ARMS', 'CORE', 'FULL_BODY', 'CONDITIONING'];
 
         // The movement_patterns catalog codes, listed here rather than read
-        // from config/workout_generator.php: its isolation_patterns key is
-        // dead surface that ADR-0010 deletes with the legacy generator.
+        // from config/workout_generator.php: its isolation_patterns key was
+        // dead surface, deleted with the legacy generator (ADR-0010).
         $knownPatterns = [
             'ANTI_ROTATION', 'BACK_EXTENSION', 'CALF_RAISE', 'CARRY', 'DIP',
             'ELBOW_EXTENSION', 'ELBOW_FLEXION', 'FACE_PULL', 'FLY', 'HINGE',

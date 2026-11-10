@@ -58,7 +58,7 @@ class WorkoutSplitTest extends TestCase
         ]);
 
         $service = new WelcomePlanGenerationService(
-            app(\App\Services\WorkoutGenerator\DeterministicWorkoutGenerator::class)
+            app(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class)
         );
 
         $this->expectException(\RuntimeException::class);
@@ -79,7 +79,7 @@ class WorkoutSplitTest extends TestCase
         ]);
 
         // Mock the workout generator to avoid needing full exercise setup
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\DeterministicWorkoutGenerator::class);
+        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
         $mockGenerator->method('generate')
             ->willReturn([
                 'exercises' => [],
@@ -110,7 +110,7 @@ class WorkoutSplitTest extends TestCase
         ]);
 
         // Mock the workout generator
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\DeterministicWorkoutGenerator::class);
+        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
         $mockGenerator->method('generate')
             ->willReturn([
                 'exercises' => [],
@@ -137,7 +137,7 @@ class WorkoutSplitTest extends TestCase
         ]);
 
         // Mock the workout generator
-        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\DeterministicWorkoutGenerator::class);
+        $mockGenerator = $this->createMock(\App\Services\WorkoutGenerator\BlueprintWorkoutGenerator::class);
         $mockGenerator->method('generate')
             ->willReturn([
                 'exercises' => [],

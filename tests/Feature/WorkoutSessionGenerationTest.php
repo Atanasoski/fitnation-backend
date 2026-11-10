@@ -112,6 +112,36 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotNull($session->performed_at); // Active sessions have performed_at set
     }
 
+    public function test_generated_rows_persist_the_slot_key_that_produced_them(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $exercises = Exercise::factory()->count(5)->press()->barbell()->flat()->create();
+        foreach ($exercises as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [
+                'target_regions' => ['UPPER_PUSH'],
+                'duration_minutes' => 60,
+            ]);
+
+        $response->assertStatus(201);
+
+        $session = WorkoutSession::find($response->json('data.id'));
+        $slotKeys = $session->workoutSessionExercises()->pluck('slot_key');
+
+        $this->assertNotEmpty($slotKeys);
+        $this->assertFalse($slotKeys->contains(null), 'Every generated row carries its slot key');
+        $this->assertContains('main_press', $slotKeys->all(), 'A push day leads with its main press slot');
+    }
+
     public function test_generate_requires_complete_profile(): void
     {
         $user = User::factory()->entitled()->create();
@@ -188,7 +218,6 @@ class WorkoutSessionGenerationTest extends TestCase
             ->postJson('/api/workout-sessions/generate', [
                 'target_regions' => ['UPPER_PUSH'],
                 'duration_minutes' => 60,
-                'difficulty' => 'advanced',
             ]);
 
         $response->assertStatus(201);
@@ -304,12 +333,13 @@ class WorkoutSessionGenerationTest extends TestCase
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', [
-                'duration_minutes' => 5, // Too low
-                'difficulty' => 'invalid',
+                'duration_minutes' => 5, // Not on the fixed menu
+                'difficulty' => 'invalid', // Removed parameter: ignored, never validated
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['duration_minutes', 'difficulty']);
+            ->assertJsonValidationErrors(['duration_minutes'])
+            ->assertJsonMissingValidationErrors(['difficulty']);
     }
 
     public function test_generate_handles_no_exercises_gracefully(): void
@@ -324,6 +354,38 @@ class WorkoutSessionGenerationTest extends TestCase
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', []);
+
+        $response->assertStatus(422)
+            ->assertJsonFragment([
+                'message' => 'No exercises available matching the specified criteria',
+            ]);
+    }
+
+    public function test_a_region_combination_with_no_fillable_day_returns_422(): void
+    {
+        // CONDITIONING contributes no Fragment (#107): the composed day has
+        // no slots, which surfaces as the ordinary "no exercises" 422, not
+        // a 500.
+        TargetRegion::firstOrCreate(
+            ['code' => 'CONDITIONING'],
+            ['name' => 'Conditioning', 'display_order' => 60]
+        );
+
+        $partner = Partner::factory()->create();
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $exercise = Exercise::factory()->press()->barbell()->flat()->create();
+        $exercise->partners()->attach($partner->id);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [
+                'target_regions' => ['CONDITIONING'],
+                'duration_minutes' => 60,
+            ]);
 
         $response->assertStatus(422)
             ->assertJsonFragment([

@@ -21,9 +21,6 @@ use App\Services\WorkoutGenerator\Slots\SlotPool;
  * slot through the Relaxation Waterfall, skipped slots hand their sets to
  * the earliest filled ones, and every row carries a slot-consistent
  * prescription plus the slot key that produced it.
- *
- * Same contract as DeterministicWorkoutGenerator::generate(); production
- * callers swap over in ticket #113.
  */
 class BlueprintWorkoutGenerator
 {
@@ -32,6 +29,22 @@ class BlueprintWorkoutGenerator
 
     /** A redistributed slot may grow by at most this many sets. */
     private const REDISTRIBUTION_HEADROOM = 1;
+
+    /**
+     * Equipment whose exercises live mostly in the FUNCTIONAL catalog: a
+     * member who selected any of these meant the equipment, so a
+     * client-sent BODYBUILDING-only default yields instead of starving
+     * the day.
+     *
+     * @var list<string>
+     */
+    private const FUNCTIONAL_EQUIPMENT_CODES = [
+        'TRX',
+        'LANDMINE',
+        'KETTLEBELL',
+        'BAND',
+        'MEDICINE_BALL',
+    ];
 
     public function __construct(
         private BlueprintResolver $resolver,
@@ -105,13 +118,52 @@ class BlueprintWorkoutGenerator
     private function constraintsFor(User $user, array $preferences): SlotConstraints
     {
         $experience = $user->profile?->training_experience ?? TrainingExperience::Beginner;
+        $equipmentTypes = $this->normalizeStringList($preferences['equipment_types'] ?? null);
 
         return new SlotConstraints(
-            equipmentTypes: $this->normalizeStringList($preferences['equipment_types'] ?? null),
+            equipmentTypes: $equipmentTypes,
             beginner: $experience === TrainingExperience::Beginner,
             partner: $user->partner,
             movementPatterns: $this->normalizeStringList($preferences['movement_patterns'] ?? null),
             angles: $this->normalizeStringList($preferences['angles'] ?? null),
+            trainingStyles: $this->resolveTrainingStyleFilter($preferences, $equipmentTypes),
+        );
+    }
+
+    /**
+     * The training-style filter a day's pool is queried under: with no
+     * equipment selection the day defaults to the BODYBUILDING catalog so
+     * functional-only movements never surprise a plain request; with one,
+     * only an explicit style filters — except a BODYBUILDING-only default
+     * alongside functional equipment, which is dropped (the member meant
+     * the equipment).
+     *
+     * @param  array<string, mixed>  $preferences
+     * @param  list<string>|null  $equipmentTypes
+     * @return list<string>|null
+     */
+    private function resolveTrainingStyleFilter(array $preferences, ?array $equipmentTypes): ?array
+    {
+        $trainingStyles = $this->normalizeStringList($preferences['training_styles'] ?? null);
+
+        if (! empty($equipmentTypes)) {
+            if ($trainingStyles === ['BODYBUILDING'] && $this->hasAnyFunctionalEquipment($equipmentTypes)) {
+                return null;
+            }
+
+            return $trainingStyles;
+        }
+
+        return $trainingStyles ?? ['BODYBUILDING'];
+    }
+
+    /**
+     * @param  list<string>  $equipmentTypes
+     */
+    private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
+    {
+        return collect($equipmentTypes)->contains(
+            fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
         );
     }
 

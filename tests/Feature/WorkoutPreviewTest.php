@@ -249,6 +249,33 @@ class WorkoutPreviewTest extends TestCase
         }
     }
 
+    public function test_preview_days_are_blueprint_days_with_slot_keys(): void
+    {
+        Exercise::factory()->press()->barbell()->flat()->count(3)->create();
+        Exercise::factory()->press()->barbell()->incline()->count(2)->create();
+        Exercise::factory()->row()->barbell()->horizontal()->count(3)->create();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+            'fitness_goal' => 'general_fitness',
+            'training_experience' => 'intermediate',
+            'gender' => 'male',
+            'training_days_per_week' => 3,
+            'duration_minutes' => 60,
+            'weeks' => 1,
+        ]);
+
+        $response->assertStatus(200);
+
+        foreach ($response->viewData('weeks')[1] as $day) {
+            foreach ($day['exercises'] as $row) {
+                $this->assertNotNull($row['slot_key'] ?? null, 'Preview rows carry the slot key, same engine as members');
+            }
+        }
+    }
+
     public function test_preview_returns_error_when_split_not_found(): void
     {
         // Delete all splits to simulate missing split

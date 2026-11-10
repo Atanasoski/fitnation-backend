@@ -68,6 +68,25 @@ class SlotFillerTest extends TestCase
         $this->assertSame(RelaxationLevel::None, $result->level);
     }
 
+    public function test_training_style_filter_is_a_hard_constraint(): void
+    {
+        // The factory tags every exercise BODYBUILDING; retag one FUNCTIONAL only.
+        $functionalPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $functionalPress->trainingStyles()->sync([
+            \App\Models\TrainingStyle::firstOrCreate(
+                ['code' => 'FUNCTIONAL'],
+                ['name' => 'Functional', 'display_order' => 20]
+            )->id,
+        ]);
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+
+        $pool = SlotPool::load(new SlotConstraints(trainingStyles: ['FUNCTIONAL']));
+        $result = (new SlotFiller)->fill($this->slot('PUSH', 'main_press'), $pool);
+
+        $this->assertSame($functionalPress->id, $result->exercise->id);
+        $this->assertSame(RelaxationLevel::None, $result->level);
+    }
+
     public function test_partner_catalog_is_a_hard_constraint(): void
     {
         $partner = \App\Models\Partner::factory()->create();

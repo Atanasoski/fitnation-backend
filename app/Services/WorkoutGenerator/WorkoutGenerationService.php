@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class WorkoutGenerationService
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator
+        private BlueprintWorkoutGenerator $workoutGenerator
     ) {}
 
     /**
@@ -26,7 +26,7 @@ class WorkoutGenerationService
         $this->validateUserProfile($user);
 
         try {
-            // Generate workout using deterministic algorithm
+            // Generate workout from its Blueprint (ADR-0010)
             $generatedWorkout = $this->workoutGenerator->generate($user, $preferences);
 
             Log::info('Workout generated', [
@@ -65,6 +65,7 @@ class WorkoutGenerationService
                         'max_target_reps' => $exerciseData['max_target_reps'] ?? 12,
                         'target_weight' => $exerciseData['target_weight'] ?? 0,
                         'rest_seconds' => $exerciseData['rest_seconds'] ?? 90,
+                        'slot_key' => $exerciseData['slot_key'] ?? null,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -175,24 +176,5 @@ class WorkoutGenerationService
         if (! $profile->training_experience) {
             throw new \Exception('Training experience is required for workout generation');
         }
-    }
-
-    /**
-     * Calculate estimated duration based on exercises
-     */
-    private function calculateEstimatedDuration(array $exercises): int
-    {
-        $setDuration = config('workout_generator.set_duration_seconds', 45);
-        $totalSeconds = 0;
-
-        foreach ($exercises as $exercise) {
-            $sets = $exercise['target_sets'] ?? 3;
-            $restSeconds = $exercise['rest_seconds'] ?? 90;
-
-            // Time = sets × set_duration + (sets - 1) × rest
-            $totalSeconds += ($sets * $setDuration) + (($sets - 1) * $restSeconds);
-        }
-
-        return (int) ceil($totalSeconds / 60);
     }
 }

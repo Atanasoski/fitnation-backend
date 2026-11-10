@@ -9,7 +9,7 @@ A gym or business whose customers use Fit Nation under its branding. Customers a
 _Avoid_: gym (as a model name), tenant
 
 **House Partner**:
-Fit Nation itself, acting as the partner for everyone who joins without a gym. Identified by `HOUSE_PARTNER_ID`; cannot be deactivated.
+Fit Nation itself, acting as the partner for everyone who joins without a gym. Identified server-side by configuration; API clients read the `is_house` flag on partner payloads, never an id. Cannot be deactivated.
 _Avoid_: default partner, no-partner
 
 **Gym Signup**:
@@ -60,3 +60,39 @@ _Avoid_: rest week, recovery week
 **Working Weight**:
 The weight progression currently prescribes for an exercise: recomputed on every read from the user's latest completed working (non-deload) session of that exercise, never stored as a target. A stored `target_weight` on a template or session row is only the starting estimate for a user with no history.
 _Avoid_: current weight, last weight
+
+**Prescription**:
+The targets handed to a user for one exercise in one session: sets, rep range, rest, and Working Weight. A user's own history, once it exists, always outranks any freshly computed default.
+_Avoid_: targets (unqualified), defaults
+
+**Compound Movement**:
+A multi-joint Exercise, classified by its movement pattern. Compounds fill a Blueprint's heavy early Slots and earn more sets, heavier starting weights, and lower-rep Prescriptions.
+_Avoid_: big lift, main lift
+
+**Isolation Movement**:
+A single-joint Exercise, classified by its movement pattern. Fills a Blueprint's later Slots, with fewer sets and higher-rep Prescriptions. An isolation is never reclassified to borrow a compound's treatment.
+_Avoid_: accessory, auxiliary
+
+**Blueprint**:
+The declared shape of one workout day type: an ordered list of Slots. Six exist — Push, Pull, Upper, Lower, Full Body, Arms. A day's composition is read off its Blueprint, never emergent from selection rules.
+_Avoid_: template (collides with WorkoutTemplate), day plan
+
+**Slot**:
+One position in a Blueprint: a movement role (pattern, optionally angle) carrying a Tier, a set count, and a rep range. Filled by exactly one Exercise satisfying the role; a Slot that cannot fill even after the Relaxation Waterfall is skipped and its sets move to earlier Slots.
+_Avoid_: position, exercise entry
+
+**Tier**:
+A Slot's priority class deciding which session lengths include it: tier-1 Slots alone make an Express session, tiers 1–2 a Standard session, all tiers an Extended session. Session length is chosen from a fixed set of durations; each maps to exactly one of the three.
+_Avoid_: priority (collides with selection priority)
+
+**Relaxation Waterfall**:
+The ordered loosening of an empty Slot's role until exercises match: drop the angle; drop the pattern while keeping region and compound/isolation class; fall back to bodyweight equivalents; finally skip the Slot.
+_Avoid_: fallback (unqualified)
+
+**Fragment**:
+A target region's short, ordered Slot list, used to compose a day for a custom region combination that matches no Blueprint.
+_Avoid_: partial blueprint
+
+**Default Rest**:
+An Exercise's curated baseline rest between sets. An input to the Prescription — scaled by the user's fitness goal — not the rest the user necessarily sees.
+_Avoid_: rest (unqualified)

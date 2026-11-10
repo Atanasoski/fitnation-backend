@@ -173,7 +173,7 @@ class WorkoutBlueprintConfigTest extends TestCase
 
         $this->assertIsArray($blueprints, 'config/workout_blueprints.php must define blueprints');
         $this->assertArrayHasKey($code, $blueprints);
-        $this->assertSame($expectedSlots, $blueprints[$code]['slots']);
+        $this->assertSame($expectedSlots, $this->withoutLabels($blueprints[$code]['slots']));
     }
 
     public function test_exactly_the_six_signed_off_blueprints_exist(): void
@@ -246,7 +246,49 @@ class WorkoutBlueprintConfigTest extends TestCase
             ],
         ];
 
-        $this->assertSame($expected, config('workout_blueprints.fragments'));
+        $this->assertSame($expected, array_map(
+            fn (array $fragment) => $this->withoutLabels($fragment['slots']),
+            config('workout_blueprints.fragments')
+        ));
+    }
+
+    /**
+     * Members read these labels (#131): a Blueprint's or Fragment's label
+     * names the day ("Push Day", "Push & Legs Day"), a Slot's label names
+     * a role the day could not fill. The signed-off tables above pin the
+     * programming; this pins that nothing member-facing goes unnamed.
+     */
+    public function test_every_blueprint_fragment_and_slot_has_a_label(): void
+    {
+        $days = [];
+        foreach (config('workout_blueprints.blueprints') as $code => $blueprint) {
+            $days["blueprint {$code}"] = $blueprint;
+        }
+        foreach (config('workout_blueprints.fragments') as $region => $fragment) {
+            $days["fragment {$region}"] = $fragment;
+        }
+
+        $this->assertCount(11, $days);
+        foreach ($days as $name => $day) {
+            $this->assertIsString($day['label'] ?? null, "{$name} has no label");
+            $this->assertNotSame('', trim($day['label']), "{$name} has an empty label");
+
+            foreach ($day['slots'] as $slot) {
+                $this->assertIsString($slot['label'] ?? null, "{$name} slot {$slot['key']} has no label");
+                $this->assertNotSame('', trim($slot['label']), "{$name} slot {$slot['key']} has an empty label");
+            }
+        }
+    }
+
+    /**
+     * A slot table as signed off: its labels are wording, not programming.
+     *
+     * @param  list<array<string, mixed>>  $slots
+     * @return list<array<string, mixed>>
+     */
+    private function withoutLabels(array $slots): array
+    {
+        return array_map(fn (array $slot) => array_diff_key($slot, ['label' => true]), $slots);
     }
 
     public function test_fragment_set_budgets_match_spec(): void
@@ -288,7 +330,7 @@ class WorkoutBlueprintConfigTest extends TestCase
 
         $slotLists = array_merge(
             array_map(fn (array $b) => $b['slots'], config('workout_blueprints.blueprints')),
-            config('workout_blueprints.fragments')
+            array_map(fn (array $fragment) => $fragment['slots'], config('workout_blueprints.fragments'))
         );
 
         foreach ($slotLists as $slots) {

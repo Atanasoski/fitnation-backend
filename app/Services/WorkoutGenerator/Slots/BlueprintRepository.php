@@ -19,7 +19,7 @@ final class BlueprintRepository
             throw new InvalidArgumentException("Unknown blueprint [{$code}]");
         }
 
-        return new Blueprint($code, $this->hydrateSlots($config['slots']));
+        return new Blueprint($code, $config['label'], $this->hydrateSlots($config['slots']));
     }
 
     /**
@@ -40,13 +40,16 @@ final class BlueprintRepository
      */
     public function fragment(string $region): array
     {
-        $config = config("workout_blueprints.fragments.{$region}");
+        return $this->hydrateSlots($this->fragmentConfig($region)['slots']);
+    }
 
-        if ($config === null) {
-            throw new InvalidArgumentException("No fragment for region [{$region}]");
-        }
-
-        return $this->hydrateSlots($config);
+    /**
+     * The name members read for a region (#131): a composed day joins
+     * them ("Push & Legs"), a Full Body day names its focus with one.
+     */
+    public function fragmentLabel(string $region): string
+    {
+        return $this->fragmentConfig($region)['label'];
     }
 
     /**
@@ -55,7 +58,7 @@ final class BlueprintRepository
     public function fragments(): array
     {
         return array_map(
-            [$this, 'hydrateSlots'],
+            fn (array $fragment) => $this->hydrateSlots($fragment['slots']),
             config('workout_blueprints.fragments', [])
         );
     }
@@ -72,6 +75,20 @@ final class BlueprintRepository
         }
 
         return $budget;
+    }
+
+    /**
+     * @return array{label: string, slots: list<array<string, mixed>>}
+     */
+    private function fragmentConfig(string $region): array
+    {
+        $config = config("workout_blueprints.fragments.{$region}");
+
+        if ($config === null) {
+            throw new InvalidArgumentException("No fragment for region [{$region}]");
+        }
+
+        return $config;
     }
 
     /**

@@ -16,6 +16,7 @@ final class Slot
     /**
      * @param  list<SlotRole>  $roles
      * @param  list<string>  $regions
+     * @param  string  $label  the role in members' words ("side delts"), named when the day could not fill it
      */
     public function __construct(
         public readonly string $key,
@@ -25,6 +26,7 @@ final class Slot
         public readonly int $repMax,
         public readonly array $regions,
         public readonly array $roles,
+        public readonly string $label,
     ) {}
 
     /**
@@ -43,6 +45,7 @@ final class Slot
                 fn (array $role) => new SlotRole($role['pattern'], $role['angles'] ?? null),
                 $config['roles']
             ),
+            label: $config['label'],
         );
     }
 

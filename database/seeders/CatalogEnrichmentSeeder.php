@@ -486,14 +486,13 @@ class CatalogEnrichmentSeeder extends Seeder
             }
             $exercise->muscleGroups()->sync($muscleAttachments);
 
-            // BODYBUILDING is the catalog default; functional implements
-            // (bands, kettlebells) also carry FUNCTIONAL, matching the
-            // classification seeder's inference.
-            $styleIds = [$trainingStyles['BODYBUILDING']];
-            if (in_array($data['equipment'], EquipmentType::FUNCTIONAL_CODES, true)) {
-                $styleIds[] = $trainingStyles['FUNCTIONAL'];
-            }
-            $exercise->trainingStyles()->sync($styleIds);
+            // The classification seeder's inference: bands and kettlebells
+            // are FUNCTIONAL only, so a member on the default BODYBUILDING
+            // style never draws them; everything else is BODYBUILDING.
+            $styleCodes = ExerciseClassificationSeeder::inferTrainingStyles($data['name'], $data['equipment']);
+            $exercise->trainingStyles()->sync(
+                array_map(fn (string $code) => $trainingStyles[$code], $styleCodes)
+            );
 
             $created++;
         }

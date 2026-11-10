@@ -102,6 +102,26 @@ class CatalogEnrichmentSeederTest extends TestCase
         }
     }
 
+    public function test_band_and_kettlebell_imports_are_functional_only_and_the_rest_bodybuilding(): void
+    {
+        $this->seed(CatalogEnrichmentSeeder::class);
+
+        $exercises = Exercise::query()->with(['equipmentType', 'trainingStyles'])->get();
+
+        $this->assertCount(37, $exercises);
+        foreach ($exercises as $exercise) {
+            $expected = in_array($exercise->equipmentType->code, ['BAND', 'KETTLEBELL'], true)
+                ? ['FUNCTIONAL']
+                : ['BODYBUILDING'];
+
+            $this->assertSame(
+                $expected,
+                $exercise->trainingStyles->pluck('code')->sort()->values()->all(),
+                "{$exercise->name} has the wrong training styles",
+            );
+        }
+    }
+
     public function test_arm_isolations_are_classified_under_arms_never_upper_push_or_pull(): void
     {
         $this->seed(CatalogEnrichmentSeeder::class);

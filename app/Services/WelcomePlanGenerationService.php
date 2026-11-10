@@ -252,7 +252,7 @@ class WelcomePlanGenerationService
                 'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
-                'slot_key' => $exerciseData['slot_key'] ?? null,
+                'slot_key' => $exerciseData['slot_key'],
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

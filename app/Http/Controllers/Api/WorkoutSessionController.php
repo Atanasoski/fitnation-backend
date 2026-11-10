@@ -305,7 +305,7 @@ class WorkoutSessionController extends Controller
             'min_target_reps' => $request->min_target_reps ?? 8,
             'max_target_reps' => $request->max_target_reps ?? 12,
             'target_weight' => $request->target_weight ?? 0,
-            'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec ?? 90,
+            'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec,
         ]);
 
         $sessionExercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);

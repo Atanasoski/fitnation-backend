@@ -105,7 +105,8 @@ class SessionProgression
                 'target_weight' => 0,
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
-                'rest_seconds' => $exercise->default_rest_sec ?? 90,
+                // With no exercise there is no Default Rest to read: 90 is the column's default.
+                'rest_seconds' => $exercise?->default_rest_sec ?? 90,
                 'progression_status' => ProgressionStatus::NoHistory,
             ],
             'last_performance' => null,

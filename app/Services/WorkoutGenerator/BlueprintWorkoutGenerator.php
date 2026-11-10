@@ -37,6 +37,7 @@ class BlueprintWorkoutGenerator
         private BlueprintResolver $resolver,
         private SlotFiller $filler,
         private ProgressionCalculatorService $progressionCalculator,
+        private PrescriptionCalculator $prescriptionCalculator,
     ) {}
 
     /**
@@ -255,10 +256,13 @@ class BlueprintWorkoutGenerator
 
     /**
      * Prescribes one day's filled slots from the plan's batch of last
-     * performances. Precedence (#107): the member's logged history outranks
-     * everything; without history the slot's rep range applies, goal-shifted
-     * on compound slots only. Slot sets always win in generated flows; the
-     * ADR-0009 matrix contributes only its rest fallback, exactly as before.
+     * performances (ADR-0010). Every row stores its Slot's sets and rep
+     * range, the range goal-shifted on compound Slots only, with or without
+     * history. History moves only the Working Weight (progression, or the
+     * starting estimate without history) and the rest: the member's logged
+     * rest when they have one, otherwise the Prescription rest for the
+     * Slot's class — the exercise's Default Rest scaled by the goal and
+     * clamped by that class's floor.
      *
      * @param  list<FilledSlot>  $filled
      * @param  array<int, array<string, mixed>>  $lastPerformances  keyed by exercise id; absent = no history
@@ -268,7 +272,6 @@ class BlueprintWorkoutGenerator
     {
         $goal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
         $experience = $user->profile?->training_experience;
-        $matrixDefaults = config('workout_generator.fitness_goal_defaults', [])[$goal->value] ?? ['rest_seconds' => 90];
 
         $rows = [];
         $order = 1;
@@ -281,11 +284,6 @@ class BlueprintWorkoutGenerator
 
             [$minReps, $maxReps] = $this->slotRepRange($slot, $goal);
 
-            if ($lastPerformance !== null && $targets['min_target_reps'] !== null) {
-                $minReps = $targets['min_target_reps'];
-                $maxReps = $targets['max_target_reps'];
-            }
-
             $rows[] = [
                 'exercise_id' => $exercise->id,
                 'order' => $order++,
@@ -293,9 +291,13 @@ class BlueprintWorkoutGenerator
                 'min_target_reps' => $minReps,
                 'max_target_reps' => $maxReps,
                 'target_weight' => $targets['target_weight'] ?? 0,
-                'rest_seconds' => $lastPerformance !== null
-                    ? $targets['rest_seconds']
-                    : ($matrixDefaults['rest_seconds'] ?? 90),
+                'rest_seconds' => $lastPerformance['rest_seconds']
+                    ?? $this->prescriptionCalculator->defaults(
+                        $slot->movementClass(),
+                        $goal,
+                        $exercise->default_rest_sec,
+                        $exercise->movementPattern?->code,
+                    )['rest_seconds'],
                 'slot_key' => $slot->key,
             ];
         }

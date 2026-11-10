@@ -15,8 +15,9 @@ use Tests\TestCase;
 /**
  * Session duration is a fixed menu: 30/45/60/90/120 minutes (issue #109).
  *
- * Generate, regenerate, and profile update accept exactly these values;
- * legacy stored profile durations (e.g. 75) keep working for generation.
+ * Generate, regenerate, and profile update accept exactly these values (the
+ * admin preview's are in WorkoutPreviewTest). Tier resolution stays
+ * threshold-based, so an off-menu stored duration still generates.
  */
 class WorkoutDurationMenuTest extends TestCase
 {
@@ -184,11 +185,12 @@ class WorkoutDurationMenuTest extends TestCase
         }
     }
 
-    public function test_generation_still_works_for_legacy_stored_profile_durations(): void
+    public function test_generation_still_works_for_an_off_menu_stored_duration(): void
     {
         $user = $this->userWithCatalog();
 
-        // 75 was storable before the fixed menu; stored values are read as-is.
+        // 75 was storable before the fixed menu. The migration moved every
+        // such value onto it; tier resolution still reads one as a safety net.
         $user->profile()->update(['workout_duration_minutes' => 75]);
 
         $response = $this->actingAs($user, 'sanctum')

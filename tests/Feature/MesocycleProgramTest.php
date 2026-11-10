@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
+use App\Enums\MovementClass;
 use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\MovementPattern;
@@ -11,7 +12,6 @@ use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\Slots\Slot;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -180,9 +180,9 @@ class MesocycleProgramTest extends TestCase
             foreach ($template->workoutTemplateExercises as $row) {
                 $this->assertSame(2, $row->target_sets);
 
-                $isCompound = Slot::isCompoundPattern(
+                $isCompound = MovementClass::fromPattern(
                     $row->exercise->movementPattern?->code
-                );
+                )->isCompound();
 
                 if ($isCompound) {
                     $this->assertSame(3, $row->min_target_reps);

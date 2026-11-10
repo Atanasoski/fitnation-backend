@@ -8,8 +8,8 @@ use Tests\TestCase;
 
 /**
  * Pins the duration thresholds from issue #107: tier resolution stays
- * threshold-based (<40 / 40–60 / >60) so legacy stored durations resolve
- * without migration, while the API narrows to the fixed menu.
+ * threshold-based (<40 / 40–60 / >60) as a safety net for off-menu values,
+ * while the API accepts only the fixed menu.
  */
 class SessionTierTest extends TestCase
 {

@@ -46,6 +46,38 @@ class WorkoutSessionExercise extends Model
     ];
 
     /**
+     * Snapshot a template's rows into a session, in one insert.
+     *
+     * Each session row takes every column it shares with its template row:
+     * the exercise, its order, its Prescription and its Slot key. "Shared"
+     * means fillable on both models, so a column added to both is copied
+     * without anyone remembering to list it here.
+     *
+     * @param  iterable<WorkoutTemplateExercise>  $templateRows
+     */
+    public static function copyFromTemplate(WorkoutSession $session, iterable $templateRows): void
+    {
+        $columns = array_values(array_intersect(
+            (new WorkoutTemplateExercise)->getFillable(),
+            (new self)->getFillable(),
+        ));
+
+        $now = now();
+        $rows = collect($templateRows)
+            ->map(fn (WorkoutTemplateExercise $templateRow) => [
+                ...$templateRow->only($columns),
+                'workout_session_id' => $session->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->all();
+
+        if ($rows !== []) {
+            self::insert($rows);
+        }
+    }
+
+    /**
      * Relationship: WorkoutSessionExercise belongs to WorkoutSession
      */
     public function workoutSession(): BelongsTo

@@ -70,14 +70,6 @@ class ExerciseClassificationSeeder extends Seeder
     ];
 
     /**
-     * Equipment types whose exercises carry the FUNCTIONAL training style.
-     * Shared with CatalogEnrichmentSeeder.
-     *
-     * @var array<int, string>
-     */
-    public const FUNCTIONAL_EQUIPMENT = ['TRX', 'LANDMINE', 'MEDICINE_BALL', 'KETTLEBELL', 'BAND'];
-
-    /**
      * Category slug to equipment type mapping.
      *
      * @var array<string, string>
@@ -153,7 +145,7 @@ class ExerciseClassificationSeeder extends Seeder
         $styles = [];
 
         // Equipment-based classification
-        if (in_array($equipmentCode, self::FUNCTIONAL_EQUIPMENT)) {
+        if (in_array($equipmentCode, EquipmentType::FUNCTIONAL_CODES)) {
             $styles[] = 'FUNCTIONAL';
         }
 

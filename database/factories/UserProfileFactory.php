@@ -6,6 +6,7 @@ use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
+use App\Enums\WorkoutDuration;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -28,7 +29,7 @@ class UserProfileFactory extends Factory
             'weight' => fake()->randomFloat(2, 50, 150),
             'training_experience' => fake()->randomElement(TrainingExperience::cases()),
             'training_days_per_week' => fake()->numberBetween(1, 7),
-            'workout_duration_minutes' => fake()->randomElement([30, 45, 60, 75, 90]),
+            'workout_duration_minutes' => fake()->randomElement(WorkoutDuration::values()),
             'unit_system' => UnitSystem::Metric,
         ];
     }

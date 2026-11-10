@@ -117,11 +117,9 @@
                     </label>
                     <select name="duration_minutes" id="duration_minutes" required
                         class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300">
-                        <option value="30" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 30) ? 'selected' : '' }}>30 min</option>
-                        <option value="45" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 45) ? 'selected' : '' }}>45 min</option>
-                        <option value="60" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 60) ? 'selected' : '' }}>60 min</option>
-                        <option value="90" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 90) ? 'selected' : '' }}>90 min</option>
-                        <option value="120" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 120) ? 'selected' : '' }}>120 min</option>
+                        @foreach (\App\Enums\WorkoutDuration::values() as $menuDuration)
+                            <option value="{{ $menuDuration }}" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == $menuDuration) ? 'selected' : '' }}>{{ $menuDuration }} min</option>
+                        @endforeach
                     </select>
                 </div>
 

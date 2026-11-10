@@ -58,7 +58,7 @@ class ProfileUpdateRequest extends FormRequest
             'training_days_per_week.min' => 'Training days must be at least 1.',
             'training_days_per_week.max' => 'Training days cannot exceed 7.',
             'workout_duration_minutes.integer' => 'Please provide a valid workout duration.',
-            'workout_duration_minutes.in' => 'Workout duration must be one of: 30, 45, 60, 90, 120 minutes.',
+            'workout_duration_minutes.in' => 'Workout duration must be one of: '.implode(', ', WorkoutDuration::values()).' minutes.',
         ];
     }
 }

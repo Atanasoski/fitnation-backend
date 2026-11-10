@@ -105,6 +105,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'UPPER express' => [['UPPER_PUSH', 'UPPER_PULL'], 30, 'UPPER', ['chest_press', 'heavy_pull', 'press_2'], [3, 3, 3]],
             'UPPER standard' => [['UPPER_PUSH', 'UPPER_PULL'], 60, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts'], [3, 3, 3, 3, 3]],
             'UPPER extended' => [['UPPER_PUSH', 'UPPER_PULL'], 90, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts', 'arms'], [4, 4, 3, 3, 3, 3]],
+            // Push+pull+arms (the split seeder's Upper Body day) is an UPPER
+            // day in any order; its arms slot is tier 3, so arm work arrives
+            // at Extended only (#127).
+            'UPPER via push+pull+arms standard' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 60, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts'], [3, 3, 3, 3, 3]],
+            'UPPER via arms+pull+push extended' => [['ARMS', 'UPPER_PULL', 'UPPER_PUSH'], 90, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts', 'arms'], [4, 4, 3, 3, 3, 3]],
             'LOWER express' => [['LOWER'], 30, 'LOWER', ['quad_compound', 'hinge', 'ham_iso'], [3, 3, 3]],
             'LOWER standard' => [['LOWER'], 60, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves'], [3, 3, 3, 3, 3]],
             'LOWER extended' => [['LOWER'], 90, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves', 'abs'], [4, 4, 3, 3, 3, 3]],
@@ -365,7 +370,10 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     /**
      * Fragment-composed days (#112): a combination matching no Blueprint
      * concatenates its regions' Fragments in request order, tier-filters,
-     * and trims trailing slots to the tier's set budget (10/16/22).
+     * and trims fairly to the tier's set budget (10/16/22): the region
+     * holding the most sets loses its last slot (ties: the later-requested
+     * region), and no region loses its first slot while another still has
+     * two (#127).
      *
      * @return array<string, array{0: list<string>, 1: int, 2: list<string>, 3: list<int>}>
      */
@@ -379,12 +387,19 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'arms+core standard' => [['ARMS', 'CORE'], 60, ['biceps', 'triceps', 'side_delts', 'trunk_flexion', 'rotation'], [3, 3, 3, 3, 3]],
             'core alone standard' => [['CORE'], 60, ['trunk_flexion', 'rotation'], [3, 3]],
             'core alone express' => [['CORE'], 30, ['trunk_flexion'], [3]],
-            // 7 tier-filtered slots × 3 = 21 sets > the 16 budget: the
-            // trailing side_delts and triceps slots trim away.
-            'three regions trim at standard' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 60, ['main_press', 'secondary_press', 'vertical_pull', 'row', 'biceps'], [3, 3, 3, 3, 3]],
+            // Express, 12 sets > 10 with a 6–6 tie: the later-requested
+            // region loses its last slot.
+            'two regions trim at express' => [['ARMS', 'LOWER'], 30, ['biceps', 'triceps', 'quad_compound'], [3, 3, 3]],
+            // Express, 18 sets > 10: LOWER then ARMS lose their second
+            // slot, then the later-requested UPPER_PUSH its only one — no
+            // region empties while another keeps two.
+            'four regions trim at express' => [['ARMS', 'CORE', 'LOWER', 'UPPER_PUSH'], 30, ['biceps', 'trunk_flexion', 'quad_compound'], [3, 3, 3]],
+            // Standard, 21 sets > 16: ARMS holds the most and loses
+            // side_delts; then the 6–6–6 tie trims the later UPPER_PUSH.
+            'three regions trim at standard' => [['ARMS', 'CORE', 'UPPER_PUSH'], 60, ['biceps', 'triceps', 'trunk_flexion', 'rotation', 'main_press'], [3, 3, 3, 3, 3]],
             // Extended: 9 slots, 27 sets > 22 — and no Extended +1 bonus:
             // the set budget is a fragment day's whole volume mechanism.
-            'three regions trim at extended' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, ['main_press', 'secondary_press', 'chest_iso', 'vertical_pull', 'row', 'rear_delts', 'biceps'], [3, 3, 3, 3, 3, 3, 3]],
+            'three regions trim at extended' => [['UPPER_PUSH', 'LOWER', 'ARMS'], 90, ['main_press', 'secondary_press', 'chest_iso', 'quad_compound', 'hinge', 'biceps', 'triceps'], [3, 3, 3, 3, 3, 3, 3]],
         ];
     }
 
@@ -439,20 +454,6 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertStringContainsString('arms + core', $rationale);
         $this->assertStringContainsString('fragments', $rationale);
         $this->assertStringNotContainsString('blueprint', $rationale);
-    }
-
-    public function test_a_conditioning_only_request_fails_like_an_empty_pool_not_a_crash(): void
-    {
-        // CONDITIONING contributes no Fragment (#107), so the composed day
-        // has no slots — the ordinary "no exercises" refusal, not a crash.
-        $this->seedFullGymCatalog();
-
-        $this->expectExceptionMessage('No exercises available matching the specified criteria');
-
-        $this->generator->generate($this->user, [
-            'target_regions' => ['CONDITIONING'],
-            'duration_minutes' => 45,
-        ]);
     }
 
     public function test_the_literal_full_body_region_generates_the_push_focused_full_body_day(): void

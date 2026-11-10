@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\WorkoutDuration;
+use App\Rules\FullBodyIsRequestedAlone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class GenerateWorkoutSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'target_regions' => 'nullable|array',
+            'target_regions' => ['nullable', 'array', new FullBodyIsRequestedAlone],
             'target_regions.*' => 'string|exists:target_regions,code',
             'equipment_types' => 'nullable|array',
             'equipment_types.*' => 'string|exists:equipment_types,code',

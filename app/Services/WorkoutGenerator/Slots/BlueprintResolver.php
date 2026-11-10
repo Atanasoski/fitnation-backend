@@ -19,6 +19,10 @@ final class BlueprintResolver
         'UPPER_PULL' => 'PULL',
         'ARMS|UPPER_PULL' => 'PULL',
         'UPPER_PULL|UPPER_PUSH' => 'UPPER',
+        // UPPER's arms slot is tier 3, so arm work arrives at Extended only
+        // — accepted (#127): a complete upper day beats a composed day
+        // with biceps but no triceps.
+        'ARMS|UPPER_PULL|UPPER_PUSH' => 'UPPER',
         'LOWER' => 'LOWER',
         'CORE|LOWER' => 'LOWER',
         'ARMS' => 'ARMS',
@@ -66,6 +70,8 @@ final class BlueprintResolver
      * Fragment composition (#112): a combination matching no Blueprint
      * still yields a structured day — each requested region's Fragment
      * concatenates in request order (duplicates keep their first position).
+     * Every requestable region declares a Fragment (ADR-0010); one that
+     * doesn't is refused by BlueprintRepository::fragment(), never dropped.
      *
      * @param  list<string>  $regions
      */
@@ -73,43 +79,73 @@ final class BlueprintResolver
     {
         $orderedRegions = array_values(array_unique($regions));
 
-        $slots = [];
+        $slotsByRegion = [];
         foreach ($orderedRegions as $region) {
-            if (! $this->blueprints->hasFragment($region)) {
-                // CONDITIONING — or the literal FULL_BODY inside a larger
-                // combination — declares no Fragment and contributes nothing.
-                continue;
-            }
-
-            foreach ($this->blueprints->fragment($region) as $slot) {
-                if ($tier->includesTier($slot->tier)) {
-                    $slots[] = $slot;
-                }
-            }
+            $slotsByRegion[$region] = array_values(array_filter(
+                $this->blueprints->fragment($region),
+                fn (Slot $slot) => $tier->includesTier($slot->tier),
+            ));
         }
 
-        $slots = $this->trimToSetBudget($slots, $this->blueprints->fragmentSetBudget($tier));
+        $slotsByRegion = $this->trimToSetBudget($slotsByRegion, $this->blueprints->fragmentSetBudget($tier));
 
-        return new Blueprint(implode('+', $orderedRegions), $slots, fragmentComposed: true);
+        return new Blueprint(
+            implode('+', $orderedRegions),
+            array_merge(...array_values($slotsByRegion)),
+            fragmentComposed: true,
+        );
     }
 
     /**
-     * Whole trailing slots trim until the total fits the tier's set budget
-     * — the budget is a composed day's volume mechanism (it replaces the
-     * Extended +1-set bonus, which fragment days never get).
+     * Fair trim (#127): while the day is over the tier's set budget, the
+     * region holding the most sets loses its last Slot (ties: the
+     * later-requested region), and a region loses its first Slot only once
+     * every region is down to one — so no requested region is trimmed away
+     * while another keeps several. The budget is a composed day's volume
+     * mechanism (it replaces the Extended +1-set bonus, which fragment days
+     * never get).
      *
-     * @param  list<Slot>  $slots
-     * @return list<Slot>
+     * @param  array<string, list<Slot>>  $slotsByRegion  in request order
+     * @return array<string, list<Slot>>
      */
-    private function trimToSetBudget(array $slots, int $budget): array
+    private function trimToSetBudget(array $slotsByRegion, int $budget): array
     {
-        $totalSets = array_sum(array_map(fn (Slot $slot) => $slot->sets, $slots));
-
-        while ($totalSets > $budget && $slots !== []) {
-            $totalSets -= array_pop($slots)->sets;
+        while ($this->totalSets(array_merge(...array_values($slotsByRegion))) > $budget) {
+            array_pop($slotsByRegion[$this->regionToTrim($slotsByRegion)]);
         }
 
-        return $slots;
+        return $slotsByRegion;
+    }
+
+    /**
+     * The region that loses its last Slot next: among the regions still
+     * holding more than one Slot — or, once every region is down to one,
+     * among those holding any — the one with the most sets, the
+     * later-requested on a tie.
+     *
+     * @param  array<string, list<Slot>>  $slotsByRegion  in request order, at least one Slot left
+     */
+    private function regionToTrim(array $slotsByRegion): string
+    {
+        $candidates = array_filter($slotsByRegion, fn (array $slots) => count($slots) > 1)
+            ?: array_filter($slotsByRegion, fn (array $slots) => $slots !== []);
+
+        $chosen = array_key_first($candidates);
+        foreach ($candidates as $region => $slots) {
+            if ($this->totalSets($slots) >= $this->totalSets($candidates[$chosen])) {
+                $chosen = $region;
+            }
+        }
+
+        return $chosen;
+    }
+
+    /**
+     * @param  list<Slot>  $slots
+     */
+    private function totalSets(array $slots): int
+    {
+        return array_sum(array_map(fn (Slot $slot) => $slot->sets, $slots));
     }
 
     /**
@@ -122,7 +158,7 @@ final class BlueprintResolver
     {
         return $set === []
             || $set === self::FULL_BODY_TRIO
-            || array_diff(self::ALL_REGIONS, $set) === [];
+            || $set === self::ALL_REGIONS;
     }
 
     /**

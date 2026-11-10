@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\SplitFocus;
 use App\Models\TargetRegion;
+use App\Rules\FullBodyIsRequestedAlone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +33,7 @@ class UpdateWorkoutSplitRequest extends FormRequest
             'days_per_week' => ['required', 'integer', 'min:1', 'max:7'],
             'focus' => ['required', Rule::enum(SplitFocus::class)],
             'day_index' => ['required', 'integer', 'min:0', 'max:6'],
-            'target_regions' => ['required', 'array', 'min:1'],
+            'target_regions' => ['required', 'array', 'min:1', new FullBodyIsRequestedAlone],
             'target_regions.*' => ['required', 'string', Rule::in($validRegionCodes)],
         ];
     }

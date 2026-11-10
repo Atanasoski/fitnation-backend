@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Enums\Gender;
 use App\Enums\SplitFocus;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
+use Database\Seeders\TargetRegionSeeder;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -168,5 +170,87 @@ class WorkoutSplitTest extends TestCase
             $split = WorkoutSplit::getSplit($daysPerWeek, SplitFocus::Balanced);
             $this->assertCount($expectedDayCount, $split, "Failed for {$daysPerWeek} days per week");
         }
+    }
+
+    public function test_the_split_form_rejects_full_body_combined_with_another_region(): void
+    {
+        // FULL_BODY is requested alone or not at all (ADR-0010, #127): no
+        // split may ask for a day the engine cannot build.
+        $this->seed(TargetRegionSeeder::class);
+        $this->freeTheLastUpperFocusDay();
+
+        $this->actingAs($this->admin())
+            ->postJson('/admin/workout-splits', $this->lastUpperFocusDay(['FULL_BODY', 'ARMS']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+
+        $this->assertNull(WorkoutSplit::getSplit(7, SplitFocus::UpperFocus)[6] ?? null);
+    }
+
+    public function test_the_split_form_rejects_an_update_combining_full_body_with_another_region(): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $split = WorkoutSplit::query()->firstOrFail();
+        $regions = $split->target_regions;
+
+        $this->actingAs($this->admin())
+            ->putJson("/admin/workout-splits/{$split->id}", [
+                'days_per_week' => $split->days_per_week,
+                'focus' => $split->focus->value,
+                'day_index' => $split->day_index,
+                'target_regions' => ['LOWER', 'FULL_BODY'],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+
+        $this->assertSame($regions, $split->fresh()->target_regions);
+    }
+
+    public function test_the_split_form_accepts_full_body_on_its_own(): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $this->freeTheLastUpperFocusDay();
+
+        $this->actingAs($this->admin())
+            ->post('/admin/workout-splits', $this->lastUpperFocusDay(['FULL_BODY']))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('workout-splits.index'));
+
+        $this->assertSame(['FULL_BODY'], WorkoutSplit::getSplit(7, SplitFocus::UpperFocus)[6]);
+    }
+
+    private function admin(): User
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin'])->id);
+
+        return $admin;
+    }
+
+    /**
+     * The seeded 7-day upper-focus split's last day, removed so the form
+     * can create it again (days/focus/day_index is unique).
+     */
+    private function freeTheLastUpperFocusDay(): void
+    {
+        WorkoutSplit::query()
+            ->where('days_per_week', 7)
+            ->where('focus', SplitFocus::UpperFocus)
+            ->where('day_index', 6)
+            ->delete();
+    }
+
+    /**
+     * @param  list<string>  $regions
+     * @return array<string, mixed>
+     */
+    private function lastUpperFocusDay(array $regions): array
+    {
+        return [
+            'days_per_week' => 7,
+            'focus' => SplitFocus::UpperFocus->value,
+            'day_index' => 6,
+            'target_regions' => $regions,
+        ];
     }
 }

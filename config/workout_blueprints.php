@@ -206,10 +206,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | A target region's short, ordered Slot list, used to compose a day for a
-    | custom region combination that matches no Blueprint (API-only; mobile
-    | presets can't produce one). Fragments are concatenated in request
-    | order, tier-filtered, and trailing slots trimmed to the tier's set
-    | budget (fragment_set_budgets below).
+    | custom region combination that matches no Blueprint (API requests and
+    | admin-defined split days; mobile presets can't produce one). Every
+    | requestable region except FULL_BODY (requested alone only) declares
+    | one. Fragments are concatenated in request order, tier-filtered, and
+    | trimmed fairly to the tier's set budget (fragment_set_budgets below):
+    | the region holding the most sets loses its last slot (ties: the
+    | later-requested region), and a region loses its first slot only once
+    | every region is down to one.
     */
 
     'fragments' => [

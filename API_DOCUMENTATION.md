@@ -1065,10 +1065,13 @@ interface TargetRegionListResponse {
     { "id": 2, "code": "UPPER_PULL", "name": "Upper Pull", "display_order": 2 },
     { "id": 3, "code": "LOWER", "name": "Lower Body", "display_order": 3 },
     { "id": 4, "code": "ARMS", "name": "Arms", "display_order": 4 },
-    { "id": 5, "code": "CORE", "name": "Core", "display_order": 5 }
+    { "id": 5, "code": "CORE", "name": "Core", "display_order": 5 },
+    { "id": 6, "code": "FULL_BODY", "name": "Full Body", "display_order": 6 }
   ]
 }
 ```
+
+`FULL_BODY` is requested on its own only (see [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---
 
@@ -2044,7 +2047,7 @@ Generates a new workout session in draft status. Creates a session with exercise
 **Request Body:**
 ```typescript
 interface GenerateWorkoutRequest {
-  target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to all regions (full body) if not provided
+  target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to a Full Body day if not provided. FULL_BODY is valid only on its own (422 when combined with other regions)
   equipment_types?: string[];          // optional, array of equipment codes, e.g. ["DUMBBELL", "TRX"] — defaults to all if not provided. Multiple values use OR logic.
   movement_patterns?: string[];        // optional, e.g., ["PRESS", "FLY", "DIP"]
   angles?: string[];                   // optional, e.g., ["FLAT", "INCLINE", "DECLINE"]
@@ -2056,7 +2059,7 @@ interface GenerateWorkoutRequest {
 There is no difficulty parameter: the user's profile `training_experience` always applies.
 
 **Defaults:**
-- If `target_regions` not provided → system generates full body workout (all target regions)
+- If `target_regions` not provided → system generates a Full Body day (push focus), same as `["FULL_BODY"]`
 - If `equipment_types` not provided → system uses all available equipment types
 - If neither `training_styles` nor `equipment_types` is provided → defaults to `["BODYBUILDING"]`
 - If only `equipment_types` is provided (or `training_styles` is omitted / `[]`) → no training style filter is applied (all exercises matching that equipment)
@@ -2072,7 +2075,16 @@ There is no difficulty parameter: the user's profile `training_experience` alway
 - "Legs" → `["LOWER"]`
 - "Upper Body" → `["UPPER_PUSH", "UPPER_PULL"]`
 - "Lower Body" → `["LOWER", "CORE"]`
-- "Full Body" → `["UPPER_PUSH", "UPPER_PULL", "LOWER"]` or omit `target_regions` entirely
+- "Full Body" → `["FULL_BODY"]`, `["UPPER_PUSH", "UPPER_PULL", "LOWER"]`, or omit `target_regions` entirely
+
+**Day types:** the region set (order-insensitive, except that the first region of a Full Body request picks its focus) decides the day:
+- `["UPPER_PUSH"]`, `["UPPER_PUSH", "ARMS"]` → Push day
+- `["UPPER_PULL"]`, `["UPPER_PULL", "ARMS"]` → Pull day
+- `["UPPER_PUSH", "UPPER_PULL"]`, `["UPPER_PUSH", "UPPER_PULL", "ARMS"]` → Upper day (its arms exercise is included at 90/120 minutes only)
+- `["LOWER"]`, `["LOWER", "CORE"]` → Lower day
+- `["ARMS"]` → Arms day
+- `[]`, `["FULL_BODY"]`, push + pull + lower, or all five combinable regions → Full Body day
+- Any other combination → a day composed from each region's exercises in request order. When it exceeds the session's set budget, the region holding the most sets loses its last exercise first (ties: the later-requested region), so no region is dropped while another still has two or more exercises.
 
 **Available Target Region Codes:**
 - `UPPER_PUSH` - Chest, Triceps, Front/Side Delts
@@ -2080,6 +2092,9 @@ There is no difficulty parameter: the user's profile `training_experience` alway
 - `LOWER` - Quadriceps, Hamstrings, Glutes, Calves
 - `ARMS` - Biceps, Triceps, Forearms
 - `CORE` - Abs, Obliques
+- `FULL_BODY` - The whole-body day. Valid only on its own: combining it with any other region returns 422
+
+There is no `CONDITIONING` region; it was removed, and sending it returns 422 like any unknown code.
 
 **Available Equipment Type Codes:**
 - `BARBELL` - Barbell exercises
@@ -2157,6 +2172,16 @@ interface GeneratedSessionResource extends WorkoutSessionResource {
     message: "Duration must be one of: 30, 45, 60, 90, 120 minutes.",
     errors: {
       duration_minutes: ["Duration must be one of: 30, 45, 60, 90, 120 minutes."]
+    }
+  }
+  ```
+
+- **422 Unprocessable Entity:** `FULL_BODY` combined with other regions
+  ```typescript
+  {
+    message: "Full Body is requested on its own: it cannot be combined with other target regions.",
+    errors: {
+      target_regions: ["Full Body is requested on its own: it cannot be combined with other target regions."]
     }
   }
   ```
@@ -2247,7 +2272,7 @@ Cancels the current draft session and generates a new one with optionally differ
 **Request Body:**
 ```typescript
 interface RegenerateWorkoutRequest {
-  target_regions?: string[];           // optional - defaults to all regions (full body) if not provided
+  target_regions?: string[];           // optional - defaults to a Full Body day if not provided. FULL_BODY is valid only on its own (422 when combined with other regions)
   equipment_types?: string[];          // optional, array of equipment codes. Multiple values use OR logic.
   movement_patterns?: string[];        // optional
   angles?: string[];                   // optional
@@ -2256,7 +2281,7 @@ interface RegenerateWorkoutRequest {
 }
 ```
 
-**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields. `duration_minutes` has the same menu, defaults and 422 as Generate. There is no difficulty parameter.
+**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields. `duration_minutes` has the same menu, defaults and 422 as Generate, and `target_regions` the same day types and the same 422 for `FULL_BODY` combined with other regions. There is no difficulty parameter.
 
 **Response (201 Created):**
 ```typescript

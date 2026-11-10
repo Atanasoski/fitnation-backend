@@ -11,9 +11,25 @@ use Illuminate\Validation\Rule;
 /**
  * The fields of a catalogue exercise, the same for create and update:
  * classification, difficulty, selection priority, rest, image and video.
+ *
+ * Every Exercise has a Default Rest (GLOSSARY), so the validated data
+ * always carries one: a request that leaves it out or blank gets
+ * defaultRestWhenOmitted() before validation, never NULL.
  */
 abstract class ExerciseRequest extends FormRequest
 {
+    /**
+     * The Default Rest a request that leaves it out or blank stands for.
+     */
+    abstract protected function defaultRestWhenOmitted(): int;
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('default_rest_sec') === null) {
+            $this->merge(['default_rest_sec' => $this->defaultRestWhenOmitted()]);
+        }
+    }
+
     /**
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
@@ -38,7 +54,7 @@ abstract class ExerciseRequest extends FormRequest
             'angle_id' => ['nullable', 'exists:angles,id'],
             'difficulty' => ['nullable', Rule::enum(ExerciseDifficulty::class)],
             'selection_priority' => ['nullable', 'integer', 'min:0', 'max:1000'],
-            'default_rest_sec' => ['nullable', 'integer', 'min:0'],
+            'default_rest_sec' => ['required', 'integer', 'min:0'],
             'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'],
             'video' => ['nullable', 'mimes:mp4,webm,ogg', 'max:51200'],
             'primary_muscle_group_ids' => ['nullable', 'array'],

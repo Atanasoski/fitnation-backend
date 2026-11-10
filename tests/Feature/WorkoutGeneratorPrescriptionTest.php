@@ -13,10 +13,11 @@ use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 /**
- * Prescription precedence at the generator seam (ADR-0009/0010): logged
- * history outranks everything; without history a generated row reads reps
- * off its Slot and rest off the goal default; the ADR-0009 matrix survives
- * as the fallback for non-generated rows. Day shape itself is read off the
+ * Prescription precedence at the generator seam (ADR-0009/0010): a generated
+ * row always reads sets and reps off its Slot; its rest is the member's
+ * logged rest, or else the exercise's Default Rest scaled by the goal and
+ * clamped by the Slot's class floor; the ADR-0009 matrix survives for
+ * non-generated rows. Day shape itself is read off the
  * Blueprint and asserted in BlueprintWorkoutGeneratorTest, not here — the
  * legacy compound-cap cases died with the caps.
  */
@@ -52,7 +53,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         }
     }
 
-    public function test_no_history_rows_read_reps_off_the_slot_and_rest_off_the_goal_default(): void
+    public function test_no_history_rows_read_reps_off_the_slot_and_rest_off_the_scaled_default_rest(): void
     {
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
@@ -66,16 +67,59 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
             'duration_minutes' => 30,
         ])['exercises'])->keyBy('exercise_id');
 
-        // main_press slot: 6–10; triceps slot: 10–15. Rest comes from the
-        // muscle-gain goal default (90s), not the exercise's Default Rest —
-        // that scaling now serves only rows with logged history.
+        // main_press slot: 6–10; triceps slot: 10–15. Rest is each
+        // exercise's own Default Rest at the muscle-gain multiplier (× 1.0).
         $this->assertSame(6, $byId[$press->id]['min_target_reps']);
         $this->assertSame(10, $byId[$press->id]['max_target_reps']);
-        $this->assertSame(90, $byId[$press->id]['rest_seconds']);
+        $this->assertSame(120, $byId[$press->id]['rest_seconds']);
 
         $this->assertSame(10, $byId[$pushdown->id]['min_target_reps']);
         $this->assertSame(15, $byId[$pushdown->id]['max_target_reps']);
-        $this->assertSame(90, $byId[$pushdown->id]['rest_seconds']);
+        $this->assertSame(60, $byId[$pushdown->id]['rest_seconds']);
+    }
+
+    /**
+     * A fat-loss member's heavy lifts are not rushed: rest is the Default
+     * Rest × 0.6, but never under the 60s floor of a compound Slot.
+     */
+    public function test_a_fat_loss_compound_slot_rests_its_scaled_default_rest_but_never_under_the_compound_floor(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::FatLoss);
+
+        $squat = $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $deadlift = $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 90]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $byId = collect($this->generator->generate($user, [
+            'target_regions' => ['LOWER'],
+            'duration_minutes' => 30,
+        ])['exercises'])->keyBy('exercise_id');
+
+        $this->assertSame(90, $byId[$squat->id]['rest_seconds']); // 150 × 0.6
+        $this->assertSame(60, $byId[$deadlift->id]['rest_seconds']); // 90 × 0.6 = 54 → compound floor 60
+    }
+
+    /**
+     * A strength member's curl is not padded to a heavy lift's rest: it is
+     * the curl's own Default Rest × 1.5.
+     */
+    public function test_a_strength_isolation_slot_rests_its_scaled_default_rest(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::Strength);
+
+        $curl = $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $byId = collect($this->generator->generate($user, [
+            'target_regions' => ['UPPER_PULL'],
+            'duration_minutes' => 30,
+        ])['exercises'])->keyBy('exercise_id');
+
+        $this->assertSame(90, $byId[$curl->id]['rest_seconds']); // 60 × 1.5
+        $this->assertSame(10, $byId[$curl->id]['min_target_reps'], 'an isolation Slot keeps its range for strength');
+        $this->assertSame(15, $byId[$curl->id]['max_target_reps']);
     }
 
     /**

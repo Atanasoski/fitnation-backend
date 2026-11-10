@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\Gender;
-use App\Enums\MovementClass;
 use App\Enums\PlanType;
 use App\Enums\SplitFocus;
 use App\Models\Plan;
@@ -193,8 +192,10 @@ class WelcomePlanGenerationService
 
     /**
      * The Deload Week variant of a generated workout (ADR-0007): every exercise
-     * drops to the deload set count, compounds to 3-4 reps while isolations
-     * keep their rep range. Weight is untouched here because the Working Weight
+     * drops to the deload set count, rows filling a compound Slot to 3-4 reps
+     * while isolation Slots keep their rep range. The Slot's class decides,
+     * not the exercise's (ADR-0010): a split squat filling the quad-isolation
+     * Slot keeps 10-15. Weight is untouched here because the Working Weight
      * is recomputed from history on every read, never from these rows.
      *
      * Public so the admin workout preview can show the same final week a
@@ -207,23 +208,20 @@ class WelcomePlanGenerationService
         $compoundMinReps = $deload['compound_min_reps'] ?? 3;
         $compoundMaxReps = $deload['compound_max_reps'] ?? 4;
 
-        // The day already holds the exercises it picked, classification loaded.
-        $patternByExerciseId = collect($generatedWorkout->filledSlots)
-            ->mapWithKeys(fn (FilledSlot $filled) => [$filled->exercise->id => $filled->exercise->movementPattern?->code])
-            ->all();
-
+        // One filled Slot per row, in session order.
         return $generatedWorkout->withRows(array_map(
-            function (array $row) use ($patternByExerciseId, $sets, $compoundMinReps, $compoundMaxReps) {
+            function (array $row, FilledSlot $filled) use ($sets, $compoundMinReps, $compoundMaxReps) {
                 $row['target_sets'] = $sets;
 
-                if (MovementClass::fromPattern($patternByExerciseId[$row['exercise_id']] ?? null)->isCompound()) {
+                if ($filled->slot->isCompound()) {
                     $row['min_target_reps'] = $compoundMinReps;
                     $row['max_target_reps'] = $compoundMaxReps;
                 }
 
                 return $row;
             },
-            $generatedWorkout->rows
+            $generatedWorkout->rows,
+            $generatedWorkout->filledSlots,
         ));
     }
 

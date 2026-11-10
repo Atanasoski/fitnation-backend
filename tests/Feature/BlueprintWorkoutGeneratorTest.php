@@ -224,27 +224,64 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertSame(10, $rows['main_press']['max_target_reps']);
     }
 
-    public function test_logged_history_outranks_the_goal_shifted_slot_range(): void
+    /**
+     * One completed working session in which the member logged every set of
+     * the exercise at the weight, reps and rest given, against a row shown
+     * the rep range given.
+     *
+     * @param  array{0: int, 1: int}  $shownRange
+     */
+    private function logCompletedSession(\App\Models\Exercise $exercise, float $weight, int $reps, ?int $restSeconds, array $shownRange): void
+    {
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => \App\Enums\WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+        $row = \App\Models\WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $exercise->id,
+            'order' => 1,
+            'target_sets' => 3,
+            'min_target_reps' => $shownRange[0],
+            'max_target_reps' => $shownRange[1],
+            'target_weight' => $weight,
+            'rest_seconds' => $restSeconds ?? 90,
+        ]);
+
+        foreach ([1, 2, 3] as $setNumber) {
+            \App\Models\SetLog::create([
+                'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $row->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => $setNumber,
+                'weight' => $weight,
+                'reps' => $reps,
+                'rest_seconds' => $restSeconds,
+            ]);
+        }
+    }
+
+    /**
+     * History moves only the Working Weight and rest of a generated row,
+     * never its sets or rep range (ADR-0010): a strength member who logged
+     * their bench and their pushdown regenerates into the same Slot ranges
+     * as a member with no history — 4–6 on the main press, 10–15 on
+     * triceps — while the bench weight steps up and their own rest stays.
+     */
+    public function test_logged_history_moves_the_working_weight_and_rest_but_never_the_slot_range(): void
     {
         $this->user->profile->update(['fitness_goal' => FitnessGoal::Strength]);
         $this->seedFullGymCatalog();
 
         // The catalog's only FLAT press — main_press lands on it deterministically.
         $bench = \App\Models\Exercise::whereHas('angle', fn ($q) => $q->where('code', 'FLAT'))->sole();
+        $this->logCompletedSession($bench, 50, 6, 200, [4, 6]);
 
-        $session = \App\Models\WorkoutSession::factory()->create([
-            'user_id' => $this->user->id,
-            'status' => \App\Enums\WorkoutSessionStatus::Completed,
-            'completed_at' => now(),
-        ]);
-        foreach ([1, 2, 3] as $setNumber) {
-            \App\Models\SetLog::create([
-                'workout_session_id' => $session->id,
-                'exercise_id' => $bench->id,
-                'set_number' => $setNumber,
-                'weight' => 50,
-                'reps' => 12,
-            ]);
+        // Either elbow extension may fill triceps; both carry history.
+        $extensions = \App\Models\Exercise::whereHas('movementPattern', fn ($q) => $q->where('code', 'ELBOW_EXTENSION'))->get();
+        foreach ($extensions as $extension) {
+            $this->logCompletedSession($extension, 20, 10, 75, [10, 15]);
         }
 
         $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
@@ -252,21 +289,16 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'duration_minutes' => 45,
         ])['exercises']);
 
-        // History wins: the calculator's full prescription — rep range from
-        // the ADR-0009 matrix (strength compound 3–6), weight progressed by
-        // double progression (reps maxed at 50kg ⇒ 52.5kg) — not the
-        // no-history goal-shifted slot range (4–6).
         $this->assertSame($bench->id, $rows['main_press']['exercise_id']);
-        $this->assertSame(3, $rows['main_press']['min_target_reps']);
-        $this->assertSame(6, $rows['main_press']['max_target_reps']);
-        $this->assertEqualsWithDelta(52.5, (float) $rows['main_press']['target_weight'], 0.001);
-
-        // Slot sets still win for generated rows, even with history.
+        $this->assertSame([4, 6], [$rows['main_press']['min_target_reps'], $rows['main_press']['max_target_reps']]);
         $this->assertSame(3, $rows['main_press']['target_sets']);
+        $this->assertEqualsWithDelta(52.5, (float) $rows['main_press']['target_weight'], 0.001, 'every set topped 4–6 at 50kg, so the Working Weight steps up');
+        $this->assertSame(200, $rows['main_press']['rest_seconds'], 'their own logged rest');
 
-        // A compound without history keeps the strength shift.
-        $this->assertSame(4, $rows['overhead_press']['min_target_reps']);
-        $this->assertSame(6, $rows['overhead_press']['max_target_reps']);
+        $this->assertContains($rows['triceps']['exercise_id'], $extensions->modelKeys());
+        $this->assertSame([10, 15], [$rows['triceps']['min_target_reps'], $rows['triceps']['max_target_reps']]);
+        $this->assertSame(3, $rows['triceps']['target_sets']);
+        $this->assertSame(75, $rows['triceps']['rest_seconds'], 'their own logged rest');
     }
 
     public function test_a_skipped_slots_sets_move_one_at_a_time_to_the_earliest_filled_slots(): void

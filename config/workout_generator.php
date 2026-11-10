@@ -30,11 +30,13 @@ return [
     | Prescription Matrix (ADR-0009)
     |--------------------------------------------------------------------------
     |
-    | Rep ranges for a user with no history, by compound/isolation (the
-    | exercise's raw movement pattern — selection aliases are gone) crossed
-    | with fitness goal. Rest is the exercise's Default Rest scaled by the
-    | goal's multiplier, clamped with tier-aware floors so a fat-loss deadlift
-    | is never rushed, then rounded to the nearest 15s. prescription_overrides
+    | Rep ranges for non-generated rows (manual templates, hand-added session
+    | exercises), by the exercise's compound/isolation class crossed with
+    | fitness goal; generated rows take their Slot's range (ADR-0010). Rest,
+    | for any row without logged rest, is the exercise's Default Rest scaled
+    | by the goal's multiplier, clamped with floors for the class (a generated
+    | row's Slot's, otherwise the exercise's) so a fat-loss deadlift is never
+    | rushed, then rounded to the nearest 15s. prescription_overrides
     | is the per-pattern escape hatch; it ships empty on purpose — add entries
     | only for genuinely exceptional patterns, never to tune one exercise.
     |
@@ -125,43 +127,6 @@ return [
         'Medicine Ball Half-Kneeling Side Slam' => 0.08,
         'Medicine Ball Standing Side Slam' => 0.08,
         'Medicine Ball Rotational Throw' => 0.08,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Fitness Goal Defaults
-    |--------------------------------------------------------------------------
-    |
-    | Default sets, reps, and rest periods based on fitness goal.
-    | These are used when user has no exercise history.
-    |
-    */
-
-    'fitness_goal_defaults' => [
-        'strength' => [
-            'sets' => 4,
-            'min_reps' => 3,
-            'max_reps' => 5,
-            'rest_seconds' => 180,
-        ],
-        'muscle_gain' => [
-            'sets' => 4,
-            'min_reps' => 8,
-            'max_reps' => 12,
-            'rest_seconds' => 90,
-        ],
-        'fat_loss' => [
-            'sets' => 3,
-            'min_reps' => 12,
-            'max_reps' => 15,
-            'rest_seconds' => 45,
-        ],
-        'general_fitness' => [
-            'sets' => 3,
-            'min_reps' => 8,
-            'max_reps' => 12,
-            'rest_seconds' => 60,
-        ],
     ],
 
     /*

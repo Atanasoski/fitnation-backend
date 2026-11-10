@@ -8,10 +8,12 @@ use App\Enums\MovementClass;
 /**
  * Default Prescription (rep range + rest) for an exercise a user has no
  * history with, for the compound/isolation class it is given (ADR-0009:
- * mechanics, never a selection alias). Callers pass the exercise's class,
- * MovementClass::fromPattern() of its raw movement pattern. The generator
- * applies these only when no history exists — a user's own progression
- * always outranks them.
+ * mechanics, never a selection alias). Generated rows pass their Slot's
+ * class and take only the rest (ADR-0010); non-generated rows (manual
+ * templates, hand-added session exercises) pass the exercise's class,
+ * MovementClass::fromPattern() of its raw movement pattern. Rest is the
+ * exercise's Default Rest — every Exercise has one — scaled by the goal.
+ * A user's own logged history always outranks these defaults.
  */
 class PrescriptionCalculator
 {
@@ -19,7 +21,7 @@ class PrescriptionCalculator
      * @param  string|null  $movementPatternCode  keys prescription_overrides only; the class decides the matrix
      * @return array{min_target_reps: int, max_target_reps: int, rest_seconds: int}
      */
-    public function defaults(MovementClass $class, FitnessGoal $goal, ?int $defaultRestSec, ?string $movementPatternCode = null): array
+    public function defaults(MovementClass $class, FitnessGoal $goal, int $defaultRestSec, ?string $movementPatternCode = null): array
     {
         [$minReps, $maxReps] = config("workout_generator.rep_ranges.{$goal->value}.{$class->value}")
             ?? config("workout_generator.rep_ranges.general_fitness.{$class->value}")
@@ -36,12 +38,8 @@ class PrescriptionCalculator
         ], $override);
     }
 
-    private function rest(FitnessGoal $goal, ?int $defaultRestSec, string $tier): int
+    private function rest(FitnessGoal $goal, int $defaultRestSec, string $tier): int
     {
-        if ($defaultRestSec === null) {
-            return config("workout_generator.fitness_goal_defaults.{$goal->value}.rest_seconds", 90);
-        }
-
         $multiplier = config("workout_generator.rest_multipliers.{$goal->value}", 1.0);
         $bounds = config('workout_generator.rest_bounds', []);
         $roundTo = $bounds['round_to'] ?? 15;

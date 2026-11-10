@@ -76,17 +76,6 @@ class PrescriptionCalculatorTest extends TestCase
     }
 
     /**
-     * An exercise with no curated Default Rest falls back to the goal's
-     * default rest, taken as-is (no multiplier, no clamping).
-     */
-    public function test_missing_default_rest_falls_back_to_the_goal_default(): void
-    {
-        $prescription = $this->calculator->defaults(MovementClass::Compound, FitnessGoal::FatLoss, null);
-
-        $this->assertSame(45, $prescription['rest_seconds']);
-    }
-
-    /**
      * A pattern listed in prescription_overrides beats the matrix for the
      * keys it provides; anything it leaves out keeps the matrix value.
      */

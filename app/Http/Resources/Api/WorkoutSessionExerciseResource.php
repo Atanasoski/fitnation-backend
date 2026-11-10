@@ -139,7 +139,7 @@ class WorkoutSessionExerciseResource extends JsonResource
      * Use the injected progression when the caller batched it, otherwise fall
      * back to resolving this single row's own.
      *
-     * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
+     * @return array{0: array<string, mixed>, 1: string}
      */
     private function resolveOwnDetail(?User $user): array
     {

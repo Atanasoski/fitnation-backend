@@ -24,12 +24,13 @@ class ProgressionCalculatorServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new ProgressionCalculatorService;
+        $this->service = app(ProgressionCalculatorService::class);
     }
 
     public function test_returns_zero_weight_when_user_has_no_profile(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         // Delete any auto-created profile
         $user->profile()->delete();
 
@@ -43,6 +44,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_returns_zero_weight_when_profile_has_no_body_weight(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -59,6 +61,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_squat_weight_for_beginner_male(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -78,6 +81,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_squat_weight_for_intermediate_male(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -96,6 +100,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_squat_weight_for_advanced_female(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -115,6 +120,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_bench_press_weight_for_beginner_male(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -134,6 +140,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_overhead_press_lighter_than_bench_press(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -157,6 +164,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_dumbbell_press_per_dumbbell(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -181,6 +189,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_bicep_curl_weight_for_intermediate_male(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -200,6 +209,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_lateral_raise_weight_like_a_small_isolation_lift(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -261,6 +271,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_returns_zero_for_bodyweight_exercises(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -279,6 +290,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_returns_zero_for_trx_exercises(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -297,6 +309,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_correct_rounding_for_machine_exercises(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -316,6 +329,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_correct_rounding_for_barbell_exercises(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -335,6 +349,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_estimates_correctly_for_gender_other(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -354,6 +369,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_barbell_rounding_increment(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -373,6 +389,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_dumbbell_rounding_increment(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -392,6 +409,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_machine_rounding_increment(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -411,6 +429,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_kettlebell_rounding_increment(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -430,6 +449,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_uses_cable_rounding_increment(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -449,6 +469,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_landmine_press_weight_is_moderate(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -468,6 +489,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_cable_vertical_press_weight_is_light(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,
@@ -487,6 +509,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_progressive_overload_uses_equipment_rounding(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -533,6 +556,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_progressive_overload_uses_machine_rounding(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('KNEE_EXTENSION', 'MACHINE');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -547,7 +571,7 @@ class ProgressionCalculatorServiceTest extends TestCase
                 'exercise_id' => $exercise->id,
                 'set_number' => 1,
                 'weight' => 45,
-                'reps' => 12,
+                'reps' => 15,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -556,7 +580,7 @@ class ProgressionCalculatorServiceTest extends TestCase
                 'exercise_id' => $exercise->id,
                 'set_number' => 2,
                 'weight' => 45,
-                'reps' => 12,
+                'reps' => 15,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -565,7 +589,7 @@ class ProgressionCalculatorServiceTest extends TestCase
                 'exercise_id' => $exercise->id,
                 'set_number' => 3,
                 'weight' => 45,
-                'reps' => 12,
+                'reps' => 15,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -579,6 +603,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_progressive_overload_uses_dumbbell_rounding(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PRESS', 'DUMBBELL', 'FLAT');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -625,6 +650,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_progressive_overload_keeps_weight_when_not_all_sets_hit_max_reps(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -662,6 +688,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_progressive_overload_keeps_mode_weight_when_user_drops_load_in_later_sets(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -751,6 +778,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_bodyweight_exercise_returns_total_reps_mode(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PUSHUP', 'BODYWEIGHT');
 
         $session = \App\Models\WorkoutSession::factory()->create([
@@ -802,6 +830,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_bodyweight_exercise_returns_null_totals_when_no_history(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PUSHUP', 'BODYWEIGHT');
 
         $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
@@ -827,6 +856,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     public function test_weighted_exercise_returns_double_progression_mode(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('PRESS', 'BARBELL', 'FLAT');
 
         $targets = $this->service->calculateTargets($exercise, $user->fresh(), TrainingExperience::Beginner);
@@ -876,6 +906,7 @@ class ProgressionCalculatorServiceTest extends TestCase
     private function userWeighing(float $kg, Gender $gender): User
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $user->profile()->delete();
         UserProfile::factory()->create([
             'user_id' => $user->id,

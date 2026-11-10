@@ -359,6 +359,17 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'target_region_id' => $lower->id,
         ]);
 
+        // Enough isolation work to fill the day: the cap is a shape guarantee
+        // while alternatives exist, and only yields when the day cannot
+        // otherwise fill (ADR-0009).
+        foreach (['KNEE_EXTENSION' => 'Leg Extension', 'KNEE_FLEXION' => 'Leg Curl', 'CALF_RAISE' => 'Calf Raise', 'HIP_ABDUCTION' => 'Hip Abduction'] as $patternCode => $name) {
+            Exercise::factory()->create([
+                'name' => $name,
+                'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => $patternCode], ['name' => $name, 'display_order' => 300])->id,
+                'target_region_id' => $lower->id,
+            ]);
+        }
+
         $exercises = Exercise::all();
         $this->attachToPartnerAndBodybuildingStyle($exercises, $partner);
 
@@ -377,7 +388,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
             }
         }
 
-        $this->assertLessThanOrEqual(config('workout_generator.max_compound_exercises', 2), $compoundCount);
+        $this->assertLessThanOrEqual(config('workout_generator.max_compound_by_region')['LOWER'], $compoundCount);
     }
 
     public function test_generator_prefers_higher_selection_priority_for_same_pattern_angle(): void
@@ -434,6 +445,17 @@ class WorkoutGeneratorDiversityTest extends TestCase
         Exercise::factory()->withPriority(10)->create([
             'name' => 'Leg Extension',
             'movement_pattern_id' => $kneeExtensionPattern->id,
+            'target_region_id' => $lower->id,
+            'angle_id' => $flatAngle->id,
+        ]);
+
+        // A fourth distinct non-compound slot so the 30-minute day fills in
+        // the strict pass: otherwise the relaxed pass would reach past the
+        // compound cap and admit Front Squat as fill, which is not what this
+        // test is about.
+        Exercise::factory()->withPriority(10)->create([
+            'name' => 'Leg Curl',
+            'movement_pattern_id' => MovementPattern::firstOrCreate(['code' => 'KNEE_FLEXION'], ['name' => 'Knee Flexion', 'display_order' => 260])->id,
             'target_region_id' => $lower->id,
             'angle_id' => $flatAngle->id,
         ]);
@@ -609,12 +631,11 @@ class WorkoutGeneratorDiversityTest extends TestCase
     }
 
     /**
-     * Shoulder raises have their own movement pattern so their starting weight
-     * is a raise's, but selection_aliases has the generator give them a
-     * PRESS's sets, so push days did not change when they moved off PRESS.
-     * 60 minutes is 20 sets: a compound takes 4, an isolation lift 3.
+     * A shoulder raise is an Isolation Movement, full stop (ADR-0009): it gets
+     * an isolation's sets, like the fly. Until the alias removal it was given
+     * a PRESS's four sets.
      */
-    public function test_shoulder_raises_get_a_press_s_sets(): void
+    public function test_shoulder_raises_get_an_isolation_s_sets(): void
     {
         $partner = Partner::factory()->create();
         $user = User::factory()->create(['partner_id' => $partner->id]);
@@ -640,7 +661,7 @@ class WorkoutGeneratorDiversityTest extends TestCase
             'duration_minutes' => 60,
         ])['exercises'])->pluck('target_sets', 'exercise_id');
 
-        $this->assertSame(4, $sets[$raise->id]);
+        $this->assertSame(3, $sets[$raise->id]);
         $this->assertSame(3, $sets[$fly->id]);
     }
 

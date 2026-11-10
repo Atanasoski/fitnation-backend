@@ -175,6 +175,13 @@ class DeterministicWorkoutGenerator
                     })
                     ->values();
             }
+
+            $excludedDifficulties = config('workout_generator.beginner_excluded_difficulties', []);
+            if (! empty($excludedDifficulties)) {
+                $exercises = $exercises
+                    ->reject(fn (Exercise $exercise) => in_array($exercise->difficulty?->value, $excludedDifficulties, true))
+                    ->values();
+            }
         }
 
         $selected = collect();
@@ -183,7 +190,6 @@ class DeterministicWorkoutGenerator
         // Strict pass: enforce pattern|angle uniqueness
         $seen = [];
         $compoundPatterns = config('workout_generator.compound_patterns', []);
-        $compoundCount = 0;
         $maxPerPattern = config('workout_generator.max_exercises_per_pattern', 4);
         $maxPerPatternOverrides = config('workout_generator.max_per_pattern_overrides', []);
         $maxPerRegion = config('workout_generator.max_exercises_per_region', 4);
@@ -196,10 +202,7 @@ class DeterministicWorkoutGenerator
         $preferredRegions = $preferences['target_regions'] ?? array_keys($byRegion->toArray());
 
         $maxCompoundByRegion = config('workout_generator.max_compound_by_region', []);
-        $maxCompoundExercises = null;
-        if (count($preferredRegions) === 1) {
-            $maxCompoundExercises = $maxCompoundByRegion[$preferredRegions[0]] ?? null;
-        }
+        $compoundCountByRegion = [];
 
         // If only one region is targeted, allow more exercises from it
         if (count($preferredRegions) === 1) {
@@ -237,7 +240,15 @@ class DeterministicWorkoutGenerator
 
         $activeRegions = array_keys($regionPools);
 
-        foreach ([false, true] as $relaxed) {
+        // Three passes, each weaker than the last: strict enforces the
+        // pattern|angle dedupe and the compound cap; relaxed drops the dedupe
+        // but holds the cap, so duplicate-key isolations fill ahead of extra
+        // compounds; fill drops the cap too, so a compound-only pool still
+        // fills the day rather than running short (ADR-0009).
+        foreach (['strict', 'relaxed', 'fill'] as $pass) {
+            $relaxed = $pass !== 'strict';
+            $capEnforced = $pass !== 'fill';
+
             if ($relaxed) {
                 foreach ($activeRegions as $r) {
                     $regionCursors[$r] = 0;
@@ -271,7 +282,8 @@ class DeterministicWorkoutGenerator
                         $key = "{$pattern}|{$angle}";
 
                         $isCompound = in_array($pattern, $compoundPatterns);
-                        if ($isCompound && $maxCompoundExercises !== null && $compoundCount >= $maxCompoundExercises) {
+                        $regionCompoundCap = $maxCompoundByRegion[$region] ?? null;
+                        if ($capEnforced && $isCompound && $regionCompoundCap !== null && ($compoundCountByRegion[$region] ?? 0) >= $regionCompoundCap) {
                             continue;
                         }
                         if (! $relaxed && isset($seen[$key])) {
@@ -289,7 +301,7 @@ class DeterministicWorkoutGenerator
                             $seen[$key] = true;
                         }
                         if ($isCompound) {
-                            $compoundCount++;
+                            $compoundCountByRegion[$region] = ($compoundCountByRegion[$region] ?? 0) + 1;
                         }
                         $addedThisRound = true;
                         break;
@@ -310,32 +322,21 @@ class DeterministicWorkoutGenerator
 
     /**
      * The movement pattern an exercise is selected, ordered and given sets by:
-     * its own, unless workout_generator.selection_aliases maps it to another
-     * (see the note on SHOULDER_RAISE there).
+     * its own, always (ADR-0009 — selection aliases are gone).
      */
     private function selectionPattern(Exercise $exercise): string
     {
-        return self::aliasedPattern($exercise->movementPattern?->code);
+        return $exercise->movementPattern?->code ?? 'UNKNOWN';
     }
 
     /**
-     * A movement pattern code resolved through the selection aliases.
-     */
-    public static function aliasedPattern(?string $movementPatternCode): string
-    {
-        $code = $movementPatternCode ?? 'UNKNOWN';
-
-        return config('workout_generator.selection_aliases', [])[$code] ?? $code;
-    }
-
-    /**
-     * Whether a movement pattern counts as compound, after aliasing — the same
-     * answer selection, ordering and set distribution work from.
+     * Whether a movement pattern counts as compound — the same answer
+     * selection, ordering, set distribution and prescriptions work from.
      */
     public static function isCompoundPattern(?string $movementPatternCode): bool
     {
         return in_array(
-            self::aliasedPattern($movementPatternCode),
+            $movementPatternCode ?? 'UNKNOWN',
             config('workout_generator.compound_patterns', [])
         );
     }
@@ -349,7 +350,7 @@ class DeterministicWorkoutGenerator
      * only that region's complementary pattern (UPPER_PUSH → ELBOW_EXTENSION,
      * UPPER_PULL → ELBOW_FLEXION). ARMS alone, or alongside both upper
      * regions, keeps the full pool. Compared against the exercise's own
-     * movement pattern code, not its selection alias.
+     * movement pattern code.
      *
      * @param  list<string>  $targetRegions
      * @return list<string>|null
@@ -547,19 +548,15 @@ class DeterministicWorkoutGenerator
             // Sets come from distribution (stored on exercise object)
             $distributedSets = $exercise->target_sets ?? 0;
 
-            // If no history (weight = 0), use fitness goal defaults for rep range/rest
-            if ($targets['target_weight'] == 0) {
-                $targets['min_target_reps'] = $defaults['min_reps'];
-                $targets['max_target_reps'] = $defaults['max_reps'];
-                $targets['rest_seconds'] = $defaults['rest_seconds'];
-            }
-
             $result[] = [
                 'exercise_id' => $exercise->id,
                 'order' => $order++,
                 'target_sets' => $distributedSets > 0 ? $distributedSets : $defaults['sets'], // Fallback to defaults if distribution failed
-                'min_target_reps' => $targets['min_target_reps'],
-                'max_target_reps' => $targets['max_target_reps'],
+                // Bodyweight (total_reps) targets carry null rep bounds, but
+                // template rows are NOT NULL: the goal defaults are the final
+                // fallback of the Prescription precedence chain.
+                'min_target_reps' => $targets['min_target_reps'] ?? $defaults['min_reps'],
+                'max_target_reps' => $targets['max_target_reps'] ?? $defaults['max_reps'],
                 'target_weight' => $targets['target_weight'] ?? 0,
                 'rest_seconds' => $targets['rest_seconds'],
             ];

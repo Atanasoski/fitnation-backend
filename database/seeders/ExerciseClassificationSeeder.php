@@ -34,11 +34,13 @@ class ExerciseClassificationSeeder extends Seeder
     private array $trainingStyles = [];
 
     /**
-     * Movement pattern to target region mapping.
+     * Movement pattern to target region mapping (region-ownership rule:
+     * arm isolations live under ARMS, never UPPER_PUSH/UPPER_PULL).
+     * Shared with CatalogEnrichmentSeeder so the rule has one home.
      *
      * @var array<string, string>
      */
-    private const MOVEMENT_TO_TARGET = [
+    public const MOVEMENT_TO_TARGET = [
         'PRESS' => 'UPPER_PUSH',
         'FLY' => 'UPPER_PUSH',
         'PUSHUP' => 'UPPER_PUSH',
@@ -66,6 +68,14 @@ class ExerciseClassificationSeeder extends Seeder
         'ROTATION' => 'CORE',
         'ANTI_ROTATION' => 'CORE',
     ];
+
+    /**
+     * Equipment types whose exercises carry the FUNCTIONAL training style.
+     * Shared with CatalogEnrichmentSeeder.
+     *
+     * @var array<int, string>
+     */
+    public const FUNCTIONAL_EQUIPMENT = ['TRX', 'LANDMINE', 'MEDICINE_BALL', 'KETTLEBELL', 'BAND'];
 
     /**
      * Category slug to equipment type mapping.
@@ -143,7 +153,7 @@ class ExerciseClassificationSeeder extends Seeder
         $styles = [];
 
         // Equipment-based classification
-        if (in_array($equipmentCode, ['TRX', 'LANDMINE', 'MEDICINE_BALL', 'KETTLEBELL', 'BAND'])) {
+        if (in_array($equipmentCode, self::FUNCTIONAL_EQUIPMENT)) {
             $styles[] = 'FUNCTIONAL';
         }
 

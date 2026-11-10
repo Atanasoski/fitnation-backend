@@ -6,9 +6,9 @@ return [
     | Movement Pattern Classification
     |--------------------------------------------------------------------------
     |
-    | Compound movements are multi-joint exercises that should be prioritized
-    | at the beginning of a workout. Isolation movements target single muscles
-    | and are typically performed later in the workout.
+    | Compound movements are multi-joint exercises: they fill a Blueprint's
+    | heavy early Slots and take compound prescriptions. Any pattern not
+    | listed here is an isolation.
     |
     */
 
@@ -23,23 +23,6 @@ return [
         'LUNGE_SPLIT_SQUAT',
         'HIP_THRUST_BRIDGE',
         'PUSHUP',
-    ],
-
-    'isolation_patterns' => [
-        'FLY',
-        'ELBOW_FLEXION',
-        'ELBOW_EXTENSION',
-        'KNEE_FLEXION',
-        'KNEE_EXTENSION',
-        'CALF_RAISE',
-        'REAR_DELT_FLY',
-        'FACE_PULL',
-        'SHOULDER_RAISE',
-        'PULLOVER_STRAIGHT_ARM',
-        'HIP_ABDUCTION',
-        'BACK_EXTENSION',
-        'TRUNK_FLEXION',
-        'ROTATION',
     ],
 
     /*
@@ -146,120 +129,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Set-Based Duration Calculation
-    |--------------------------------------------------------------------------
-    |
-    | Simple formula: 1 set = 3 minutes (universal, no variations).
-    | Total sets = duration (minutes) ÷ 3.
-    |
-    */
-
-    'minutes_per_set' => 3,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Exercise Count by Goal and Duration
-    |--------------------------------------------------------------------------
-    |
-    | Target number of exercises based on fitness goal and workout duration.
-    | Strength: fewer exercises (more sets each)
-    | Muscle Gain: balanced
-    | Fat Loss: more exercises (fewer sets each)
-    |
-    */
-
-    'exercise_count_by_goal' => [
-        'strength' => [
-            30 => 4,   // 10 sets total
-            45 => 4,   // 15 sets total
-            60 => 5,   // 20 sets total
-            90 => 7,   // 30 sets total
-        ],
-        'muscle_gain' => [
-            30 => 4,   // 10 sets total
-            45 => 5,   // 15 sets total
-            60 => 6,   // 20 sets total
-            90 => 8,   // 30 sets total
-        ],
-        'fat_loss' => [
-            30 => 5,   // 10 sets total
-            45 => 6,   // 15 sets total
-            60 => 7,   // 20 sets total
-            90 => 10,  // 30 sets total
-        ],
-        'general_fitness' => [
-            30 => 4,   // 10 sets total
-            45 => 5,   // 15 sets total
-            60 => 6,   // 20 sets total
-            90 => 8,   // 30 sets total
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Exercise Limits
-    |--------------------------------------------------------------------------
-    |
-    | Maximum and minimum exercises per target region, movement pattern, and total workout.
-    |
-    */
-
-    'max_exercises_per_region' => 4,
-    'min_exercises_per_region' => 1,
-    'max_exercises_per_pattern' => 4,
-    'max_total_exercises' => 12,
-    'min_total_exercises' => 4,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Per-Pattern Cap Overrides
-    |--------------------------------------------------------------------------
-    |
-    | max_exercises_per_pattern is a global 4. These override it for a single
-    | pattern, keyed by the exercise's movement pattern code. Two curls or two
-    | triceps extensions are plenty for the seeded arm days; without the cap a
-    | Pull + Biceps day with enough distinct-angle curls fills half its slots
-    | with them.
-    |
-    */
-
-    'max_per_pattern_overrides' => [
-        'ELBOW_FLEXION' => 2,
-        'ELBOW_EXTENSION' => 2,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Composition Rules
-    |--------------------------------------------------------------------------
-    |
-    | Guardrails to prevent overly compound-dominant sessions.
-    |
-    */
-
-    'max_compound_by_region' => [
-        'LOWER' => (int) env('WG_MAX_COMPOUND_LOWER', 2),
-        'UPPER_PUSH' => (int) env('WG_MAX_COMPOUND_UPPER_PUSH', 2),
-        'UPPER_PULL' => (int) env('WG_MAX_COMPOUND_UPPER_PULL', 2),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Complementary Patterns
-    |--------------------------------------------------------------------------
-    |
-    | When a target region is selected, we can optionally pull in complementary
-    | movement patterns from other regions to round out the session.
-    |
-    */
-
-    'complementary_patterns' => [
-        'UPPER_PULL' => ['ELBOW_FLEXION'],
-        'UPPER_PUSH' => ['ELBOW_EXTENSION'],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Fitness Goal Defaults
     |--------------------------------------------------------------------------
     |
@@ -294,25 +163,6 @@ return [
             'rest_seconds' => 60,
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Set Distribution Limits
-    |--------------------------------------------------------------------------
-    |
-    | Maximum sets per exercise type. Compounds can have more sets than isolation.
-    | Every exercise gets at least min_sets_per_exercise. Until 2026-10-25 the
-    | sets were handed out one exercise at a time, so the last one got what was
-    | left: a 60-minute push day (20 sets) came out 4, 4, 4, 4, 3 and 1, and an
-    | exercise left with none fell back to the goal's default sets, over the
-    | time. The minimum wins over the time only below 24 minutes, where four
-    | exercises at 2 sets need more than duration ÷ 3.
-    |
-    */
-
-    'min_sets_per_exercise' => 2,
-    'max_sets_per_compound' => 4,
-    'max_sets_per_isolation' => 3,
 
     /*
     |--------------------------------------------------------------------------

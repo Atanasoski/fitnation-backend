@@ -120,8 +120,8 @@
                         <option value="30" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 30) ? 'selected' : '' }}>30 min</option>
                         <option value="45" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 45) ? 'selected' : '' }}>45 min</option>
                         <option value="60" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 60) ? 'selected' : '' }}>60 min</option>
-                        <option value="75" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 75) ? 'selected' : '' }}>75 min</option>
                         <option value="90" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 90) ? 'selected' : '' }}>90 min</option>
+                        <option value="120" {{ (old('duration_minutes', $params['duration_minutes'] ?? 60) == 120) ? 'selected' : '' }}>120 min</option>
                     </select>
                 </div>
 

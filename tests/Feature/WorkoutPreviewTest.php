@@ -136,7 +136,7 @@ class WorkoutPreviewTest extends TestCase
             'training_experience' => 'intermediate',
             'gender' => 'female',
             'training_days_per_week' => 4,
-            'duration_minutes' => 75,
+            'duration_minutes' => 90,
             'weeks' => 2,
         ]);
 
@@ -151,6 +151,54 @@ class WorkoutPreviewTest extends TestCase
 
         $summary = $response->viewData('summary');
         $this->assertEquals(8, $summary['total_workouts']); // 2 weeks × 4 days
+    }
+
+    public function test_preview_rejects_durations_outside_the_menu(): void
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        foreach ([15, 75, 180] as $duration) {
+            $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+                'fitness_goal' => 'general_fitness',
+                'training_experience' => 'beginner',
+                'gender' => 'male',
+                'training_days_per_week' => 3,
+                'duration_minutes' => $duration,
+                'weeks' => 1,
+            ]);
+
+            $response->assertSessionHasErrors(['duration_minutes']);
+        }
+    }
+
+    public function test_preview_accepts_every_menu_duration(): void
+    {
+        Exercise::factory()->press()->barbell()->flat()->count(5)->create();
+        Exercise::factory()->row()->barbell()->horizontal()->count(5)->create();
+        Exercise::factory()->count(10)->create([
+            'target_region_id' => \App\Models\TargetRegion::firstOrCreate(
+                ['code' => 'LOWER'],
+                ['name' => 'Lower', 'display_order' => 30]
+            )->id,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        foreach ([30, 45, 60, 90, 120] as $duration) {
+            $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+                'fitness_goal' => 'general_fitness',
+                'training_experience' => 'beginner',
+                'gender' => 'male',
+                'training_days_per_week' => 3,
+                'duration_minutes' => $duration,
+                'weeks' => 1,
+            ]);
+
+            $response->assertStatus(200);
+            $response->assertViewIs('admin.workout-preview.index');
+        }
     }
 
     public function test_preview_mirrors_the_mesocycle_structure(): void

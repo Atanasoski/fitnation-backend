@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\TrainingExperience;
+use App\Enums\WorkoutDuration;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,7 @@ class ProfileUpdateRequest extends FormRequest
             'gender' => ['nullable', Rule::enum(Gender::class)],
             'training_experience' => ['nullable', Rule::enum(TrainingExperience::class)],
             'training_days_per_week' => ['nullable', 'integer', 'min:1', 'max:7'],
-            'workout_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'workout_duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
         ];
     }
 
@@ -57,8 +58,7 @@ class ProfileUpdateRequest extends FormRequest
             'training_days_per_week.min' => 'Training days must be at least 1.',
             'training_days_per_week.max' => 'Training days cannot exceed 7.',
             'workout_duration_minutes.integer' => 'Please provide a valid workout duration.',
-            'workout_duration_minutes.min' => 'Workout duration must be at least 1 minute.',
-            'workout_duration_minutes.max' => 'Workout duration cannot exceed 600 minutes.',
+            'workout_duration_minutes.in' => 'Workout duration must be one of: 30, 45, 60, 90, 120 minutes.',
         ];
     }
 }

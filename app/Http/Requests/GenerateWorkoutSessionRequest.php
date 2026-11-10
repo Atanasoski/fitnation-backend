@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\WorkoutDuration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,7 +34,7 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'angles.*' => 'string|exists:angles,code',
             'training_styles' => 'nullable|array',
             'training_styles.*' => 'string|exists:training_styles,code',
-            'duration_minutes' => 'nullable|integer|min:15|max:180',
+            'duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
             'difficulty' => [
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
@@ -60,8 +61,7 @@ class GenerateWorkoutSessionRequest extends FormRequest
             'training_styles.array' => 'Training styles must be an array.',
             'training_styles.*.exists' => 'One or more training style codes do not exist.',
             'duration_minutes.integer' => 'Duration must be an integer.',
-            'duration_minutes.min' => 'Duration must be at least 15 minutes.',
-            'duration_minutes.max' => 'Duration must not exceed 180 minutes.',
+            'duration_minutes.in' => 'Duration must be one of: '.implode(', ', WorkoutDuration::values()).' minutes.',
             'difficulty.in' => 'Difficulty must be one of: beginner, intermediate, advanced.',
         ];
     }

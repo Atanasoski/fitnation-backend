@@ -8,6 +8,7 @@ use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
+use App\Enums\WorkoutDuration;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
@@ -16,6 +17,7 @@ use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
 use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class WorkoutPreviewController extends Controller
@@ -45,7 +47,7 @@ class WorkoutPreviewController extends Controller
             'training_experience' => ['required', 'string', 'in:beginner,intermediate,advanced'],
             'gender' => ['required', 'string', 'in:male,female,other'],
             'training_days_per_week' => ['required', 'integer', 'min:1', 'max:7'],
-            'duration_minutes' => ['required', 'integer', 'in:30,45,60,75,90'],
+            'duration_minutes' => ['required', 'integer', Rule::in(WorkoutDuration::values())],
             'weeks' => ['required', 'integer', 'min:1', 'max:12'],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'equipment_types' => ['nullable', 'array'],

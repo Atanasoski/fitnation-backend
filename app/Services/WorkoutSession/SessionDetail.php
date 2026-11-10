@@ -41,7 +41,7 @@ final class SessionDetail
 
         $rows = $session->workoutSessionExercises;
 
-        // targetsFor() reads the row's session (deload flag); hand it the one
+        // targetsFor() and statusFor() read the row's session (deload flag); hand it the one
         // already in memory so no row lazy-loads it back from the database.
         $rows->each->setRelation('workoutSession', $session);
 
@@ -54,7 +54,6 @@ final class SessionDetail
         $bestSets = BestSets::forSession($session, $rows->pluck('exercise_id')->all());
 
         $exercises = $rows->map(function ($row) use (
-            $user,
             $ownership,
             $progressions,
             $progression,
@@ -64,7 +63,7 @@ final class SessionDetail
             $resolved = $progression[$row->exercise_id]
                 ?? $progressions->withoutUser($row->exercise);
 
-            $targets = $progressions->targetsFor($row, $resolved['targets']);
+            $targets = $progressions->targetsFor($row, $resolved);
 
             $loggedSets = $ownership->setsFor($row);
 
@@ -79,14 +78,7 @@ final class SessionDetail
                 // docs/issues — but changing it here would silently move every
                 // existing session's progress percentage.
                 isCompleted: $loggedSets->count() >= ($row->target_sets ?? 3),
-                progressionStatus: $user === null
-                    ? 'no_history'
-                    : $progressions->statusFor(
-                        $resolved['last_performance'],
-                        (int) ($targets['min_target_reps'] ?? 0),
-                        (int) ($targets['max_target_reps'] ?? 0),
-                        $row->exercise
-                    ),
+                progressionStatus: $progressions->statusFor($row, $resolved),
                 bestSet: $bestSets->get($row->exercise_id),
             );
         })->values();

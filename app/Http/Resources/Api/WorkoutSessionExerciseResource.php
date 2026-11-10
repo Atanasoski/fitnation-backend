@@ -139,7 +139,7 @@ class WorkoutSessionExerciseResource extends JsonResource
      * Use the injected progression when the caller batched it, otherwise fall
      * back to resolving this single row's own.
      *
-     * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
+     * @return array{0: array<string, mixed>, 1: string}
      */
     private function resolveOwnDetail(?User $user): array
     {
@@ -151,19 +151,10 @@ class WorkoutSessionExerciseResource extends JsonResource
             default => $progressions->forExercise($this->exercise, $user),
         };
 
-        $targets = $progressions->targetsFor($this->resource, $resolved['targets']);
-
-        $status = $user === null
-            ? 'no_history'
-            // Pure: reads the already-loaded equipment type, issues no queries.
-            : $progressions->statusFor(
-                $resolved['last_performance'],
-                (int) ($targets['min_target_reps'] ?? 0),
-                (int) ($targets['max_target_reps'] ?? 0),
-                $this->exercise
-            );
-
-        return [$targets, $status];
+        return [
+            $progressions->targetsFor($this->resource, $resolved),
+            $progressions->statusFor($this->resource, $resolved),
+        ];
     }
 
     /**

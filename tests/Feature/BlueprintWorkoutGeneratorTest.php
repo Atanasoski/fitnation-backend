@@ -247,11 +247,13 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'duration_minutes' => 45,
         ])['exercises']);
 
-        // History wins: the calculator's double progression (intermediate
-        // 8–12, reps maxed at 50kg ⇒ 52.5kg), not the strength-shifted 4–6.
+        // History wins: the calculator's full prescription — rep range from
+        // the ADR-0009 matrix (strength compound 3–6), weight progressed by
+        // double progression (reps maxed at 50kg ⇒ 52.5kg) — not the
+        // no-history goal-shifted slot range (4–6).
         $this->assertSame($bench->id, $rows['main_press']['exercise_id']);
-        $this->assertSame(8, $rows['main_press']['min_target_reps']);
-        $this->assertSame(12, $rows['main_press']['max_target_reps']);
+        $this->assertSame(3, $rows['main_press']['min_target_reps']);
+        $this->assertSame(6, $rows['main_press']['max_target_reps']);
         $this->assertEqualsWithDelta(52.5, (float) $rows['main_press']['target_weight'], 0.001);
 
         // Slot sets still win for generated rows, even with history.

@@ -307,18 +307,25 @@ class BlueprintWorkoutGeneratorTest extends TestCase
 
     public function test_duplicate_day_types_in_a_split_fill_independently(): void
     {
-        // A split with two push days calls the generator once per day:
-        // each fill shuffles its own picks, so the week gets variety while
-        // both days stay proper push days (#107 stories 17 and 19 —
-        // regenerating a draft rides the same mechanism).
+        // One plan, many push days, one shared pool (#124): each day's fill
+        // shuffles its own picks, so the week gets variety while every day
+        // stays a proper push day (#107 stories 17 and 19 — regenerating a
+        // draft rides the same mechanism).
         $this->seedFullGymCatalog();
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
 
-        $mainPressPicks = collect(range(1, 20))
-            ->map(fn () => $this->rowsBySlotKey($this->generator->generate($this->user, [
-                'target_regions' => ['UPPER_PUSH'],
-                'duration_minutes' => 30,
-            ])['exercises'])['main_press']['exercise_id'])
+        $days = $this->generator->generatePlan(
+            $this->user,
+            ['duration_minutes' => 30],
+            array_fill(0, 20, ['UPPER_PUSH']),
+        );
+
+        foreach ($days as $day) {
+            $this->assertSame(['main_press', 'overhead_press', 'triceps'], array_column($day->rows, 'slot_key'));
+        }
+
+        $mainPressPicks = collect($days)
+            ->map(fn ($day) => $this->rowsBySlotKey($day->rows)['main_press']['exercise_id'])
             ->unique();
 
         $this->assertGreaterThan(1, $mainPressPicks->count());

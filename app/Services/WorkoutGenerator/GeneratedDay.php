@@ -32,6 +32,24 @@ final class GeneratedDay
     ) {}
 
     /**
+     * The Slot one of this day's rows fills, found by the row's slot_key.
+     * Slot keys are unique within a day: within a Blueprint, and across the
+     * Fragments a composed day draws on.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public function slotFor(array $row): Slot
+    {
+        foreach ($this->filledSlots as $filledSlot) {
+            if ($filledSlot->slot->key === $row['slot_key']) {
+                return $filledSlot->slot;
+            }
+        }
+
+        throw new \LogicException("No Slot of this day has the key [{$row['slot_key']}]");
+    }
+
+    /**
      * The same day with different rows, e.g. its Deload Week variant.
      *
      * @param  list<array<string, mixed>>  $rows

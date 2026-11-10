@@ -34,6 +34,15 @@ final class BlueprintRepository
     }
 
     /**
+     * Whether a target region declares a Fragment. CONDITIONING never does
+     * (#107); it contributes nothing to a composed day.
+     */
+    public function hasFragment(string $region): bool
+    {
+        return config("workout_blueprints.fragments.{$region}") !== null;
+    }
+
+    /**
      * A target region's short, ordered Slot list (GLOSSARY: Fragment).
      *
      * @return list<Slot>
@@ -58,6 +67,20 @@ final class BlueprintRepository
             [$this, 'hydrateSlots'],
             config('workout_blueprints.fragments', [])
         );
+    }
+
+    /**
+     * Total-set ceiling for a fragment-composed day at this tier (#112).
+     */
+    public function fragmentSetBudget(SessionTier $tier): int
+    {
+        $budget = config("workout_blueprints.fragment_set_budgets.{$tier->value}");
+
+        if (! is_int($budget)) {
+            throw new InvalidArgumentException("No fragment set budget for tier [{$tier->value}]");
+        }
+
+        return $budget;
     }
 
     /**

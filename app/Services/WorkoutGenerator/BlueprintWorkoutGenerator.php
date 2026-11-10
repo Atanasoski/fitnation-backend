@@ -42,17 +42,18 @@ class BlueprintWorkoutGenerator
     /**
      * @param  array<string, mixed>  $preferences
      * @return array{exercises: list<array<string, mixed>>, rationale: string}
-     *
-     * @throws Slots\FragmentCompositionRequired when the region combination matches no blueprint (#112)
      */
     public function generate(User $user, array $preferences = []): array
     {
-        $blueprint = $this->resolver->resolve($this->normalizeStringList($preferences['target_regions'] ?? null) ?? []);
-
         $durationMinutes = (int) ($preferences['duration_minutes']
             ?? $user->profile?->workout_duration_minutes
             ?? 60);
         $tier = SessionTier::fromDuration($durationMinutes);
+
+        $blueprint = $this->resolver->resolve(
+            $this->normalizeStringList($preferences['target_regions'] ?? null) ?? [],
+            $tier,
+        );
 
         $slotSets = $this->tierAdjustedSets($blueprint, $tier);
         $filled = $this->fillSlots($blueprint, $tier, $slotSets, $this->constraintsFor($user, $preferences));
@@ -69,7 +70,10 @@ class BlueprintWorkoutGenerator
 
     /**
      * The tier's slots with their session set counts: Extended includes
-     * every tier and adds one set to the first two tier-1 slots.
+     * every tier and adds one set to the first two tier-1 slots — on
+     * blueprint days only. A fragment-composed day's volume is governed
+     * entirely by its tier set budget (#112), already applied by the
+     * resolver, so it never receives the Extended bonus.
      *
      * @return list<array{slot: Slot, sets: int}>
      */
@@ -80,7 +84,9 @@ class BlueprintWorkoutGenerator
             fn (Slot $slot) => $tier->includesTier($slot->tier)
         ));
 
-        $bonusesLeft = $tier === SessionTier::Extended ? self::EXTENDED_BONUS_SLOTS : 0;
+        $bonusesLeft = $tier === SessionTier::Extended && ! $blueprint->fragmentComposed
+            ? self::EXTENDED_BONUS_SLOTS
+            : 0;
 
         return array_map(function (Slot $slot) use (&$bonusesLeft) {
             $bonus = 0;
@@ -243,6 +249,14 @@ class BlueprintWorkoutGenerator
 
     private function buildRationale(Blueprint $blueprint, SessionTier $tier, int $durationMinutes, int $filledSlots): string
     {
+        if ($blueprint->fragmentComposed) {
+            $dayName = str_replace(['_', '+'], [' ', ' + '], strtolower($blueprint->code));
+
+            return "Composed a {$dayName} day from its region fragments at the {$tier->value} tier "
+                ."({$durationMinutes} minutes): {$filledSlots} slots filled in request order, "
+                ."trimmed to the tier's set budget.";
+        }
+
         $dayName = str_replace('_', ' ', strtolower($blueprint->code));
 
         return "Generated a {$dayName} day from its blueprint at the {$tier->value} tier "

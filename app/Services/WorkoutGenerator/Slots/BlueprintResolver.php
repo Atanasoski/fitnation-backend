@@ -6,8 +6,10 @@ namespace App\Services\WorkoutGenerator\Slots;
 
 /**
  * Maps a request's region set to its Blueprint — the mapping table signed
- * off in issue #107 / ADR-0010. Order-insensitive except for Full Body,
- * where the first requested region becomes the focus.
+ * off in issue #107 / ADR-0010 — and composes a fragment day for any
+ * combination the table misses (#112). Mapping is order-insensitive except
+ * for Full Body, where the first requested region becomes the focus;
+ * fragment composition follows the request order.
  */
 final class BlueprintResolver
 {
@@ -34,10 +36,8 @@ final class BlueprintResolver
 
     /**
      * @param  list<string>  $regions  requested target-region codes
-     *
-     * @throws FragmentCompositionRequired when the combination matches no blueprint
      */
-    public function resolve(array $regions): Blueprint
+    public function resolve(array $regions, SessionTier $tier): Blueprint
     {
         $set = array_values(array_unique($regions));
         sort($set);
@@ -48,11 +48,68 @@ final class BlueprintResolver
             return $this->blueprints->blueprint($code);
         }
 
+        if ($set === ['FULL_BODY']) {
+            // User-selectable via the API but absent from #107's table: the
+            // literal FULL_BODY region means the whole-body day — Push
+            // focus, exactly like an empty region list.
+            return $this->fullBodyFocusedOn(self::DEFAULT_FOCUS);
+        }
+
         if ($this->isFullBody($set)) {
             return $this->fullBodyFocusedOn($regions[0] ?? self::DEFAULT_FOCUS);
         }
 
-        throw FragmentCompositionRequired::for($regions);
+        return $this->composeFromFragments($regions, $tier);
+    }
+
+    /**
+     * Fragment composition (#112): a combination matching no Blueprint
+     * still yields a structured day — each requested region's Fragment
+     * concatenates in request order (duplicates keep their first position).
+     *
+     * @param  list<string>  $regions
+     */
+    private function composeFromFragments(array $regions, SessionTier $tier): Blueprint
+    {
+        $orderedRegions = array_values(array_unique($regions));
+
+        $slots = [];
+        foreach ($orderedRegions as $region) {
+            if (! $this->blueprints->hasFragment($region)) {
+                // CONDITIONING — or the literal FULL_BODY inside a larger
+                // combination — declares no Fragment and contributes nothing.
+                continue;
+            }
+
+            foreach ($this->blueprints->fragment($region) as $slot) {
+                if ($tier->includesTier($slot->tier)) {
+                    $slots[] = $slot;
+                }
+            }
+        }
+
+        $slots = $this->trimToSetBudget($slots, $this->blueprints->fragmentSetBudget($tier));
+
+        return new Blueprint(implode('+', $orderedRegions), $slots, fragmentComposed: true);
+    }
+
+    /**
+     * Whole trailing slots trim until the total fits the tier's set budget
+     * — the budget is a composed day's volume mechanism (it replaces the
+     * Extended +1-set bonus, which fragment days never get).
+     *
+     * @param  list<Slot>  $slots
+     * @return list<Slot>
+     */
+    private function trimToSetBudget(array $slots, int $budget): array
+    {
+        $totalSets = array_sum(array_map(fn (Slot $slot) => $slot->sets, $slots));
+
+        while ($totalSets > $budget && $slots !== []) {
+            $totalSets -= array_pop($slots)->sets;
+        }
+
+        return $slots;
     }
 
     /**

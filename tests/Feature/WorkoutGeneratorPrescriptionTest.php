@@ -13,10 +13,11 @@ use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 /**
- * Prescription precedence at the generator seam (ADR-0009/0010): logged
- * history outranks everything; without history a generated row reads reps
- * off its Slot and rest off the goal default; the ADR-0009 matrix survives
- * as the fallback for non-generated rows. Day shape itself is read off the
+ * Prescription precedence at the generator seam (ADR-0009/0010): a generated
+ * row always reads sets and reps off its Slot; its rest is the member's
+ * logged rest, or else the exercise's Default Rest scaled by the goal and
+ * clamped by the Slot's class floor; the ADR-0009 matrix survives for
+ * non-generated rows. Day shape itself is read off the
  * Blueprint and asserted in BlueprintWorkoutGeneratorTest, not here — the
  * legacy compound-cap cases died with the caps.
  */

@@ -8,7 +8,7 @@ use App\Models\Plan;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -157,7 +157,7 @@ class PlanActivationTest extends TestCase
 
         $this->seed(\Database\Seeders\WorkoutSplitSeeder::class);
 
-        $generator = $this->createMock(DeterministicWorkoutGenerator::class);
+        $generator = $this->createMock(BlueprintWorkoutGenerator::class);
         $generator->method('generate')->willReturn(['exercises' => [], 'rationale' => 'Test']);
 
         $plan = (new WelcomePlanGenerationService($generator))->generatePlan($user);

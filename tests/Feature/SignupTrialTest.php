@@ -7,7 +7,7 @@ use App\Enums\Gender;
 use App\Enums\TrainingExperience;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -50,7 +50,7 @@ class SignupTrialTest extends TestCase
 
     private function completeOnboarding(User $user): void
     {
-        $generator = $this->createMock(DeterministicWorkoutGenerator::class);
+        $generator = $this->createMock(BlueprintWorkoutGenerator::class);
         $generator->method('generate')->willReturn(['exercises' => [], 'rationale' => 'test']);
 
         (new WelcomePlanGenerationService($generator))->generateWelcomePlan($user);

@@ -15,7 +15,7 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -23,7 +23,7 @@ use Illuminate\View\View;
 class WorkoutPreviewController extends Controller
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator,
+        private BlueprintWorkoutGenerator $workoutGenerator,
         private WelcomePlanGenerationService $planGenerationService
     ) {}
 

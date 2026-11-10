@@ -12,14 +12,15 @@ use App\Models\WorkoutSplit;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
 use App\Services\Plan\PlanActivation;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
+use App\Services\WorkoutGenerator\Slots\Slot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WelcomePlanGenerationService
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator
+        private BlueprintWorkoutGenerator $workoutGenerator
     ) {}
 
     /**
@@ -204,7 +205,7 @@ class WelcomePlanGenerationService
             function (array $row) use ($patternByExerciseId, $sets, $compoundMinReps, $compoundMaxReps) {
                 $row['target_sets'] = $sets;
 
-                if (DeterministicWorkoutGenerator::isCompoundPattern($patternByExerciseId[$row['exercise_id']] ?? null)) {
+                if (Slot::isCompoundPattern($patternByExerciseId[$row['exercise_id']] ?? null)) {
                     $row['min_target_reps'] = $compoundMinReps;
                     $row['max_target_reps'] = $compoundMaxReps;
                 }
@@ -247,6 +248,7 @@ class WelcomePlanGenerationService
                 'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
+                'slot_key' => $exerciseData['slot_key'] ?? null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

@@ -11,7 +11,7 @@ use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\Slots\Slot;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -75,6 +75,20 @@ class MesocycleProgramTest extends TestCase
         ]);
 
         return $user->refresh();
+    }
+
+    public function test_generated_template_rows_persist_the_slot_key_that_produced_them(): void
+    {
+        $service = app(WelcomePlanGenerationService::class);
+
+        $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
+        $plan->load('workoutTemplates.workoutTemplateExercises');
+
+        $slotKeys = $plan->workoutTemplates
+            ->flatMap(fn ($template) => $template->workoutTemplateExercises->pluck('slot_key'));
+
+        $this->assertNotEmpty($slotKeys);
+        $this->assertFalse($slotKeys->contains(null), 'Every generated template row carries its slot key');
     }
 
     public function test_program_length_comes_from_the_fitness_goal(): void
@@ -166,7 +180,7 @@ class MesocycleProgramTest extends TestCase
             foreach ($template->workoutTemplateExercises as $row) {
                 $this->assertSame(2, $row->target_sets);
 
-                $isCompound = DeterministicWorkoutGenerator::isCompoundPattern(
+                $isCompound = Slot::isCompoundPattern(
                     $row->exercise->movementPattern?->code
                 );
 

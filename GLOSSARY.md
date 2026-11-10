@@ -81,6 +81,10 @@ _Avoid_: template (collides with WorkoutTemplate), day plan
 One position in a Blueprint: a movement role (pattern, optionally angle) carrying a Tier, a set count, and a rep range. Filled by exactly one Exercise satisfying the role; a Slot that cannot fill even after the Relaxation Waterfall is skipped and its sets move to earlier Slots.
 _Avoid_: position, exercise entry
 
+**SlotRole**:
+A Slot's movement role: the set of movement patterns that satisfy it, each optionally narrowed to specific angles (e.g. `PRESS` at `FLAT|HORIZONTAL`, or `PUSHUP` at any angle). An Exercise fills a Slot by matching any one of its roles.
+_Avoid_: pattern filter, role (unqualified)
+
 **Tier**:
 A Slot's priority class deciding which session lengths include it: tier-1 Slots alone make an Express session, tiers 1–2 a Standard session, all tiers an Extended session. Session length is chosen from a fixed set of durations; each maps to exactly one of the three.
 _Avoid_: priority (collides with selection priority)

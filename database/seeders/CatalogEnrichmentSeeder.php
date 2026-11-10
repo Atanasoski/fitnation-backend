@@ -490,7 +490,7 @@ class CatalogEnrichmentSeeder extends Seeder
             // (bands, kettlebells) also carry FUNCTIONAL, matching the
             // classification seeder's inference.
             $styleIds = [$trainingStyles['BODYBUILDING']];
-            if (in_array($data['equipment'], ExerciseClassificationSeeder::FUNCTIONAL_EQUIPMENT, true)) {
+            if (in_array($data['equipment'], EquipmentType::FUNCTIONAL_CODES, true)) {
                 $styleIds[] = $trainingStyles['FUNCTIONAL'];
             }
             $exercise->trainingStyles()->sync($styleIds);

@@ -519,6 +519,41 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertSame($expected, $description);
     }
 
+    /**
+     * A program workout's name comes from the day its regions resolved to
+     * (#131), keeping every name programs carried before; push+pull+arms
+     * is now an Upper day, so it is named like one.
+     */
+    public function test_each_day_is_named_from_the_day_it_resolved_to(): void
+    {
+        $this->seedFullGymCatalog();
+
+        $cases = [
+            [['UPPER_PUSH'], 'Push Day'],
+            [['UPPER_PUSH', 'ARMS'], 'Push Day'],
+            [['UPPER_PULL'], 'Pull Day'],
+            [['UPPER_PULL', 'ARMS'], 'Pull Day'],
+            [['LOWER'], 'Legs Day'],
+            [['LOWER', 'CORE'], 'Legs Day'],
+            [['UPPER_PUSH', 'UPPER_PULL'], 'Upper Body Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 'Upper Body Day'],
+            [['ARMS'], 'Arms Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'LOWER'], 'Full Body (Push)'],
+            [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 'Full Body (Pull)'],
+            [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 'Full Body (Legs)'],
+            [['UPPER_PUSH', 'LOWER'], 'Push & Legs Day'],
+            [['LOWER', 'UPPER_PUSH'], 'Legs & Push Day'],
+            [['CORE'], 'Core Day'],
+        ];
+
+        $days = $this->generator->generatePlan($this->user, ['duration_minutes' => 60], array_column($cases, 0));
+
+        $this->assertSame(
+            array_column($cases, 1),
+            array_map(fn (\App\Services\WorkoutGenerator\GeneratedDay $day) => $day->blueprint->workoutName(), $days),
+        );
+    }
+
     public function test_the_tier_and_skipped_slots_go_to_the_log_not_the_description(): void
     {
         \Illuminate\Support\Facades\Log::spy();

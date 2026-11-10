@@ -281,6 +281,23 @@ class WorkoutBlueprintConfigTest extends TestCase
     }
 
     /**
+     * The skip note joins the labels of the Slots a day could not fill
+     * with "or" ("side delts, triceps or chest fly"), so a label holding
+     * the word itself would read as two roles.
+     */
+    public function test_no_slot_label_contains_the_word_or(): void
+    {
+        $slots = array_merge(
+            ...array_column(config('workout_blueprints.blueprints'), 'slots'),
+            ...array_column(config('workout_blueprints.fragments'), 'slots'),
+        );
+
+        foreach ($slots as $slot) {
+            $this->assertDoesNotMatchRegularExpression('/\bor\b/i', $slot['label'], "slot {$slot['key']}");
+        }
+    }
+
+    /**
      * A slot table as signed off: its labels are wording, not programming.
      *
      * @param  list<array<string, mixed>>  $slots

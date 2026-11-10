@@ -155,7 +155,7 @@ return [
         'FULL_BODY' => [
             'label' => 'Full Body',
             'slots' => [
-                ['key' => 'lower_compound', 'label' => 'main leg lift', 'tier' => 1, 'sets' => 3, 'reps' => [6, 10], 'regions' => ['LOWER'], 'roles' => [
+                ['key' => 'lower_compound', 'label' => 'heavy leg exercise', 'tier' => 1, 'sets' => 3, 'reps' => [6, 10], 'regions' => ['LOWER'], 'roles' => [
                     ['pattern' => 'SQUAT'],
                     ['pattern' => 'LEG_PRESS'],
                     ['pattern' => 'HINGE'],

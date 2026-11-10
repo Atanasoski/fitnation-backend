@@ -12,9 +12,9 @@ The deterministic generator built a day's shape emergently: a three-pass greedy 
   | `[UPPER_PULL]`, `[UPPER_PULL, ARMS]` | PULL |
   | `[UPPER_PUSH, UPPER_PULL]` | UPPER |
   | `[LOWER]`, `[LOWER, CORE]` | LOWER |
-  | `[]`, all regions, any push/pull/lower 3-region combo | FULL_BODY (focus = first region; empty ⇒ Push focus, reorder only — one blueprint, no variants) |
+  | `[]`, `[FULL_BODY]`, all regions, any push/pull/lower 3-region combo | FULL_BODY (focus = first region; empty or the literal FULL_BODY region ⇒ Push focus, reorder only — one blueprint, no variants) |
   | `[ARMS]` | ARMS |
-  | anything else (API-only; mobile presets can't produce it) | per-region Fragments, concatenated in request order, tier-filtered, trailing slots trimmed to the tier's set budget |
+  | anything else (API-only; mobile presets can't produce it) | per-region Fragments, concatenated in request order, tier-filtered, trailing slots trimmed to the tier's set budget; a region with no Fragment (CONDITIONING, or FULL_BODY inside a larger combination) contributes nothing, and composed days never get the Extended +1-set bonus — the budget is their volume mechanism (#112) |
 
   A single region maps to the full day type: `[UPPER_PUSH]` yields PUSH including its ARMS-region triceps slot — the region list is a lookup key, the Blueprint defines content.
 - **Session length is a fixed menu, and Tiers do the scaling**: durations are exactly 30/45/60/90/120 (what mobile already offers; Generate/Regenerate/ProfileUpdate validation tightens to this set, admin preview follows). 30 ⇒ Express (tier-1 slots only), 45/60 ⇒ Standard (tiers 1–2), 90/120 ⇒ Extended (all tiers, +1 set on the first two tier-1 slots; 120 adds nothing beyond 90). Internal tier resolution stays threshold-based (`<40`, `40–60`, `>60`) so legacy stored durations (e.g. 75) resolve without migration. `minutes_per_set`, `exercise_count_by_goal` and the set-distribution logic die.

@@ -362,16 +362,137 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         );
     }
 
-    public function test_an_unmapped_region_combination_is_refused_pending_fragment_composition(): void
+    /**
+     * Fragment-composed days (#112): a combination matching no Blueprint
+     * concatenates its regions' Fragments in request order, tier-filters,
+     * and trims trailing slots to the tier's set budget (10/16/22).
+     *
+     * @return array<string, array{0: list<string>, 1: int, 2: list<string>, 3: list<int>}>
+     */
+    public static function fragmentDayTable(): array
+    {
+        return [
+            'push+lower express' => [['UPPER_PUSH', 'LOWER'], 30, ['main_press', 'quad_compound', 'hinge'], [3, 3, 3]],
+            'push+lower standard' => [['UPPER_PUSH', 'LOWER'], 60, ['main_press', 'secondary_press', 'quad_compound', 'hinge', 'ham_iso'], [3, 3, 3, 3, 3]],
+            'lower+push standard follows request order' => [['LOWER', 'UPPER_PUSH'], 60, ['quad_compound', 'hinge', 'ham_iso', 'main_press', 'secondary_press'], [3, 3, 3, 3, 3]],
+            'arms+core express' => [['ARMS', 'CORE'], 30, ['biceps', 'triceps', 'trunk_flexion'], [3, 3, 3]],
+            'arms+core standard' => [['ARMS', 'CORE'], 60, ['biceps', 'triceps', 'side_delts', 'trunk_flexion', 'rotation'], [3, 3, 3, 3, 3]],
+            'core alone standard' => [['CORE'], 60, ['trunk_flexion', 'rotation'], [3, 3]],
+            'core alone express' => [['CORE'], 30, ['trunk_flexion'], [3]],
+            // 7 tier-filtered slots × 3 = 21 sets > the 16 budget: the
+            // trailing side_delts and triceps slots trim away.
+            'three regions trim at standard' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 60, ['main_press', 'secondary_press', 'vertical_pull', 'row', 'biceps'], [3, 3, 3, 3, 3]],
+            // Extended: 9 slots, 27 sets > 22 — and no Extended +1 bonus:
+            // the set budget is a fragment day's whole volume mechanism.
+            'three regions trim at extended' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, ['main_press', 'secondary_press', 'chest_iso', 'vertical_pull', 'row', 'rear_delts', 'biceps'], [3, 3, 3, 3, 3, 3, 3]],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $regions
+     * @param  list<string>  $expectedSlotKeys
+     * @param  list<int>  $expectedSets
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('fragmentDayTable')]
+    public function test_an_unmapped_region_combination_composes_a_fragment_day(
+        array $regions,
+        int $durationMinutes,
+        array $expectedSlotKeys,
+        array $expectedSets,
+    ): void {
+        $this->seedFullGymCatalog();
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => $regions,
+            'duration_minutes' => $durationMinutes,
+        ])['exercises'];
+
+        $this->assertSame($expectedSlotKeys, array_column($rows, 'slot_key'));
+        $this->assertSame($expectedSets, array_column($rows, 'target_sets'));
+        $this->assertSame(range(1, count($expectedSlotKeys)), array_column($rows, 'order'));
+
+        $slots = collect((new BlueprintRepository)->fragments())
+            ->flatMap(fn (array $fragmentSlots) => $fragmentSlots)
+            ->keyBy('key');
+        $pickedIds = array_column($rows, 'exercise_id');
+        $this->assertSame(count($pickedIds), count(array_unique($pickedIds)), 'An exercise was picked twice');
+
+        foreach ($rows as $row) {
+            $slot = $slots->get($row['slot_key']);
+            $this->assertRowSatisfiesSlot($row, $slot);
+            $this->assertSame($slot->repMin, $row['min_target_reps']);
+            $this->assertSame($slot->repMax, $row['max_target_reps']);
+            $this->assertArrayHasKey('target_weight', $row);
+            $this->assertIsInt($row['rest_seconds']);
+        }
+    }
+
+    public function test_a_fragment_days_rationale_names_the_regions_and_the_budget_not_a_blueprint(): void
     {
         $this->seedFullGymCatalog();
 
-        $this->expectException(\App\Services\WorkoutGenerator\Slots\FragmentCompositionRequired::class);
+        $rationale = $this->generator->generate($this->user, [
+            'target_regions' => ['ARMS', 'CORE'],
+            'duration_minutes' => 45,
+        ])['rationale'];
+
+        $this->assertStringContainsString('arms + core', $rationale);
+        $this->assertStringContainsString('fragments', $rationale);
+        $this->assertStringNotContainsString('blueprint', $rationale);
+    }
+
+    public function test_a_conditioning_only_request_fails_like_an_empty_pool_not_a_crash(): void
+    {
+        // CONDITIONING contributes no Fragment (#107), so the composed day
+        // has no slots — the ordinary "no exercises" refusal, not a crash.
+        $this->seedFullGymCatalog();
+
+        $this->expectExceptionMessage('No exercises available matching the specified criteria');
 
         $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH', 'LOWER'],
+            'target_regions' => ['CONDITIONING'],
             'duration_minutes' => 45,
         ]);
+    }
+
+    public function test_the_literal_full_body_region_generates_the_push_focused_full_body_day(): void
+    {
+        // ['FULL_BODY'] is user-selectable via the API but missing from
+        // #107's mapping table — it resolves like an empty region list.
+        $this->seedFullGymCatalog();
+
+        $rows = $this->generator->generate($this->user, [
+            'target_regions' => ['FULL_BODY'],
+            'duration_minutes' => 60,
+        ])['exercises'];
+
+        $this->assertSame(
+            ['push', 'lower_compound', 'pull', 'delts_arms', 'lower_iso'],
+            array_column($rows, 'slot_key'),
+        );
+    }
+
+    public function test_fragment_compound_slots_goal_shift_and_isolations_keep_their_range(): void
+    {
+        $this->user->profile->update(['fitness_goal' => FitnessGoal::Strength]);
+        $this->seedFullGymCatalog();
+
+        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
+            'target_regions' => ['LOWER', 'ARMS'],
+            'duration_minutes' => 60,
+        ])['exercises']);
+
+        // Compound fragment slots shift to 4–6 under the strength goal…
+        foreach (['quad_compound', 'hinge'] as $compoundSlot) {
+            $this->assertSame(4, $rows[$compoundSlot]['min_target_reps'], $compoundSlot);
+            $this->assertSame(6, $rows[$compoundSlot]['max_target_reps'], $compoundSlot);
+        }
+
+        // …while isolations never leave their slot range.
+        $this->assertSame(10, $rows['ham_iso']['min_target_reps']);
+        $this->assertSame(15, $rows['ham_iso']['max_target_reps']);
+        $this->assertSame(8, $rows['biceps']['min_target_reps']);
+        $this->assertSame(12, $rows['biceps']['max_target_reps']);
     }
 
     public function test_generation_fails_loudly_when_every_slot_skips(): void

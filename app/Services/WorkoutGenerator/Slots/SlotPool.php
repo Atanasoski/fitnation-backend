@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\WorkoutGenerator\Slots;
 
-use App\Enums\ExerciseDifficulty;
 use App\Models\Exercise;
 use Illuminate\Support\Collection;
 
@@ -43,10 +42,14 @@ final class SlotPool
         }
 
         if ($constraints->beginner) {
-            $query->where(function ($q) {
-                $q->whereNull('difficulty')
-                    ->orWhere('difficulty', '!=', ExerciseDifficulty::Advanced->value);
-            });
+            // An exercise with no difficulty counts as intermediate (ADR-0009)
+            $excludedDifficulties = config('workout_generator.beginner_excluded_difficulties', []);
+            if ($excludedDifficulties !== []) {
+                $query->where(function ($q) use ($excludedDifficulties) {
+                    $q->whereNull('difficulty')
+                        ->orWhereNotIn('difficulty', $excludedDifficulties);
+                });
+            }
 
             $excluded = config('workout_generator.beginner_excluded_equipment', []);
             if ($excluded !== []) {

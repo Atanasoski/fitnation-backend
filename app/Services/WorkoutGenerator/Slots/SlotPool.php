@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\WorkoutGenerator\Slots;
 
+use App\Enums\MovementClass;
 use App\Models\Exercise;
 use Illuminate\Support\Collection;
 
@@ -138,7 +139,7 @@ final class SlotPool
             return false;
         }
 
-        return Slot::isCompoundPattern($exercise->movementPattern?->code) === $slot->isCompound();
+        return MovementClass::fromPattern($exercise->movementPattern?->code) === $slot->movementClass();
     }
 
     /**

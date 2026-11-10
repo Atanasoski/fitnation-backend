@@ -54,7 +54,6 @@ final class SessionDetail
         $bestSets = BestSets::forSession($session, $rows->pluck('exercise_id')->all());
 
         $exercises = $rows->map(function ($row) use (
-            $user,
             $ownership,
             $progressions,
             $progression,
@@ -79,14 +78,7 @@ final class SessionDetail
                 // docs/issues — but changing it here would silently move every
                 // existing session's progress percentage.
                 isCompleted: $loggedSets->count() >= ($row->target_sets ?? 3),
-                progressionStatus: $user === null
-                    ? 'no_history'
-                    : $progressions->statusFor(
-                        $resolved['last_performance'],
-                        (int) ($targets['min_target_reps'] ?? 0),
-                        (int) ($targets['max_target_reps'] ?? 0),
-                        $row->exercise
-                    ),
+                progressionStatus: $progressions->statusFor($row, $resolved),
                 bestSet: $bestSets->get($row->exercise_id),
             );
         })->values();

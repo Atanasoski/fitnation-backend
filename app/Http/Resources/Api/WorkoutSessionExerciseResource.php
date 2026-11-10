@@ -151,19 +151,10 @@ class WorkoutSessionExerciseResource extends JsonResource
             default => $progressions->forExercise($this->exercise, $user),
         };
 
-        $targets = $progressions->targetsFor($this->resource, $resolved['targets']);
-
-        $status = $user === null
-            ? 'no_history'
-            // Pure: reads the already-loaded equipment type, issues no queries.
-            : $progressions->statusFor(
-                $resolved['last_performance'],
-                (int) ($targets['min_target_reps'] ?? 0),
-                (int) ($targets['max_target_reps'] ?? 0),
-                $this->exercise
-            );
-
-        return [$targets, $status];
+        return [
+            $progressions->targetsFor($this->resource, $resolved['targets']),
+            $progressions->statusFor($this->resource, $resolved),
+        ];
     }
 
     /**

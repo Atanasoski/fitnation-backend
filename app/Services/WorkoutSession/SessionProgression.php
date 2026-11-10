@@ -105,6 +105,7 @@ class SessionProgression
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
                 'rest_seconds' => $exercise->default_rest_sec ?? 90,
+                'progression_status' => 'no_history',
             ],
             'last_performance' => null,
         ];
@@ -163,15 +164,20 @@ class SessionProgression
     }
 
     /**
-     * Where the user stands against the rep range they are working in.
+     * Where the user stands: the verdict on their last working session, as
+     * the app reads it.
      *
-     * Takes the *resolved* rep bounds, not the stored ones, because the bounds
-     * a user is judged against are the ones they were shown.
+     * Not judged against this row's range. The calculator judged each logged
+     * set against its own Logged Range, the range it was prescribed when it
+     * was logged, and the same verdict decided target_weight, so the status
+     * and the weight cannot disagree (ADR-0011). Today's range is only today's
+     * target.
      *
-     * @param  array<string, mixed>|null  $lastPerformance
+     * @param  \App\Models\WorkoutSessionExercise  $row
+     * @param  array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}  $resolved
      */
-    public function statusFor(?array $lastPerformance, int $minReps, int $maxReps, ?Exercise $exercise): string
+    public function statusFor($row, array $resolved): string
     {
-        return $this->calculator->getProgressionStatus($lastPerformance, $minReps, $maxReps, $exercise);
+        return $resolved['targets']['progression_status'] ?? 'no_history';
     }
 }

@@ -85,6 +85,36 @@ class WorkoutSessionStartTest extends TestCase
         ], $copied);
     }
 
+    public function test_an_exercise_added_by_hand_to_a_program_session_fills_no_slot(): void
+    {
+        $user = User::factory()->entitled()->create();
+        $template = $this->generatedTemplateFor($user);
+
+        $sessionId = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/start', ['template_id' => $template->id])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson("/api/workout-sessions/{$sessionId}/exercises", [
+                'exercise_id' => Exercise::factory()->create()->id,
+                // Only generation assigns a Slot; a client can't claim one.
+                'slot_key' => 'main_press',
+            ]);
+
+        $response->assertStatus(201);
+
+        $session = WorkoutSession::findOrFail($sessionId);
+        $added = $session->workoutSessionExercises()->findOrFail($response->json('data.id'));
+
+        $this->assertNull($added->slot_key);
+        $this->assertSame(
+            ['main_press', 'side_delts', null, null],
+            $session->workoutSessionExercises()->orderBy('order')->pluck('slot_key')->all(),
+            'The copied rows keep their Slots alongside the hand-added one'
+        );
+    }
+
     /**
      * A program workout as the generator writes it: every generated row
      * carries the Slot it fills. The last row was added by hand.

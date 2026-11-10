@@ -3,38 +3,37 @@
 namespace App\Services\WorkoutGenerator;
 
 use App\Enums\FitnessGoal;
+use App\Enums\MovementClass;
 
 /**
  * Default Prescription (rep range + rest) for an exercise a user has no
- * history with. Classifies by the exercise's raw movement pattern (ADR-0009:
- * mechanics, never a selection alias). The generator applies these only when
- * no history exists — a user's own progression always outranks them.
+ * history with, for the compound/isolation class it is given (ADR-0009:
+ * mechanics, never a selection alias). Callers pass the exercise's class,
+ * MovementClass::fromPattern() of its raw movement pattern. The generator
+ * applies these only when no history exists — a user's own progression
+ * always outranks them.
  */
 class PrescriptionCalculator
 {
     /**
+     * @param  string|null  $movementPatternCode  keys prescription_overrides only; the class decides the matrix
      * @return array{min_target_reps: int, max_target_reps: int, rest_seconds: int}
      */
-    public function defaults(?string $movementPatternCode, FitnessGoal $goal, ?int $defaultRestSec): array
+    public function defaults(MovementClass $class, FitnessGoal $goal, ?int $defaultRestSec, ?string $movementPatternCode = null): array
     {
-        $tier = $this->isCompound($movementPatternCode) ? 'compound' : 'isolation';
-
-        [$minReps, $maxReps] = config("workout_generator.rep_ranges.{$goal->value}.{$tier}")
-            ?? config("workout_generator.rep_ranges.general_fitness.{$tier}")
+        [$minReps, $maxReps] = config("workout_generator.rep_ranges.{$goal->value}.{$class->value}")
+            ?? config("workout_generator.rep_ranges.general_fitness.{$class->value}")
             ?? [8, 12];
 
-        $override = config("workout_generator.prescription_overrides.{$movementPatternCode}", []);
+        $override = $movementPatternCode === null
+            ? []
+            : config("workout_generator.prescription_overrides.{$movementPatternCode}", []);
 
         return array_merge([
             'min_target_reps' => $minReps,
             'max_target_reps' => $maxReps,
-            'rest_seconds' => $this->rest($goal, $defaultRestSec, $tier),
+            'rest_seconds' => $this->rest($goal, $defaultRestSec, $class->value),
         ], $override);
-    }
-
-    private function isCompound(?string $movementPatternCode): bool
-    {
-        return in_array($movementPatternCode, config('workout_generator.compound_patterns', []));
     }
 
     private function rest(FitnessGoal $goal, ?int $defaultRestSec, string $tier): int

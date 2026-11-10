@@ -3,6 +3,7 @@
 namespace App\Services\WorkoutGenerator;
 
 use App\Enums\FitnessGoal;
+use App\Enums\MovementClass;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
@@ -51,10 +52,12 @@ class ProgressionCalculatorService
         // The default Prescription (ADR-0009): rep range from the
         // compound/isolation × goal matrix, rest from the exercise's Default
         // Rest scaled by the goal. Logged performance still outranks it below.
+        $movementPatternCode = $exercise->movementPattern?->code;
         $prescription = $this->prescriptionCalculator->defaults(
-            $exercise->movementPattern?->code,
+            MovementClass::fromPattern($movementPatternCode),
             $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness,
             $exercise->default_rest_sec,
+            $movementPatternCode,
         );
 
         if ($this->isBodyweight($exercise)) {

@@ -48,6 +48,17 @@ class Partner extends Model
         return (int) config('partners.house_partner_id');
     }
 
+    /**
+     * The House Partner before every other partner; chain an order after it.
+     *
+     * @param  Builder<Partner>  $query
+     * @return Builder<Partner>
+     */
+    public function scopeHouseFirst(Builder $query): Builder
+    {
+        return $query->orderByRaw('partners.id = ? desc', [self::houseId()]);
+    }
+
     public function isHouse(): bool
     {
         return $this->getKey() === self::houseId();

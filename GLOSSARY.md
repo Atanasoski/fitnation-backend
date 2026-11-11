@@ -36,15 +36,19 @@ The web page a registered, not-yet-onboarded customer lands on: store badges plu
 A catalogued movement (muscle groups, category, equipment type), maintained centrally and offered through Partner Libraries, optionally with partner-specific media/description overrides.
 
 **Partner Library**:
-The subset of the Exercise catalogue a Partner offers its customers; workouts are generated only from it. A new Partner starts with the whole catalogue and curates from there; the House Partner's library is curated by Fit Nation.
+The subset of the Exercise catalogue a Partner offers its customers; workouts are generated only from it. A new Partner starts with the whole catalogue and curates from there; the House Partner's library is curated by Fit Nation. Taking an Exercise out of the library stops it being offered or generated, but programs customers already have keep it. An Exercise on one of the Partner's Stations cannot be taken out until it is off every Station.
 _Avoid_: partner catalogue, partner exercises
+
+**Partner Override**:
+A Partner's own description, image or video for an Exercise in its Partner Library, shown to its customers instead of the catalogue's. Each of the three overrides independently; one left blank shows the catalogue version. Taking the Exercise out of the Partner Library discards its override.
+_Avoid_: partner media, custom media
 
 **EquipmentType**:
 A classification of what an Exercise needs to be performed (Barbell, Cable, Machine, …). Catalogue metadata — never a physical object on a gym floor.
 _Avoid_: equipment (ambiguous), machine
 
 **Station**:
-A physical spot on a Partner's gym floor (e.g. "Cable Crossover") carrying a printed QR code and a curated, ordered list of Exercises that can be performed there. Identical machines at the same gym share one Station. The only thing a QR sticker ever points at.
+A physical spot on a Partner's gym floor (e.g. "Cable Crossover") carrying a printed QR code and a curated, ordered list of Exercises that can be performed there, always drawn from the Partner's Library. Identical machines at the same gym share one Station. The only thing a QR sticker ever points at.
 _Avoid_: equipment, machine, QR target
 
 **Short code**:

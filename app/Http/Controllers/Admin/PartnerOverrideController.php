@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Services\Exercise\ExerciseGallery;
+use App\Services\Exercise\ExerciseOnStation;
 use App\Services\Exercise\PartnerOverrides;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,7 +51,13 @@ class PartnerOverrideController extends Controller
 
     public function unlink(Request $request, Exercise $exercise, Partner $partner): RedirectResponse
     {
-        $this->overrides->unlink($partner, $exercise);
+        try {
+            $this->overrides->unlink($partner, $exercise);
+        } catch (ExerciseOnStation $e) {
+            return redirect()
+                ->to(ExerciseGallery::backUrl($request->input('back'), ['edit' => $exercise->getKey()]))
+                ->withErrors(['unlink' => $e->getMessage()], 'override');
+        }
 
         return $this->backToExercise($request, $exercise, "Unlinked from {$partner->name}. Their members no longer see it.");
     }

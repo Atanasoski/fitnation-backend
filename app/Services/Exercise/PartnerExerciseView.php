@@ -65,6 +65,14 @@ final class PartnerExerciseView
     }
 
     /**
+     * Whether the partner has set any of the three: what unlinking deletes.
+     */
+    public function hasAnyOverride(): bool
+    {
+        return $this->hasDescriptionOverride || $this->hasImageOverride || $this->hasVideoOverride;
+    }
+
+    /**
      * Resolve a whole set of exercises against one partner, loading `partners`
      * for all of them in a single query rather than one per exercise.
      *

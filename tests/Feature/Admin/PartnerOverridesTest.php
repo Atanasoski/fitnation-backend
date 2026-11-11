@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\Role;
+use App\Models\Station;
 use App\Models\User;
 use App\Services\Exercise\PartnerExerciseView;
 use App\Services\PartnerExerciseFileService;
@@ -157,6 +158,21 @@ class PartnerOverridesTest extends TestCase
 
         $this->assertFalse($this->isLinked());
         Storage::assertMissing([$imagePath, $videoPath]);
+    }
+
+    public function test_unlink_is_refused_while_the_exercise_is_on_one_of_the_partners_stations(): void
+    {
+        [$imagePath] = $this->fullOverride();
+        Station::factory()->for($this->partner)->create(['name' => 'Bench Station'])
+            ->exercises()->attach($this->exercise->id, ['display_order' => 1]);
+
+        $this->actingAs($this->admin())
+            ->delete(route('exercises.partners.unlink', [$this->exercise, $this->partner]), ['back' => 'partner='.$this->partner->id])
+            ->assertRedirect(route('exercises.index', ['partner' => (string) $this->partner->id, 'edit' => $this->exercise->id]))
+            ->assertSessionHasErrors(['unlink' => "Bench Press is on Iron Gym's Bench Station; take it off first."], null, 'override');
+
+        $this->assertTrue($this->isLinked());
+        Storage::assertExists($imagePath);
     }
 
     public function test_a_super_admin_uploads_a_partners_video(): void

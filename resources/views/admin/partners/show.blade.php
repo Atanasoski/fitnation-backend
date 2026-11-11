@@ -35,6 +35,7 @@
             <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-theme-xs font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">{{ $partner->kind()->label() }}</span>
             @include('admin.partners._status', ['partner' => $partner])
             <div class="ml-auto flex items-center gap-2">
+                <a href="{{ route('exercises.index', ['partner' => $partner->id]) }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Library</a>
                 <a href="{{ route('partners.edit', $partner) }}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5">Edit partner &amp; branding</a>
                 @unless ($partner->isHouse() && $partner->is_active)
                 <form method="POST" action="{{ route('admin.partners.active.update', $partner) }}"

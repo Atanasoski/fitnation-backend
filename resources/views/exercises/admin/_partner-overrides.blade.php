@@ -2,8 +2,8 @@
     Partner Overrides in the exercise slide-over (spec 023, ticket 04): every
     partner linked to the exercise, with what its members see, editable or
     clearable; and linking or unlinking a partner. Reads come from
-    PartnerExerciseView. Expects $exercise, $overrides (linked: partner + view
-    pairs, unlinked: partners) and $back.
+    PartnerExerciseView. Expects $exercise, $overrides (linked: partner, view
+    and whether its row starts open; unlinked: partners) and $back.
 --}}
 @php
     $heading = 'mb-2 text-theme-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
@@ -21,9 +21,9 @@
         <p class="text-sm text-gray-400">Not linked to any partner.</p>
     @else
         <div class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-            @foreach ($overrides['linked'] as ['partner' => $partner, 'view' => $view])
+            @foreach ($overrides['linked'] as ['partner' => $partner, 'view' => $view, 'open' => $open])
                 @php $formId = 'override-'.$partner->id; @endphp
-                <div class="space-y-2 p-3 text-sm" x-data="{ open: false }">
+                <div class="space-y-2 p-3 text-sm" x-data="{ open: @js($open) }">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="font-medium text-gray-800 dark:text-white/90">{{ $partner->name }}</span>
                         @if ($view->hasDescriptionOverride) <span class="{{ $badge }}">description</span> @endif
@@ -89,6 +89,7 @@
         </div>
     @endif
 
+    @error('unlink', 'override') <p class="{{ $error }}">{{ $message }}</p> @enderror
     @error('image', 'override') <p class="{{ $error }}">{{ $message }}</p> @enderror
     @error('video', 'override') <p class="{{ $error }}">{{ $message }}</p> @enderror
     @error('description', 'override') <p class="{{ $error }}">{{ $message }}</p> @enderror

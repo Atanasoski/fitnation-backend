@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\EquipmentType;
 use App\Models\Exercise;
+use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Services\Exercise\ExerciseGallery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -137,6 +138,54 @@ class ExerciseGalleryTest extends TestCase
             ['q' => 'press', 'region' => [(string) $this->upper->id], 'missing' => 'media', 'archived' => '1'],
             $gallery->toggled('archived', '1'),
         );
+    }
+
+    public function test_a_partner_lens_shows_the_partner_library_by_default(): void
+    {
+        $partner = Partner::factory()->create();
+        $partner->exercises()->attach(Exercise::whereIn('name', ['Bench press', 'Back squat'])->pluck('id'));
+
+        $this->assertNames(['Back squat', 'Bench press'], ExerciseGallery::fromQuery(['partner' => (string) $partner->id]));
+        $this->assertNames(['Dumbbell fly'], ExerciseGallery::fromQuery(['partner' => (string) $partner->id, 'library' => 'out']));
+    }
+
+    public function test_the_lens_counts_the_library_and_the_rest_under_the_other_filters(): void
+    {
+        $partner = Partner::factory()->create();
+        $partner->exercises()->attach(Exercise::whereIn('name', ['Bench press', 'Back squat', 'Old press'])->pluck('id'));
+
+        $gallery = ExerciseGallery::fromQuery(['partner' => (string) $partner->id, 'region' => [$this->upper->id]]);
+
+        $this->assertNames(['Bench press'], $gallery);
+        $this->assertSame(['in' => 1, 'out' => 1], $gallery->facets()['library']);
+        $this->assertSame([$this->upper->id => 1, $this->lower->id => 1], $this->counts($gallery->facets()['region']));
+    }
+
+    public function test_the_lens_round_trips_and_an_unknown_partner_is_dropped(): void
+    {
+        $partner = Partner::factory()->create();
+        $query = ['partner' => (string) $partner->id, 'library' => 'out'];
+
+        $this->assertEquals($query, ExerciseGallery::fromQuery($query)->query());
+        $this->assertSame([], ExerciseGallery::fromQuery(['partner' => '999999', 'library' => 'out'])->query());
+        $this->assertSame([], ExerciseGallery::fromQuery(['library' => 'out'])->query());
+        $this->assertEquals(['partner' => (string) $partner->id], ExerciseGallery::fromQuery($query)->toggled('library', 'out'));
+    }
+
+    public function test_under_the_lens_missing_media_judges_what_the_partners_customers_see(): void
+    {
+        $partner = Partner::factory()->create();
+        $noVideo = $this->exercise('No video', $this->upper, $this->barbell, 'beginner', ['image' => 'b.jpg', 'muscle_group_image' => 'm.png']);
+        $noImage = $this->exercise('No image', $this->upper, $this->barbell, 'beginner', ['video' => 'b.mp4', 'muscle_group_image' => 'm.png']);
+        $noMuscles = $this->exercise('No muscles', $this->upper, $this->barbell, 'beginner', ['image' => 'c.jpg', 'video' => 'c.mp4']);
+        $partner->exercises()->attach($noVideo->id, ['video' => 'own.mp4']);
+        $partner->exercises()->attach($noImage->id, ['description' => 'Own cues']);
+        $partner->exercises()->attach($noMuscles->id, ['image' => 'own.jpg', 'video' => 'own.mp4']);
+
+        $gallery = ExerciseGallery::fromQuery(['partner' => (string) $partner->id, 'missing' => 'media']);
+
+        $this->assertNames(['No image', 'No muscles'], $gallery);
+        $this->assertSame(2, ExerciseGallery::fromQuery(['partner' => (string) $partner->id])->facets()['missing']);
     }
 
     /**

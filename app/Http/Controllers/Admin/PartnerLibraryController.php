@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Services\Exercise\ExerciseGallery;
+use App\Services\Exercise\ExerciseOnStation;
 use App\Services\Exercise\PartnerOverrides;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,12 +30,19 @@ class PartnerLibraryController extends Controller
     {
         ['unlinked' => $count, 'kept' => $kept] = $this->overrides->unlinkMany($partner, $this->exerciseIds($request));
 
+        $keptList = implode('; ', array_map(
+            fn (ExerciseOnStation $e) => $e->exercise->name.' (on '.implode(', ', $e->stations).')',
+            $kept,
+        ));
+
+        // Nothing left the library: that is a refusal, not a success.
+        if ($count === 0 && $kept !== []) {
+            return $this->backToGallery($request)->withErrors(['unlink' => "Nothing unlinked from {$partner->name}; kept {$keptList}."]);
+        }
+
         $message = "Unlinked {$count} from {$partner->name}";
         if ($kept !== []) {
-            $message .= sprintf('; %d kept: %s', count($kept), implode('; ', array_map(
-                fn ($e) => $e->exercise->name.' (on '.implode(', ', $e->stations).')',
-                $kept,
-            )));
+            $message .= sprintf('; %d kept: %s', count($kept), $keptList);
         }
 
         return $this->backToGallery($request)->with('success', $message.'.');

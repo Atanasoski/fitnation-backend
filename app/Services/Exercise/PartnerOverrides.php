@@ -136,7 +136,7 @@ final class PartnerOverrides
 
     /**
      * Take the exercise out of the partner's library, which hides it from
-     * their members, and delete the override's files. Programs members
+     * their customers, and delete the override's files. Programs customers
      * already have keep it.
      *
      * @throws ExerciseOnStation while it is on any of the partner's Stations
@@ -155,6 +155,22 @@ final class PartnerOverrides
 
         $this->deleteFiles($partner, $exercise);
         $partner->exercises()->detach($exercise->getKey());
+    }
+
+    /**
+     * The ids of the exercises on any of the partner's Stations: the ones
+     * unlink() refuses.
+     *
+     * @return list<int>
+     */
+    public static function onStations(Partner $partner): array
+    {
+        return $partner->stations()
+            ->join('station_exercise', 'station_exercise.station_id', '=', 'stations.id')
+            ->distinct()
+            ->pluck('station_exercise.exercise_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /**

@@ -17,7 +17,6 @@
     $heading = 'mb-2 text-theme-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
     $facetTitles = ['region' => 'Target region', 'equipment' => 'Equipment', 'difficulty' => 'Difficulty'];
     $lens = $gallery->partner;
-    $overridden = $views ? $views->filter(fn ($v) => $v->hasDescriptionOverride || $v->hasImageOverride || $v->hasVideoOverride)->keys()->all() : [];
 @endphp
 
 @section('content')
@@ -64,7 +63,7 @@
                 <form id="bulk-library" method="POST" class="hidden"
                     action="{{ route($gallery->outsideLibrary ? 'admin.partners.library.link' : 'admin.partners.library.unlink', $lens) }}"
                     @if (! $gallery->outsideLibrary)
-                        @submit="const lost = picked.filter(id => overridden.includes(id)).length; if (! confirm('Unlink ' + picked.length + ' exercises from ' + @js($lens->name) + '? Its members will no longer see them' + (lost ? ', and ' + lost + ' Partner Overrides will be deleted' : '') + '. Exercises on a Station are kept.')) $event.preventDefault()"
+                        @submit="const lost = picked.filter(id => overridden.includes(id)).length; if (! confirm('Unlink ' + picked.length + ' exercises from ' + @js($lens->name) + '? Its customers will no longer see them' + (lost ? ', and ' + lost + ' Partner Overrides will be deleted' : '') + '. Exercises on a Station are kept.')) $event.preventDefault()"
                     @endif>
                     @csrf
                     @unless ($gallery->outsideLibrary) @method('DELETE') @endunless
@@ -95,12 +94,13 @@
 
                 @if ($lens)
                     <div class="space-y-1">
-                        @foreach ([false => ['In library', 'in'], true => ['Not in library', 'out']] as $out => [$label, $count])
-                            <a href="{{ route('exercises.index', $gallery->outsideLibrary === (bool) $out ? $gallery->query() : $gallery->toggled('library', 'out')) }}" @class([
+                        @foreach (['in' => 'In library', 'out' => 'Not in library'] as $side => $label)
+                            @php $current = $gallery->outsideLibrary === ($side === 'out'); @endphp
+                            <a href="{{ route('exercises.index', $current ? $gallery->query() : $gallery->toggled('library', 'out')) }}" @class([
                                 'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
-                                'bg-brand-500 text-white' => $gallery->outsideLibrary === (bool) $out,
-                                'bg-brand-500/10 text-brand-700 hover:bg-brand-500/15 dark:text-brand-300' => $gallery->outsideLibrary !== (bool) $out,
-                            ])>{{ $label }} <span class="ml-auto">{{ $facets['library'][$count] }}</span></a>
+                                'bg-brand-500 text-white' => $current,
+                                'bg-brand-500/10 text-brand-700 hover:bg-brand-500/15 dark:text-brand-300' => ! $current,
+                            ])>{{ $label }} <span class="ml-auto">{{ $facets['library'][$side] }}</span></a>
                         @endforeach
                     </div>
                 @endif
@@ -205,7 +205,7 @@
                                     <form method="POST" class="border-t border-gray-100 px-3 py-2 dark:border-gray-800"
                                         action="{{ route($gallery->outsideLibrary ? 'admin.partners.library.link' : 'admin.partners.library.unlink', $lens) }}"
                                         @unless ($gallery->outsideLibrary)
-                                            onsubmit="return confirm(@js('Unlink '.$exercise->name.' from '.$lens->name.'? This hides it from its members'.(in_array($exercise->id, $overridden, true) ? ', and deletes its Partner Override' : '').'.'))"
+                                            onsubmit="return confirm(@js('Unlink '.$exercise->name.' from '.$lens->name.'? This hides it from its customers'.(in_array($exercise->id, $overridden, true) ? ', and deletes its Partner Override' : '').'.'))"
                                         @endunless>
                                         @csrf
                                         @unless ($gallery->outsideLibrary) @method('DELETE') @endunless

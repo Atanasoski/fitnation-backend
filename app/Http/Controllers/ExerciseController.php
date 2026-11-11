@@ -19,6 +19,7 @@ use App\Services\Exercise\ArchiveOutcome;
 use App\Services\Exercise\ExerciseArchive;
 use App\Services\Exercise\ExerciseGallery;
 use App\Services\Exercise\PartnerExerciseView;
+use App\Services\Exercise\PartnerOverrides;
 use App\Services\MuscleGroupImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,13 +51,18 @@ class ExerciseController extends Controller
         }
 
         $exercises = $gallery->exercises();
+        $views = $gallery->partner ? PartnerExerciseView::forExercises($exercises->items(), $gallery->partner) : null;
 
         return view('exercises.admin.index', [
             'gallery' => $gallery,
             'exercises' => $exercises,
             'facets' => $gallery->facets(),
-            'partners' => Partner::orderByRaw('id = ? desc', [Partner::houseId()])->orderBy('name')->get(['id', 'name', 'is_active']),
-            'views' => $gallery->partner ? PartnerExerciseView::forExercises($exercises->items(), $gallery->partner) : null,
+            'partners' => Partner::houseFirst()->orderBy('name')->get(['id', 'name', 'is_active']),
+            'views' => $views,
+            // Under the lens: the exercises whose Partner Override an unlink
+            // would delete (an exercise on a Station is kept, override and all).
+            'overridden' => $views ? $views->filter->hasAnyOverride()
+                ->keys()->diff(PartnerOverrides::onStations($gallery->partner))->values()->all() : [],
             'page' => $request->integer('page') > 1 ? $request->integer('page') : null,
             'editing' => $editing,
             'lookups' => $editing ? $this->editorLookups() : null,

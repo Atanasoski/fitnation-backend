@@ -93,16 +93,35 @@ class PartnerLibraryTest extends TestCase
         $this->assertSame([$fly->id], $this->libraryIds());
     }
 
+    public function test_an_unlink_that_keeps_everything_is_an_error_not_a_success(): void
+    {
+        $fly = Exercise::factory()->create(['name' => 'Cable Fly']);
+        $this->partner->exercises()->attach($fly->id);
+        Station::factory()->for($this->partner)->create(['name' => 'Cable Crossover'])->exercises()->attach($fly->id, ['display_order' => 1]);
+
+        $this->actingAs($this->admin())
+            ->delete(route('admin.partners.library.unlink', $this->partner), [
+                'exercise_ids' => [$fly->id],
+                'back' => 'partner='.$this->partner->id,
+            ])
+            ->assertRedirect(route('exercises.index', ['partner' => (string) $this->partner->id]))
+            ->assertSessionMissing('success')
+            ->assertSessionHasErrors(['unlink' => 'Nothing unlinked from Iron Gym; kept Cable Fly (on Cable Crossover).']);
+
+        $this->assertSame([$fly->id], $this->libraryIds());
+    }
+
     public function test_the_partner_picker_lists_the_house_partner_first_and_marks_inactive_ones(): void
     {
         $house = Partner::factory()->create(['name' => 'Zed Fit Nation']);
         config(['partners.house_partner_id' => $house->id]);
         Partner::factory()->inactive()->create(['name' => 'Closed Club']);
+        Partner::factory()->create(['name' => 'Alpha Gym']);
 
         $this->actingAs($this->admin())
             ->get(route('exercises.index'))
             ->assertOk()
-            ->assertSeeInOrder(['Zed Fit Nation', 'Closed Club (inactive)', 'Iron Gym']);
+            ->assertSeeInOrder(['Zed Fit Nation', 'Alpha Gym', 'Closed Club (inactive)', 'Iron Gym']);
     }
 
     public function test_under_the_lens_a_card_shows_what_the_partners_customers_see_and_offers_unlink(): void
@@ -148,7 +167,7 @@ class PartnerLibraryTest extends TestCase
         $this->actingAs($this->admin())
             ->get(route('exercises.index', ['partner' => $this->partner->id, 'edit' => $bench->id]))
             ->assertOk()
-            ->assertSeeInOrder(['Partner Overrides', 'Iron Gym', 'Aaa Gym']);
+            ->assertSeeInOrder(['Partner Overrides', '{ open: true }', 'Iron Gym', '{ open: false }', 'Aaa Gym'], false);
     }
 
     public function test_the_partner_page_links_to_its_library(): void

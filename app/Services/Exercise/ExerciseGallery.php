@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
  * it; different facets narrow each other.
  *
  * `partner` (a Partner id) turns on the partner lens: the slice is that
- * Partner's view of the catalogue. `library=out` shows the Exercises outside
+ * Partner's view of the catalogue (what its customers see). `library=out` shows the Exercises outside
  * its Partner Library; without it the lens shows the library itself.
  *
  * A facet's counts apply every other active filter but not its own, so each
@@ -255,13 +255,23 @@ final class ExerciseGallery
             $this->whereMissingMedia($query);
         }
         if ($except !== 'library' && $this->partner !== null) {
-            $inLibrary = fn (Builder $q) => $q->whereKey($this->partner->getKey());
             $this->outsideLibrary
-                ? $query->whereDoesntHave('partners', $inLibrary)
-                : $query->whereHas('partners', $inLibrary);
+                ? $query->whereDoesntHave('partners', $this->lensPartner())
+                : $query->whereHas('partners', $this->lensPartner());
         }
 
         return $query;
+    }
+
+    /**
+     * Narrows an exercise's `partners` relation to the lens Partner: its
+     * Partner Library row.
+     *
+     * @return \Closure(Builder): Builder
+     */
+    private function lensPartner(): \Closure
+    {
+        return fn (Builder $q) => $q->whereKey($this->partner->getKey());
     }
 
     /**
@@ -269,7 +279,7 @@ final class ExerciseGallery
      */
     private function libraryCounts(): array
     {
-        $in = $this->filtered(except: 'library')->whereHas('partners', fn (Builder $q) => $q->whereKey($this->partner->getKey()))->count();
+        $in = $this->filtered(except: 'library')->whereHas('partners', $this->lensPartner())->count();
 
         return ['in' => $in, 'out' => $this->filtered(except: 'library')->count() - $in];
     }
@@ -292,8 +302,7 @@ final class ExerciseGallery
 
         $missing = fn (string $column) => fn (Builder $q) => $q
             ->whereNull("workout_exercises.{$column}")
-            ->whereDoesntHave('partners', fn (Builder $p) => $p
-                ->whereKey($this->partner->getKey())
+            ->whereDoesntHave('partners', fn (Builder $p) => $this->lensPartner()($p)
                 ->whereNotNull("partner_exercises.{$column}"));
 
         $query->where(fn (Builder $q) => $q

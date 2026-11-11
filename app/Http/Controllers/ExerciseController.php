@@ -49,32 +49,40 @@ class ExerciseController extends Controller
             $editing = new Exercise(['default_rest_sec' => 90, 'selection_priority' => 100]);
         }
 
+        $exercises = $gallery->exercises();
+
         return view('exercises.admin.index', [
             'gallery' => $gallery,
-            'exercises' => $gallery->exercises(),
+            'exercises' => $exercises,
             'facets' => $gallery->facets(),
+            'partners' => Partner::orderByRaw('id = ? desc', [Partner::houseId()])->orderBy('name')->get(['id', 'name', 'is_active']),
+            'views' => $gallery->partner ? PartnerExerciseView::forExercises($exercises->items(), $gallery->partner) : null,
             'page' => $request->integer('page') > 1 ? $request->integer('page') : null,
             'editing' => $editing,
             'lookups' => $editing ? $this->editorLookups() : null,
-            'overrides' => $editing?->exists ? $this->partnerOverrides($editing) : null,
+            'overrides' => $editing?->exists ? $this->partnerOverrides($editing, $gallery->partner) : null,
         ]);
     }
 
     /**
      * The slide-over's Partner Overrides: every partner linked to the
      * exercise with what its members see, and the partners it could be
-     * linked to.
+     * linked to. Under the partner lens, that partner's row comes first and
+     * opens.
      *
-     * @return array{linked: \Illuminate\Support\Collection<int, array{partner: Partner, view: PartnerExerciseView}>, unlinked: \Illuminate\Support\Collection<int, Partner>}
+     * @return array{linked: \Illuminate\Support\Collection<int, array{partner: Partner, view: PartnerExerciseView, open: bool}>, unlinked: \Illuminate\Support\Collection<int, Partner>}
      */
-    private function partnerOverrides(Exercise $exercise): array
+    private function partnerOverrides(Exercise $exercise, ?Partner $lens = null): array
     {
-        $linked = $exercise->loadMissing('partners')->partners->sortBy('name')->values();
+        $linked = $exercise->loadMissing('partners')->partners
+            ->sortBy(fn (Partner $partner) => [$partner->is($lens) ? 0 : 1, $partner->name])
+            ->values();
 
         return [
             'linked' => $linked->map(fn (Partner $partner) => [
                 'partner' => $partner,
                 'view' => PartnerExerciseView::of($exercise, $partner),
+                'open' => $partner->is($lens),
             ]),
             'unlinked' => Partner::whereKeyNot($linked->modelKeys())->orderBy('name')->get(['id', 'name']),
         ];

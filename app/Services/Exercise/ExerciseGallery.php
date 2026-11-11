@@ -5,6 +5,7 @@ namespace App\Services\Exercise;
 use App\Enums\ExerciseDifficulty;
 use App\Models\EquipmentType;
 use App\Models\Exercise;
+use App\Models\Partner;
 use App\Models\TargetRegion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\Builder;
  * (no image, video or muscle-group image) and `archived=1` (only Archived
  * Exercises; without it they are left out). Several values of one facet widen
  * it; different facets narrow each other.
+ *
+ * `partner` (a Partner id) turns on the partner lens: the slice is that
+ * Partner's view of the catalogue. `library=out` shows the Exercises outside
+ * its Partner Library; without it the lens shows the library itself.
  *
  * A facet's counts apply every other active filter but not its own, so each
  * count says how many exercises ticking that value would add or keep.
@@ -38,6 +43,8 @@ final class ExerciseGallery
         public readonly array $difficulties,
         public readonly bool $missingMedia,
         public readonly bool $archived,
+        public readonly ?Partner $partner = null,
+        public readonly bool $outsideLibrary = false,
     ) {}
 
     /**
@@ -63,6 +70,9 @@ final class ExerciseGallery
 
         $q = is_string($query['q'] ?? null) ? trim($query['q']) : '';
 
+        $partnerId = $query['partner'] ?? null;
+        $partner = is_scalar($partnerId) && ctype_digit((string) $partnerId) ? Partner::find((int) $partnerId) : null;
+
         return new self(
             q: $q === '' ? null : $q,
             regions: $ids('region'),
@@ -70,6 +80,8 @@ final class ExerciseGallery
             difficulties: $difficulties,
             missingMedia: ($query['missing'] ?? null) === 'media',
             archived: (string) ($query['archived'] ?? '') === '1',
+            partner: $partner,
+            outsideLibrary: $partner !== null && ($query['library'] ?? null) === 'out',
         );
     }
 
@@ -88,6 +100,8 @@ final class ExerciseGallery
             'difficulty' => array_map(fn (ExerciseDifficulty $d) => $d->value, $this->difficulties),
             'missing' => $this->missingMedia ? 'media' : null,
             'archived' => $this->archived ? '1' : null,
+            'partner' => $this->partner ? (string) $this->partner->getKey() : null,
+            'library' => $this->outsideLibrary ? 'out' : null,
         ], fn ($value) => $value !== null && $value !== []);
     }
 
@@ -114,7 +128,8 @@ final class ExerciseGallery
 
     /**
      * Whether a filter value is on: a facet value (`region`, `equipment`,
-     * `difficulty`) or a toggle (`missing` => 'media', `archived` => '1').
+     * `difficulty`) or a toggle (`missing` => 'media', `archived` => '1',
+     * `library` => 'out').
      */
     public function has(string $key, int|string $value): bool
     {
@@ -134,7 +149,7 @@ final class ExerciseGallery
         $query = $this->query();
         $value = (string) $value;
 
-        if (in_array($key, ['missing', 'archived'], true)) {
+        if (in_array($key, ['missing', 'archived', 'library'], true)) {
             if ($this->has($key, $value)) {
                 unset($query[$key]);
             } else {
@@ -173,7 +188,8 @@ final class ExerciseGallery
 
     /**
      * Every facet value with how many exercises it matches under the other
-     * filters, in display order; plus the counts behind the two toggles.
+     * filters, in display order; plus the counts behind the toggles. `library`
+     * counts the lens Partner's library and the rest; null without a lens.
      *
      * @return array{
      *     region: list<array{value: int, label: string, count: int}>,
@@ -181,6 +197,7 @@ final class ExerciseGallery
      *     difficulty: list<array{value: string, label: string, count: int}>,
      *     missing: int,
      *     archived: int,
+     *     library: array{in: int, out: int}|null,
      * }
      */
     public function facets(): array
@@ -209,6 +226,7 @@ final class ExerciseGallery
             ], ExerciseDifficulty::cases()),
             'missing' => $this->filtered(except: 'missing')->tap(fn (Builder $q) => $this->whereMissingMedia($q))->count(),
             'archived' => $this->filtered(except: 'archived')->whereNotNull('workout_exercises.archived_at')->count(),
+            'library' => $this->partner === null ? null : $this->libraryCounts(),
         ];
     }
 
@@ -236,15 +254,51 @@ final class ExerciseGallery
         if ($except !== 'missing' && $this->missingMedia) {
             $this->whereMissingMedia($query);
         }
+        if ($except !== 'library' && $this->partner !== null) {
+            $inLibrary = fn (Builder $q) => $q->whereKey($this->partner->getKey());
+            $this->outsideLibrary
+                ? $query->whereDoesntHave('partners', $inLibrary)
+                : $query->whereHas('partners', $inLibrary);
+        }
 
         return $query;
     }
 
+    /**
+     * @return array{in: int, out: int}
+     */
+    private function libraryCounts(): array
+    {
+        $in = $this->filtered(except: 'library')->whereHas('partners', fn (Builder $q) => $q->whereKey($this->partner->getKey()))->count();
+
+        return ['in' => $in, 'out' => $this->filtered(except: 'library')->count() - $in];
+    }
+
+    /**
+     * No image, video or muscle-group image. Under the lens an image or video
+     * counts if the Partner's customers see one: the catalogue's or their
+     * Partner Override's.
+     */
     private function whereMissingMedia(Builder $query): void
     {
+        if ($this->partner === null) {
+            $query->where(fn (Builder $q) => $q
+                ->whereNull('workout_exercises.image')
+                ->orWhereNull('workout_exercises.video')
+                ->orWhereNull('workout_exercises.muscle_group_image'));
+
+            return;
+        }
+
+        $missing = fn (string $column) => fn (Builder $q) => $q
+            ->whereNull("workout_exercises.{$column}")
+            ->whereDoesntHave('partners', fn (Builder $p) => $p
+                ->whereKey($this->partner->getKey())
+                ->whereNotNull("partner_exercises.{$column}"));
+
         $query->where(fn (Builder $q) => $q
-            ->whereNull('workout_exercises.image')
-            ->orWhereNull('workout_exercises.video')
+            ->where($missing('image'))
+            ->orWhere($missing('video'))
             ->orWhereNull('workout_exercises.muscle_group_image'));
     }
 }

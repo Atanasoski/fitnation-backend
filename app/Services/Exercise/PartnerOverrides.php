@@ -118,13 +118,67 @@ final class PartnerOverrides
     }
 
     /**
+     * Put several exercises in the partner's library with no override. Ones
+     * already linked keep their override untouched.
+     *
+     * @param  list<int>  $exerciseIds
+     * @return int how many were newly linked
+     */
+    public function linkMany(Partner $partner, array $exerciseIds): int
+    {
+        $linked = $partner->exercises()->whereKey($exerciseIds)->pluck('workout_exercises.id')->all();
+        $new = Exercise::whereKey(array_diff($exerciseIds, $linked))->pluck('id')->all();
+
+        $partner->exercises()->attach($new);
+
+        return count($new);
+    }
+
+    /**
      * Take the exercise out of the partner's library, which hides it from
-     * their members, and delete the override's files.
+     * their members, and delete the override's files. Programs members
+     * already have keep it.
+     *
+     * @throws ExerciseOnStation while it is on any of the partner's Stations
      */
     public function unlink(Partner $partner, Exercise $exercise): void
     {
+        $stations = $partner->stations()
+            ->whereHas('exercises', fn ($q) => $q->whereKey($exercise->getKey()))
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
+        if ($stations !== []) {
+            throw new ExerciseOnStation($partner, $exercise, $stations);
+        }
+
         $this->deleteFiles($partner, $exercise);
         $partner->exercises()->detach($exercise->getKey());
+    }
+
+    /**
+     * Unlink each of several exercises, keeping the ones on the partner's
+     * Stations.
+     *
+     * @param  list<int>  $exerciseIds
+     * @return array{unlinked: int, kept: list<ExerciseOnStation>}
+     */
+    public function unlinkMany(Partner $partner, array $exerciseIds): array
+    {
+        $unlinked = 0;
+        $kept = [];
+
+        foreach ($partner->exercises()->whereKey($exerciseIds)->orderBy('name')->get() as $exercise) {
+            try {
+                $this->unlink($partner, $exercise);
+                $unlinked++;
+            } catch (ExerciseOnStation $e) {
+                $kept[] = $e;
+            }
+        }
+
+        return ['unlinked' => $unlinked, 'kept' => $kept];
     }
 
     private function deleteFiles(Partner $partner, Exercise $exercise): void

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\InsightsController;
 use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Admin\PartnerLibraryController;
 use App\Http\Controllers\Admin\PartnerOverrideController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\StationController;
@@ -56,6 +57,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/partners', [AdminPartnerController::class, 'index'])->name('admin.partners.index');
         Route::get('/partners/{partner}', [AdminPartnerController::class, 'show'])->name('admin.partners.show');
         Route::patch('/partners/{partner}/active', [AdminPartnerController::class, 'updateActive'])->name('admin.partners.active.update');
+
+        // A partner's Partner Library, in bulk from the gallery's partner lens.
+        Route::post('/partners/{partner}/library', [PartnerLibraryController::class, 'link'])->name('admin.partners.library.link');
+        Route::delete('/partners/{partner}/library', [PartnerLibraryController::class, 'unlink'])->name('admin.partners.library.unlink');
 
         // A partner's Stations: QR-stickered spots on its gym floor (ADR-0005).
         // Soft delete only; the short code is never editable.

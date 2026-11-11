@@ -2,6 +2,8 @@
 
 namespace App\Services\WorkoutGenerator;
 
+use App\Enums\MovementClass;
+use App\Enums\ProgressionStatus;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutSessionStatus;
 use App\Models\Exercise;
@@ -11,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProgressionCalculatorService
 {
+    public function __construct(
+        private PrescriptionCalculator $prescriptionCalculator
+    ) {}
+
     /**
      * Decimal places SetLog casts `weight` to. Kept in step with that cast.
      */
@@ -43,6 +49,9 @@ class ProgressionCalculatorService
         $experience ??= TrainingExperience::Beginner;
         $defaultTargets = $this->getDefaultTargets($experience, $exercise, $user);
 
+        // Logged performance still outranks the default Prescription below.
+        $prescription = $this->matrixPrescription($exercise, $user);
+
         if ($this->isBodyweight($exercise)) {
             $totalRepsPrevious = $lastPerformance ? array_sum($lastPerformance['reps'] ?? []) : null;
             $totalRepsTarget = $totalRepsPrevious !== null ? $totalRepsPrevious + 1 : null;
@@ -55,7 +64,9 @@ class ProgressionCalculatorService
                 'target_weight' => null,
                 'total_reps_previous' => $totalRepsPrevious,
                 'total_reps_target' => $totalRepsTarget,
-                'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
+                'rest_seconds' => $lastPerformance['rest_seconds'] ?? $prescription['rest_seconds'],
+                // Total-reps progression has no rep range to judge against.
+                'progression_status' => ProgressionStatus::unjudged((bool) $lastPerformance),
             ];
         }
 
@@ -63,26 +74,36 @@ class ProgressionCalculatorService
             return [
                 'progression_mode' => 'double_progression',
                 'target_sets' => $defaultTargets['target_sets'],
-                'min_target_reps' => $defaultTargets['min_target_reps'],
-                'max_target_reps' => $defaultTargets['max_target_reps'],
+                'min_target_reps' => $prescription['min_target_reps'],
+                'max_target_reps' => $prescription['max_target_reps'],
                 'target_weight' => $defaultTargets['target_weight'],
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
-                'rest_seconds' => $defaultTargets['rest_seconds'],
+                'rest_seconds' => $prescription['rest_seconds'],
+                'progression_status' => ProgressionStatus::NoHistory,
             ];
         }
 
-        $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $defaultTargets['max_target_reps']);
+        // One verdict on the last working session (ADR-0011) drives both the
+        // raise and the status. Each set is judged against its own Logged
+        // Range; the matrix range only stands in for a set that carries none.
+        $targets = $this->applyProgressiveOverload($lastPerformance, $exercise, $prescription['max_target_reps']);
 
         return [
             'progression_mode' => 'double_progression',
             'target_sets' => $targets['sets'],
-            'min_target_reps' => $defaultTargets['min_target_reps'],
-            'max_target_reps' => $defaultTargets['max_target_reps'],
+            'min_target_reps' => $prescription['min_target_reps'],
+            'max_target_reps' => $prescription['max_target_reps'],
             'target_weight' => $targets['weight'],
             'total_reps_previous' => null,
             'total_reps_target' => null,
-            'rest_seconds' => $lastPerformance['rest_seconds'] ?? $exercise->default_rest_sec ?? 90,
+            'rest_seconds' => $lastPerformance['rest_seconds'] ?? $prescription['rest_seconds'],
+            'progression_status' => $this->getProgressionStatus(
+                $lastPerformance,
+                $prescription['min_target_reps'],
+                $prescription['max_target_reps'],
+                $exercise
+            ),
         ];
     }
 
@@ -99,8 +120,18 @@ class ProgressionCalculatorService
                 $q->where('exercise_id', $exercise->id);
             })
             ->with(['setLogs' => function ($q) use ($exercise) {
-                $q->where('exercise_id', $exercise->id)
-                    ->orderBy('set_number');
+                // Each set's Logged Range comes from its own row, read in the
+                // same query as the sets (as the batched lookup does).
+                $q->leftJoin('workout_session_exercises as logged_row', 'logged_row.id', '=', 'workout_session_set_logs.workout_session_exercise_id')
+                    ->select([
+                        'workout_session_set_logs.*',
+                        'logged_row.min_target_reps as logged_min_reps',
+                        'logged_row.max_target_reps as logged_max_reps',
+                    ])
+                    ->where('workout_session_set_logs.exercise_id', $exercise->id)
+                    ->orderBy('workout_session_set_logs.set_number')
+                    // tiebreak for one exercise on two rows, so this agrees with the batched lookup
+                    ->orderBy('workout_session_set_logs.id');
             }])
             ->orderBy('completed_at', 'desc')
             ->orderBy('id', 'desc') // tiebreak, so this agrees with the batched window below
@@ -110,7 +141,7 @@ class ProgressionCalculatorService
             return null;
         }
 
-        return $this->shapeLastPerformance($lastSetLog->setLogs, $exercise);
+        return $this->shapeLastPerformance($lastSetLog->setLogs, $exercise, $user);
     }
 
     /**
@@ -139,17 +170,23 @@ class ProgressionCalculatorService
         // session survives the filter, since they share the same rank key.
         $ranked = DB::table('workout_session_set_logs as set_logs')
             ->join('workout_sessions as sessions', 'sessions.id', '=', 'set_logs.workout_session_id')
+            // Each set's Logged Range: the rep range of the row it was logged against
+            ->leftJoin('workout_session_exercises as logged_row', 'logged_row.id', '=', 'set_logs.workout_session_exercise_id')
             ->where('sessions.user_id', $user->id)
             ->where('sessions.status', WorkoutSessionStatus::Completed->value)
             // Deload sessions are recovery, not performance history (ADR-0008)
             ->where('sessions.is_deload', false)
             ->whereIn('set_logs.exercise_id', $exercises->keys()->all())
             ->select([
+                'set_logs.id',
                 'set_logs.exercise_id',
+                'set_logs.workout_session_exercise_id',
                 'set_logs.set_number',
                 'set_logs.weight',
                 'set_logs.reps',
                 'set_logs.rest_seconds',
+                'logged_row.min_target_reps as logged_min_reps',
+                'logged_row.max_target_reps as logged_max_reps',
                 DB::raw('DENSE_RANK() OVER (PARTITION BY set_logs.exercise_id ORDER BY sessions.completed_at DESC, sessions.id DESC) as session_rank'),
             ]);
 
@@ -158,6 +195,7 @@ class ProgressionCalculatorService
             ->where('ranked.session_rank', 1)
             ->orderBy('ranked.exercise_id')
             ->orderBy('ranked.set_number')
+            ->orderBy('ranked.id') // same tiebreak as the single lookup
             ->get();
 
         $performances = [];
@@ -169,7 +207,7 @@ class ProgressionCalculatorService
                 continue;
             }
 
-            $performances[(int) $exerciseId] = $this->shapeLastPerformance($setLogs, $exercise);
+            $performances[(int) $exerciseId] = $this->shapeLastPerformance($setLogs, $exercise, $user);
         }
 
         return $performances;
@@ -180,11 +218,19 @@ class ProgressionCalculatorService
      *
      * Shared by the single and batched lookups so both report identical numbers.
      *
-     * @param  \Illuminate\Support\Collection<int, object>  $setLogs  ordered by set_number
+     * Alongside each set's weight and reps it carries the set's Logged Range
+     * (`logged_ranges`, [min, max] per set) and the row it was logged against
+     * (`session_exercise_ids`). A row that stored no range, or a legacy set
+     * with no row, is judged against the matrix range at read time — the
+     * range the member was shown for it (ADR-0011).
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $setLogs  ordered by set_number, then id
      * @return array<string, mixed>
      */
-    private function shapeLastPerformance(Collection $setLogs, Exercise $exercise): array
+    private function shapeLastPerformance(Collection $setLogs, Exercise $exercise, User $user): array
     {
+        [$matrixMin, $matrixMax] = $this->matrixRange($exercise, $user);
+
         // SetLog casts weight to decimal:1. The batched lookup reads the column
         // through the query builder, which bypasses model casts, so normalise
         // here — otherwise the two paths report different weights for the same
@@ -213,29 +259,82 @@ class ProgressionCalculatorService
             ->map(fn ($rest) => (int) $rest)
             ->first();
 
+        // Same rule as the displayed target (SessionProgression::targetsFor):
+        // a stored bound wins when it holds anything, otherwise the matrix's.
+        $loggedRanges = $setLogs
+            ->map(fn ($set) => [
+                (int) ($set->logged_min_reps ?: $matrixMin),
+                (int) ($set->logged_max_reps ?: $matrixMax),
+            ])
+            ->values()
+            ->all();
+
+        $sessionExerciseIds = $setLogs
+            ->map(fn ($set) => $set->workout_session_exercise_id === null ? null : (int) $set->workout_session_exercise_id)
+            ->values()
+            ->all();
+
         return [
             'weight' => $mostCommonWeight,
             'sets' => $setLogs->count(),
-            'rest_seconds' => $restSeconds ?? $exercise->default_rest_sec ?? 90,
+            // null when no set logged a rest: the consumer falls back to the
+            // default Prescription's goal-scaled rest, not the raw Default Rest.
+            'rest_seconds' => $restSeconds,
             'weights' => $weights,
             'reps' => $reps,
+            'logged_ranges' => $loggedRanges,
+            'session_exercise_ids' => $sessionExerciseIds,
         ];
     }
 
     /**
-     * Apply progressive overload based on last performance
+     * The mechanics-matrix rep range (ADR-0009) for the exercise's own class
+     * and the member's current goal.
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function matrixRange(Exercise $exercise, User $user): array
+    {
+        $prescription = $this->matrixPrescription($exercise, $user);
+
+        return [(int) $prescription['min_target_reps'], (int) $prescription['max_target_reps']];
+    }
+
+    /**
+     * The default Prescription (ADR-0009) for the exercise's own class and
+     * the member's current goal: rep range from the compound/isolation ×
+     * goal matrix, rest from the exercise's Default Rest scaled by the goal.
+     *
+     * @return array{min_target_reps: int, max_target_reps: int, rest_seconds: int}
+     */
+    private function matrixPrescription(Exercise $exercise, User $user): array
+    {
+        $movementPatternCode = $exercise->movementPattern?->code;
+
+        return $this->prescriptionCalculator->defaults(
+            MovementClass::fromPattern($movementPatternCode),
+            $user->fitnessGoal(),
+            $exercise->default_rest_sec,
+            $movementPatternCode,
+        );
+    }
+
+    /**
+     * Apply progressive overload based on last performance: one equipment
+     * step up when the session topped (see verdict()).
+     *
+     * @param  int  $maxTargetReps  the ceiling for a set that carries no Logged Range of its own
      */
     public function applyProgressiveOverload(array $lastPerformance, ?Exercise $exercise = null, int $maxTargetReps = 12): array
     {
         $weight = $lastPerformance['weight'];
         $sets = $lastPerformance['sets'] ?? 3;
-        $lastReps = $lastPerformance['reps'] ?? [];
-        $lastWeights = $lastPerformance['weights'] ?? [];
         $increment = $exercise ? $this->getWeightIncrement($exercise) : 2.5;
         $targetWeight = $weight;
 
         if (
-            $this->shouldProgressWeight($lastReps, $lastWeights, $maxTargetReps)
+            // The floor plays no part in whether a session topped.
+            $this->verdict($lastPerformance, 0, $maxTargetReps) === ProgressionStatus::Ready
             && $weight > 0
             && $increment > 0
         ) {
@@ -266,46 +365,71 @@ class ProgressionCalculatorService
     }
 
     /**
-     * Determine if the user should progress by weight.
+     * Determine current progression status for frontend messaging: the
+     * session's verdict (see verdict()) as the app reads it.
+     *
+     * @param  int  $minTargetReps  the floor for a set that carries no Logged Range of its own
+     * @param  int  $maxTargetReps  the ceiling for a set that carries no Logged Range of its own
      */
-    public function shouldProgressWeight(array $lastReps, array $lastWeights, int $maxTargetReps): bool
-    {
-        if ($lastReps === [] || $lastWeights === []) {
-            return false;
-        }
-
-        $allSetsAtMaxReps = collect($lastReps)
-            ->every(fn (int $reps) => $reps >= $maxTargetReps);
-
-        $allSetsSameWeight = count(array_unique($lastWeights, SORT_NUMERIC)) === 1;
-
-        return $allSetsAtMaxReps && $allSetsSameWeight;
-    }
-
-    /**
-     * Determine current progression status for frontend messaging.
-     */
-    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps, ?Exercise $exercise = null): string
+    public function getProgressionStatus(?array $lastPerformance, int $minTargetReps, int $maxTargetReps, ?Exercise $exercise = null): ProgressionStatus
     {
         if ($exercise && $this->isBodyweight($exercise)) {
-            return $lastPerformance ? 'working' : 'no_history';
+            return ProgressionStatus::unjudged((bool) $lastPerformance);
         }
 
         if (! $lastPerformance) {
-            return 'no_history';
+            return ProgressionStatus::NoHistory;
         }
 
-        $lastReps = $lastPerformance['reps'] ?? [];
-        $lastWeights = $lastPerformance['weights'] ?? [];
+        return $this->verdict($lastPerformance, $minTargetReps, $maxTargetReps);
+    }
 
-        if ($this->shouldProgressWeight($lastReps, $lastWeights, $maxTargetReps)) {
-            return 'ready';
+    /**
+     * The one verdict on a working session's performance (ADR-0011), judged
+     * set by set against each set's own Logged Range:
+     *
+     * - topped (Ready): every set reached the top of its Logged Range, and
+     *   the weight held across each row's sets (a lighter back-off row does
+     *   not count against the top set, but dropping load within a row does);
+     * - BelowMin: any set fell under its Logged Range's minimum;
+     * - Working: anything else.
+     *
+     * A set with no Logged Range (a performance built by hand) is judged
+     * against the matrix range.
+     *
+     * @param  array<string, mixed>  $lastPerformance
+     */
+    private function verdict(array $lastPerformance, int $matrixMin, int $matrixMax): ProgressionStatus
+    {
+        $reps = array_values($lastPerformance['reps'] ?? []);
+        $weights = array_values($lastPerformance['weights'] ?? []);
+        $ranges = $lastPerformance['logged_ranges'] ?? [];
+        $rowIds = $lastPerformance['session_exercise_ids'] ?? [];
+
+        $topped = $reps !== [] && $weights !== [];
+        $belowMin = false;
+
+        foreach ($reps as $index => $repCount) {
+            [$minReps, $maxReps] = $ranges[$index] ?? [$matrixMin, $matrixMax];
+
+            $topped = $topped && $repCount >= $maxReps;
+            $belowMin = $belowMin || $repCount < $minReps;
         }
 
-        $anyBelowMin = collect($lastReps)
-            ->contains(fn (int $reps) => $reps < $minTargetReps);
+        $weightsByRow = [];
+        foreach ($weights as $index => $weight) {
+            $weightsByRow[(string) ($rowIds[$index] ?? '')][] = $weight;
+        }
 
-        return $anyBelowMin ? 'below_min' : 'working';
+        foreach ($weightsByRow as $rowWeights) {
+            $topped = $topped && count(array_unique($rowWeights, SORT_NUMERIC)) === 1;
+        }
+
+        return match (true) {
+            $topped => ProgressionStatus::Ready,
+            $belowMin => ProgressionStatus::BelowMin,
+            default => ProgressionStatus::Working,
+        };
     }
 
     /**
@@ -337,7 +461,9 @@ class ProgressionCalculatorService
     }
 
     /**
-     * Get default targets based on experience level
+     * Experience-level defaults for what the Prescription does not cover:
+     * sets and the starting-weight estimate. Rep range and rest come from
+     * PrescriptionCalculator (ADR-0009).
      */
     private function getDefaultTargets(TrainingExperience $experience, ?Exercise $exercise = null, ?User $user = null): array
     {
@@ -347,29 +473,10 @@ class ProgressionCalculatorService
             $targetWeight = $this->estimateStartingWeight($exercise, $user, $experience);
         }
 
-        return match ($experience) {
-            TrainingExperience::Beginner => [
-                'target_sets' => 3,
-                'min_target_reps' => 8,
-                'max_target_reps' => 12,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 90,
-            ],
-            TrainingExperience::Intermediate => [
-                'target_sets' => 4,
-                'min_target_reps' => 8,
-                'max_target_reps' => 12,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 90,
-            ],
-            TrainingExperience::Advanced => [
-                'target_sets' => 4,
-                'min_target_reps' => 6,
-                'max_target_reps' => 10,
-                'target_weight' => $targetWeight,
-                'rest_seconds' => 120,
-            ],
-        };
+        return [
+            'target_sets' => $experience === TrainingExperience::Beginner ? 3 : 4,
+            'target_weight' => $targetWeight,
+        ];
     }
 
     /**
@@ -558,17 +665,5 @@ class ProgressionCalculatorService
 
             default => 0.30,                          // Conservative fallback
         };
-    }
-
-    /**
-     * Check if a movement is lower body focused
-     */
-    private function isLowerBodyMovement(string $movementCode): bool
-    {
-        return in_array($movementCode, [
-            'SQUAT', 'HINGE', 'LUNGE_SPLIT_SQUAT', 'LEG_PRESS',
-            'KNEE_EXTENSION', 'KNEE_FLEXION', 'HIP_THRUST_BRIDGE',
-            'HIP_ABDUCTION', 'CALF_RAISE', 'BACK_EXTENSION',
-        ]);
     }
 }

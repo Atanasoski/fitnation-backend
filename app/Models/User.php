@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Entitlement;
+use App\Enums\FitnessGoal;
 use App\Enums\FreeAccessKind;
 use App\Enums\PlanType;
 use App\Enums\UnitSystem;
@@ -217,6 +218,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function unitSystem(): UnitSystem
     {
         return $this->profile?->unit_system ?? UnitSystem::Metric;
+    }
+
+    /**
+     * The fitness goal this user's Prescriptions are scaled for. Users with no
+     * profile, or no goal yet, train for general fitness.
+     */
+    public function fitnessGoal(): FitnessGoal
+    {
+        return $this->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
     }
 
     public function subscription(): \Illuminate\Database\Eloquent\Relations\HasOne

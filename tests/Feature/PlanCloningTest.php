@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\WorkoutTemplate;
+use App\Models\WorkoutTemplateExercise;
 use App\Services\PlanCloningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -96,6 +97,28 @@ class PlanCloningTest extends TestCase
         $this->assertEquals(3, $clonedExercise1->target_sets);
         $this->assertEquals(8, $clonedExercise1->min_target_reps);
         $this->assertEquals(10, $clonedExercise1->max_target_reps);
+    }
+
+    public function test_cloned_template_rows_keep_their_slot_key(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+
+        $libraryPlan = Plan::factory()->partnerLibrary($partner)->create();
+        $template = WorkoutTemplate::factory()->create(['plan_id' => $libraryPlan->id]);
+        WorkoutTemplateExercise::create([
+            'workout_template_id' => $template->id,
+            'exercise_id' => Exercise::factory()->create()->id,
+            'order' => 0,
+            'slot_key' => 'main_press',
+        ]);
+
+        $clonedPlan = (new PlanCloningService)->clone($libraryPlan, $user);
+
+        $this->assertSame(
+            ['main_press'],
+            $clonedPlan->workoutTemplates->first()->workoutTemplateExercises->pluck('slot_key')->all()
+        );
     }
 
     public function test_cloning_partner_plan_clears_partner_id(): void

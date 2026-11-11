@@ -5,21 +5,21 @@ namespace App\Services;
 use App\Enums\Gender;
 use App\Enums\PlanType;
 use App\Enums\SplitFocus;
-use App\Models\Exercise;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\WorkoutSplit;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
 use App\Services\Plan\PlanActivation;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
+use App\Services\WorkoutGenerator\GeneratedDay;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WelcomePlanGenerationService
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator
+        private BlueprintWorkoutGenerator $workoutGenerator
     ) {}
 
     /**
@@ -79,12 +79,22 @@ class WelcomePlanGenerationService
 
             // One mesocycle (ADR-0007): each split day is generated once and
             // repeated identically across every week, so progression has the
-            // same exercises to progress against.
+            // same exercises to progress against. The whole split is one plan
+            // generation: one pool load and one history lookup (#124).
+            $split = array_values($split);
+            $workouts = $this->workoutGenerator->generatePlan(
+                $user,
+                $this->generationPreferences($user, $preferences),
+                $split,
+            );
+
+            // A workout is named from its resolved day, the same day type
+            // its description names (#131).
             $days = [];
-            foreach (array_values($split) as $dayIndex => $targetRegions) {
+            foreach ($workouts as $dayIndex => $workout) {
                 $days[$dayIndex] = [
-                    'name' => $this->getWorkoutName($targetRegions, $dayIndex),
-                    'workout' => $this->generateWorkout($user, $targetRegions, $preferences),
+                    'name' => $workout->blueprint->workoutName(),
+                    'workout' => $workout,
                 ];
             }
 
@@ -113,7 +123,7 @@ class WelcomePlanGenerationService
                 'plan_id' => $plan->id,
                 'templates_count' => $plan->workoutTemplates()->count(),
                 'exercises_per_day' => array_map(
-                    fn (array $day) => count($day['workout']['exercises']),
+                    fn (array $day) => count($day['workout']->rows),
                     $days
                 ),
             ]);
@@ -161,71 +171,66 @@ class WelcomePlanGenerationService
     }
 
     /**
-     * Generate one split day's workout.
+     * The preferences every split day is generated under: the member's own
+     * filters plus their stored session length.
+     *
+     * @return array<string, mixed>
      */
-    private function generateWorkout(User $user, array $targetRegions, array $preferences = []): array
+    private function generationPreferences(User $user, array $preferences): array
     {
-        return $this->workoutGenerator->generate($user, array_merge(
+        return array_merge(
             array_filter([
                 'equipment_types' => $preferences['equipment_types'] ?? null,
                 'movement_patterns' => $preferences['movement_patterns'] ?? null,
                 'angles' => $preferences['angles'] ?? null,
                 'training_styles' => $preferences['training_styles'] ?? null,
             ], fn ($v) => $v !== null),
-            [
-                'target_regions' => $targetRegions,
-                'duration_minutes' => $user->profile->workout_duration_minutes,
-            ]
-        ));
+            ['duration_minutes' => $user->profile->workout_duration_minutes]
+        );
     }
 
     /**
      * The Deload Week variant of a generated workout (ADR-0007): every exercise
-     * drops to the deload set count, compounds to 3-4 reps while isolations
-     * keep their rep range. Weight is untouched here because the Working Weight
+     * drops to the deload set count, rows filling a compound Slot to 3-4 reps
+     * while isolation Slots keep their rep range. The Slot's class decides,
+     * not the exercise's (ADR-0010): a split squat filling the quad-isolation
+     * Slot keeps 10-15. Weight is untouched here because the Working Weight
      * is recomputed from history on every read, never from these rows.
      *
      * Public so the admin workout preview can show the same final week a
      * generated program would carry.
      */
-    public function deloadWorkout(array $generatedWorkout): array
+    public function deloadWorkout(GeneratedDay $generatedWorkout): GeneratedDay
     {
         $deload = config('workout_generator.program.deload', []);
         $sets = $deload['sets'] ?? 2;
         $compoundMinReps = $deload['compound_min_reps'] ?? 3;
         $compoundMaxReps = $deload['compound_max_reps'] ?? 4;
 
-        $patternByExerciseId = Exercise::with('movementPattern')
-            ->findMany(array_column($generatedWorkout['exercises'], 'exercise_id'))
-            ->mapWithKeys(fn (Exercise $exercise) => [$exercise->id => $exercise->movementPattern?->code])
-            ->all();
-
-        $generatedWorkout['exercises'] = array_map(
-            function (array $row) use ($patternByExerciseId, $sets, $compoundMinReps, $compoundMaxReps) {
+        return $generatedWorkout->withRows(array_map(
+            function (array $row) use ($generatedWorkout, $sets, $compoundMinReps, $compoundMaxReps) {
                 $row['target_sets'] = $sets;
 
-                if (DeterministicWorkoutGenerator::isCompoundPattern($patternByExerciseId[$row['exercise_id']] ?? null)) {
+                if ($generatedWorkout->slotFor($row)->isCompound()) {
                     $row['min_target_reps'] = $compoundMinReps;
                     $row['max_target_reps'] = $compoundMaxReps;
                 }
 
                 return $row;
             },
-            $generatedWorkout['exercises']
-        );
-
-        return $generatedWorkout;
+            $generatedWorkout->rows,
+        ));
     }
 
     /**
      * Write one generated workout as a template for one week.
      */
-    private function writeTemplate(Plan $plan, string $workoutName, array $generatedWorkout, int $dayIndex, int $weekNumber, int $orderIndex, bool $isDeload = false): WorkoutTemplate
+    private function writeTemplate(Plan $plan, string $workoutName, GeneratedDay $generatedWorkout, int $dayIndex, int $weekNumber, int $orderIndex, bool $isDeload = false): WorkoutTemplate
     {
         $template = WorkoutTemplate::create([
             'plan_id' => $plan->id,
             'name' => $workoutName,
-            'description' => $generatedWorkout['rationale'] ?? null,
+            'description' => $generatedWorkout->description,
             'day_of_week' => $dayIndex,
             'week_number' => $weekNumber,
             'is_deload' => $isDeload,
@@ -237,7 +242,7 @@ class WelcomePlanGenerationService
         $now = now();
         $rows = [];
         $order = 1;
-        foreach ($generatedWorkout['exercises'] as $exerciseData) {
+        foreach ($generatedWorkout->rows as $exerciseData) {
             $rows[] = [
                 'workout_template_id' => $template->id,
                 'exercise_id' => $exerciseData['exercise_id'],
@@ -247,6 +252,7 @@ class WelcomePlanGenerationService
                 'max_target_reps' => $exerciseData['max_target_reps'],
                 'target_weight' => $exerciseData['target_weight'],
                 'rest_seconds' => $exerciseData['rest_seconds'],
+                'slot_key' => $exerciseData['slot_key'],
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -257,69 +263,6 @@ class WelcomePlanGenerationService
         }
 
         return $template;
-    }
-
-    /**
-     * Generate a workout name based on target regions
-     */
-    private function getWorkoutName(array $targetRegions, int $dayIndex): string
-    {
-        $regionSet = array_unique($targetRegions);
-        sort($regionSet);
-        $regionKey = implode('|', $regionSet);
-
-        $isFullBody = count($regionSet) === 3
-            && in_array('UPPER_PUSH', $regionSet)
-            && in_array('UPPER_PULL', $regionSet)
-            && in_array('LOWER', $regionSet);
-
-        if ($isFullBody) {
-            $firstRegion = $targetRegions[0];
-            $focus = match ($firstRegion) {
-                'UPPER_PUSH' => 'Push',
-                'UPPER_PULL' => 'Pull',
-                'LOWER' => 'Legs',
-                default => '',
-            };
-
-            return $focus ? "Full Body ({$focus})" : 'Full Body';
-        }
-
-        $specialNames = [
-            'CORE|LOWER' => 'Legs Day',
-            'UPPER_PULL|UPPER_PUSH' => 'Upper Body Day',
-            'ARMS|UPPER_PUSH' => 'Push Day',
-            'ARMS|UPPER_PULL' => 'Pull Day',
-        ];
-
-        if (isset($specialNames[$regionKey])) {
-            return $specialNames[$regionKey];
-        }
-
-        $regionNames = [
-            'UPPER_PUSH' => 'Push',
-            'UPPER_PULL' => 'Pull',
-            'LOWER' => 'Legs',
-            'ARMS' => 'Arms',
-            'CORE' => 'Core',
-        ];
-
-        $names = [];
-        foreach ($targetRegions as $region) {
-            if (isset($regionNames[$region])) {
-                $names[] = $regionNames[$region];
-            }
-        }
-
-        if (empty($names)) {
-            return 'Workout Day '.($dayIndex + 1);
-        }
-
-        if (count($names) === 1) {
-            return $names[0].' Day';
-        }
-
-        return implode(' & ', $names).' Day';
     }
 
     /**

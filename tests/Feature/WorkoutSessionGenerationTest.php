@@ -12,7 +12,9 @@ use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use Database\Seeders\TargetRegionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class WorkoutSessionGenerationTest extends TestCase
@@ -53,6 +55,15 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotEmpty($response->json('data.exercises'));
         $this->assertEquals('draft', $response->json('data.status'));
         $this->assertTrue($response->json('data.is_auto_generated'));
+
+        // The session notes are member-facing plain words (#131): an empty
+        // region request is a Full Body day, and only presses exist here.
+        $rationale = $response->json('data.rationale');
+        $this->assertStringStartsWith('Full Body day, ', $rationale);
+        $this->assertStringContainsString('No suitable exercise was available for ', $rationale);
+        foreach (['blueprint', 'slot', 'tier'] as $internalWord) {
+            $this->assertStringNotContainsStringIgnoringCase($internalWord, $rationale);
+        }
 
         // Verify session was created in database
         $session = WorkoutSession::find($response->json('data.id'));
@@ -110,6 +121,36 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotNull($session);
         $this->assertEquals(WorkoutSessionStatus::Active, $session->status);
         $this->assertNotNull($session->performed_at); // Active sessions have performed_at set
+    }
+
+    public function test_generated_rows_persist_the_slot_key_that_produced_them(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        $exercises = Exercise::factory()->count(5)->press()->barbell()->flat()->create();
+        foreach ($exercises as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [
+                'target_regions' => ['UPPER_PUSH'],
+                'duration_minutes' => 60,
+            ]);
+
+        $response->assertStatus(201);
+
+        $session = WorkoutSession::find($response->json('data.id'));
+        $slotKeys = $session->workoutSessionExercises()->pluck('slot_key');
+
+        $this->assertNotEmpty($slotKeys);
+        $this->assertFalse($slotKeys->contains(null), 'Every generated row carries its slot key');
+        $this->assertContains('main_press', $slotKeys->all(), 'A push day leads with its main press slot');
     }
 
     public function test_generate_requires_complete_profile(): void
@@ -188,7 +229,6 @@ class WorkoutSessionGenerationTest extends TestCase
             ->postJson('/api/workout-sessions/generate', [
                 'target_regions' => ['UPPER_PUSH'],
                 'duration_minutes' => 60,
-                'difficulty' => 'advanced',
             ]);
 
         $response->assertStatus(201);
@@ -304,12 +344,13 @@ class WorkoutSessionGenerationTest extends TestCase
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', [
-                'duration_minutes' => 5, // Too low
-                'difficulty' => 'invalid',
+                'duration_minutes' => 5, // Not on the fixed menu
+                'difficulty' => 'invalid', // Removed parameter: ignored, never validated
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['duration_minutes', 'difficulty']);
+            ->assertJsonValidationErrors(['duration_minutes'])
+            ->assertJsonMissingValidationErrors(['difficulty']);
     }
 
     public function test_generate_handles_no_exercises_gracefully(): void
@@ -329,6 +370,75 @@ class WorkoutSessionGenerationTest extends TestCase
             ->assertJsonFragment([
                 'message' => 'No exercises available matching the specified criteria',
             ]);
+    }
+
+    /**
+     * FULL_BODY is requested alone or not at all (ADR-0010, #127).
+     *
+     * @return array<string, array{0: list<string>}>
+     */
+    public static function fullBodyCombinations(): array
+    {
+        return [
+            'full body first' => [['FULL_BODY', 'ARMS']],
+            'full body last' => [['UPPER_PUSH', 'LOWER', 'FULL_BODY']],
+            'full body with every region' => [['FULL_BODY', 'UPPER_PUSH', 'UPPER_PULL', 'LOWER', 'ARMS', 'CORE']],
+        ];
+    }
+
+    #[DataProvider('fullBodyCombinations')]
+    public function test_generate_rejects_full_body_combined_with_another_region(array $regions): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => $regions])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+    }
+
+    #[DataProvider('fullBodyCombinations')]
+    public function test_regenerate_rejects_full_body_combined_with_another_region(array $regions): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+        $draftId = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/workout-sessions/{$draftId}/regenerate", ['target_regions' => $regions])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+
+        $this->assertSame(WorkoutSessionStatus::Draft, WorkoutSession::find($draftId)->status);
+    }
+
+    public function test_full_body_alone_still_generates_a_day(): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => ['FULL_BODY']]);
+
+        $response->assertStatus(201);
+        $this->assertNotEmpty($response->json('data.exercises'));
+    }
+
+    public function test_conditioning_is_not_a_requestable_region(): void
+    {
+        // CONDITIONING was removed (#127): no exercise or split used it and
+        // it declared no Fragment, so all it could do was shrink a day.
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => ['CONDITIONING']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions.0']);
     }
 
     public function test_confirm_requires_draft_status(): void
@@ -440,5 +550,24 @@ class WorkoutSessionGenerationTest extends TestCase
             ->assertJsonFragment([
                 'message' => 'Only draft sessions can be regenerated',
             ]);
+    }
+
+    /**
+     * An entitled member whose Partner Library holds five flat barbell presses.
+     */
+    private function memberWithAPressCatalog(): User
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        foreach (Exercise::factory()->count(5)->press()->barbell()->flat()->create() as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+
+        return $user;
     }
 }

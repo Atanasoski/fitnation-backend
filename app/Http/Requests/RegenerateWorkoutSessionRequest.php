@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\WorkoutDuration;
+use App\Rules\FullBodyIsRequestedAlone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +25,7 @@ class RegenerateWorkoutSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'target_regions' => 'nullable|array',
+            'target_regions' => ['nullable', 'array', new FullBodyIsRequestedAlone],
             'target_regions.*' => 'string|exists:target_regions,code',
             'equipment_types' => 'nullable|array',
             'equipment_types.*' => 'string|exists:equipment_types,code',
@@ -33,11 +35,7 @@ class RegenerateWorkoutSessionRequest extends FormRequest
             'angles.*' => 'string|exists:angles,code',
             'training_styles' => 'nullable|array',
             'training_styles.*' => 'string|exists:training_styles,code',
-            'duration_minutes' => 'nullable|integer|min:15|max:180',
-            'difficulty' => [
-                'nullable',
-                Rule::in(['beginner', 'intermediate', 'advanced']),
-            ],
+            'duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
         ];
     }
 
@@ -60,9 +58,7 @@ class RegenerateWorkoutSessionRequest extends FormRequest
             'training_styles.array' => 'Training styles must be an array.',
             'training_styles.*.exists' => 'One or more training style codes do not exist.',
             'duration_minutes.integer' => 'Duration must be an integer.',
-            'duration_minutes.min' => 'Duration must be at least 15 minutes.',
-            'duration_minutes.max' => 'Duration must not exceed 180 minutes.',
-            'difficulty.in' => 'Difficulty must be one of: beginner, intermediate, advanced.',
+            'duration_minutes.in' => 'Duration must be one of: '.implode(', ', WorkoutDuration::values()).' minutes.',
         ];
     }
 }

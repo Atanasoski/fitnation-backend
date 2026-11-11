@@ -15,6 +15,14 @@ class UpdateExerciseRequest extends ExerciseRequest
     }
 
     /**
+     * An update that leaves the rest out keeps the exercise's stored one.
+     */
+    protected function defaultRestWhenOmitted(): int
+    {
+        return $this->route('exercise')->default_rest_sec;
+    }
+
+    /**
      * Handle a failed authorization attempt.
      */
     protected function failedAuthorization(): void

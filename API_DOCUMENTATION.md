@@ -531,14 +531,17 @@ interface ProfileUpdateRequest {
   weight?: number;                  // in the unit_system being submitted (kg if metric/omitted, lbs if imperial) - converted and stored as kg
   training_experience?: TrainingExperience; // enum value
   training_days_per_week?: number;  // 1-7
-  workout_duration_minutes?: number; // 1-600
+  workout_duration_minutes?: WorkoutDuration; // session length in minutes - menu values only, see below
 }
 
 type FitnessGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness';
 type Gender = 'male' | 'female' | 'other';
 type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
 type UnitSystem = 'metric' | 'imperial';
+type WorkoutDuration = 30 | 45 | 60 | 90 | 120;
 ```
+
+**Session length:** `workout_duration_minutes` accepts only the menu values 30, 45, 60, 90 and 120. Any other value is a 422 with `errors.workout_duration_minutes: ["Workout duration must be one of: 30, 45, 60, 90, 120 minutes."]`. Every stored profile value is on the menu, so a client can send `user.profile.workout_duration_minutes` back unchanged. The same menu applies to `duration_minutes` on [Generate](#generate-draft-workout-session) and [Regenerate](#regenerate-draft-workout-session).
 
 **Note:** `height`/`weight` validation bounds (50-300cm / 1-500kg) are checked *after* conversion, so they're always enforced in metric regardless of what unit the client submitted. A very large imperial value can still fail validation once converted (e.g. 1200 lbs → ~544kg, which exceeds the 500kg max) — the returned error message will reference kg, not lbs.
 
@@ -675,7 +678,7 @@ interface CompleteOnboardingResponse {
   - 5 days: Push, Legs, Pull, Lower Body, Upper Body
   - 6 days: Push, Pull, Legs, Push, Pull, Legs
   - 7 days: Push, Pull, Legs, Push, Pull, Legs, Full Body
-- Each workout template includes exercises selected by the workout generator based on the user's fitness goal, training experience, and workout duration preferences. The number of exercises is determined by how many fit within the specified duration (with a 10% buffer for warm-up/transitions), with safety rails of 3-12 exercises.
+- Each workout template is generated from the user's fitness goal, training experience and `workout_duration_minutes`. The duration picks each day's Tier, which decides how many exercises it gets: 30 → Express, 45 or 60 → Standard, 90 or 120 → Extended (see the session length notes under [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---
 
@@ -1062,10 +1065,13 @@ interface TargetRegionListResponse {
     { "id": 2, "code": "UPPER_PULL", "name": "Upper Pull", "display_order": 2 },
     { "id": 3, "code": "LOWER", "name": "Lower Body", "display_order": 3 },
     { "id": 4, "code": "ARMS", "name": "Arms", "display_order": 4 },
-    { "id": 5, "code": "CORE", "name": "Core", "display_order": 5 }
+    { "id": 5, "code": "CORE", "name": "Core", "display_order": 5 },
+    { "id": 6, "code": "FULL_BODY", "name": "Full Body", "display_order": 6 }
   ]
 }
 ```
+
+`FULL_BODY` is requested on its own only (see [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---
 
@@ -2041,18 +2047,19 @@ Generates a new workout session in draft status. Creates a session with exercise
 **Request Body:**
 ```typescript
 interface GenerateWorkoutRequest {
-  target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to all regions (full body) if not provided
+  target_regions?: string[];           // optional, e.g., ["UPPER_PUSH", "UPPER_PULL"] - defaults to a Full Body day if not provided. FULL_BODY is valid only on its own (422 when combined with other regions)
   equipment_types?: string[];          // optional, array of equipment codes, e.g. ["DUMBBELL", "TRX"] — defaults to all if not provided. Multiple values use OR logic.
   movement_patterns?: string[];        // optional, e.g., ["PRESS", "FLY", "DIP"]
   angles?: string[];                   // optional, e.g., ["FLAT", "INCLINE", "DECLINE"]
   training_styles?: string[];          // optional, array of training style codes, e.g. ["FUNCTIONAL"] or ["BODYBUILDING", "FUNCTIONAL"]. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
-  duration_minutes?: number;           // optional, min 15, max 180 - uses profile default if not provided
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional - uses profile training_experience if not provided
+  duration_minutes?: 30 | 45 | 60 | 90 | 120;  // optional, session length in minutes - menu values only; uses profile workout_duration_minutes if not provided
 }
 ```
 
+There is no difficulty parameter: the user's profile `training_experience` always applies.
+
 **Defaults:**
-- If `target_regions` not provided → system generates full body workout (all target regions)
+- If `target_regions` not provided → system generates a Full Body day (push focus), same as `["FULL_BODY"]`
 - If `equipment_types` not provided → system uses all available equipment types
 - If neither `training_styles` nor `equipment_types` is provided → defaults to `["BODYBUILDING"]`
 - If only `equipment_types` is provided (or `training_styles` is omitted / `[]`) → no training style filter is applied (all exercises matching that equipment)
@@ -2060,8 +2067,7 @@ interface GenerateWorkoutRequest {
 - If multiple `equipment_types` are provided → exercises matching **any** listed equipment (OR), e.g. `["DUMBBELL", "TRX"]`
 - If multiple `training_styles` are provided → exercises tagged with **any** listed style (OR), e.g. `["FUNCTIONAL", "OLYMPIC"]`
 - If both `equipment_types` and `training_styles` are provided → exercises must satisfy **both** filters (AND), e.g. `["LANDMINE"]` + `["FUNCTIONAL"]` or `["TRX"]` + `["BODYBUILDING", "FUNCTIONAL"]`
-- If `duration_minutes` not provided → system uses user profile `workout_duration_minutes`
-- If `difficulty` not provided → system uses user profile `training_experience`
+- If `duration_minutes` not provided → system uses user profile `workout_duration_minutes` (60 if the profile has none)
 
 **Note:** The frontend should map user-friendly labels (e.g., "Push", "Pull", "Legs", "Full Body") to target region codes. For example:
 - "Push" → `["UPPER_PUSH"]`
@@ -2069,7 +2075,16 @@ interface GenerateWorkoutRequest {
 - "Legs" → `["LOWER"]`
 - "Upper Body" → `["UPPER_PUSH", "UPPER_PULL"]`
 - "Lower Body" → `["LOWER", "CORE"]`
-- "Full Body" → `["UPPER_PUSH", "UPPER_PULL", "LOWER"]` or omit `target_regions` entirely
+- "Full Body" → `["FULL_BODY"]`, `["UPPER_PUSH", "UPPER_PULL", "LOWER"]`, or omit `target_regions` entirely
+
+**Day types:** the region set (order-insensitive, except that the first region of a Full Body request picks its focus) decides the day:
+- `["UPPER_PUSH"]`, `["UPPER_PUSH", "ARMS"]` → Push day
+- `["UPPER_PULL"]`, `["UPPER_PULL", "ARMS"]` → Pull day
+- `["UPPER_PUSH", "UPPER_PULL"]`, `["UPPER_PUSH", "UPPER_PULL", "ARMS"]` → Upper day (its arms exercise is included at 90/120 minutes only)
+- `["LOWER"]`, `["LOWER", "CORE"]` → Lower day
+- `["ARMS"]` → Arms day
+- `[]`, `["FULL_BODY"]`, push + pull + lower, or all five combinable regions → Full Body day
+- Any other combination → a day composed from each region's exercises in request order. When it exceeds the session's set budget, the region holding the most sets loses its last exercise first (ties: the later-requested region), so no region is dropped while another still has two or more exercises.
 
 **Available Target Region Codes:**
 - `UPPER_PUSH` - Chest, Triceps, Front/Side Delts
@@ -2077,6 +2092,9 @@ interface GenerateWorkoutRequest {
 - `LOWER` - Quadriceps, Hamstrings, Glutes, Calves
 - `ARMS` - Biceps, Triceps, Forearms
 - `CORE` - Abs, Obliques
+- `FULL_BODY` - The whole-body day. Valid only on its own: combining it with any other region returns 422
+
+There is no `CONDITIONING` region; it was removed, and sending it returns 422 like any unknown code.
 
 **Available Equipment Type Codes:**
 - `BARBELL` - Barbell exercises
@@ -2148,6 +2166,26 @@ interface GeneratedSessionResource extends WorkoutSessionResource {
   }
   ```
 
+- **422 Unprocessable Entity:** `duration_minutes` is not on the menu
+  ```typescript
+  {
+    message: "Duration must be one of: 30, 45, 60, 90, 120 minutes.",
+    errors: {
+      duration_minutes: ["Duration must be one of: 30, 45, 60, 90, 120 minutes."]
+    }
+  }
+  ```
+
+- **422 Unprocessable Entity:** `FULL_BODY` combined with other regions
+  ```typescript
+  {
+    message: "Full Body is requested on its own: it cannot be combined with other target regions.",
+    errors: {
+      target_regions: ["Full Body is requested on its own: it cannot be combined with other target regions."]
+    }
+  }
+  ```
+
 **Example Request:**
 ```json
 {
@@ -2162,11 +2200,11 @@ interface GeneratedSessionResource extends WorkoutSessionResource {
 - The session is stored in the database with all exercises
 - User can modify exercises using standard exercise management endpoints before confirming
 - Call regenerate endpoint to cancel this draft and create a new one
-- **Exercise Selection Logic:** Duration is the primary constraint for exercise selection. The system selects exercises that fit within the specified `duration_minutes` (with a 10% buffer reserved for warm-up and transitions). The number of exercises varies based on:
-  - **Fitness Goal:** Different goals have different rest periods and sets (e.g., strength: 180s rest, muscle gain: 90s rest, fat loss: 45s rest), which naturally results in different exercise counts for the same duration
-  - **Exercise Type:** Compound exercises take longer than isolation exercises due to more sets and longer rest periods
-  - **Safety Rails:** Minimum 3 exercises and maximum 12 exercises are enforced to prevent edge cases
-- Different fitness goals will naturally produce different exercise counts for the same duration (e.g., a 60-minute strength workout may have 4-5 exercises, while a 60-minute fat loss workout may have 8-10 exercises)
+- **Session length:** `duration_minutes` picks the session's Tier, and the Tier decides how many of the day's exercises are included:
+  - `30` → Express: the day's core exercises only
+  - `45`, `60` → Standard: core plus secondary exercises
+  - `90`, `120` → Extended: every exercise, plus one extra set on the first two core exercises (120 adds nothing beyond 90)
+- The exercise count comes from the day type and the Tier, not from the fitness goal. The goal shapes reps and rest.
 
 ---
 
@@ -2234,17 +2272,16 @@ Cancels the current draft session and generates a new one with optionally differ
 **Request Body:**
 ```typescript
 interface RegenerateWorkoutRequest {
-  target_regions?: string[];           // optional - defaults to all regions (full body) if not provided
+  target_regions?: string[];           // optional - defaults to a Full Body day if not provided. FULL_BODY is valid only on its own (422 when combined with other regions)
   equipment_types?: string[];          // optional, array of equipment codes. Multiple values use OR logic.
   movement_patterns?: string[];        // optional
   angles?: string[];                   // optional
   training_styles?: string[];          // optional, array of training style codes. Multiple values use OR logic. Defaults to ["BODYBUILDING"] only when neither equipment_types nor training_styles is provided.
-  duration_minutes?: number;           // optional, min 15, max 180
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';  // optional
+  duration_minutes?: 30 | 45 | 60 | 90 | 120;  // optional, menu values only; uses profile workout_duration_minutes if not provided
 }
 ```
 
-**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields.
+**Filter semantics:** Same as [Generate Draft Workout Session](#generate-draft-workout-session) — OR within each array field, AND across fields. `duration_minutes` has the same menu, defaults and 422 as Generate, and `target_regions` the same day types and the same 422 for `FULL_BODY` combined with other regions. There is no difficulty parameter.
 
 **Response (201 Created):**
 ```typescript
@@ -2553,15 +2590,17 @@ Frontend behavior:
 
 Progression behavior:
 
-- Weight increases only when all logged sets in the previous completed session hit `max_target_reps` at the same weight.
+- The previous completed working (non-deload) session is judged once, set by set, against each set's **Logged Range**: the `min_target_reps`–`max_target_reps` of the session exercise it was logged against (the default range for the exercise when that row stored none), not against today's range.
+- Weight increases one equipment step only when every set reached the top of its Logged Range, with the weight held across each row's sets. The same verdict sets `progression_status`, so the status and `target_weight` never disagree.
 - Otherwise, the target weight stays at the previous working weight.
+- In a deload session (`is_deload: true`) the target weight is the previous working weight, never raised, and `target_weight_lowered` is `null`.
 
 `progression_status` values (on `WorkoutSessionExerciseResource`):
 
-- `no_history`: user has no completed session logs for this exercise yet.
-- `below_min`: at least one set in the previous completed session was below `min_target_reps`.
-- `working`: previous session did not progress, but all sets met `min_target_reps`.
-- `ready`: all sets in the previous completed session hit `max_target_reps` at the same weight, so weight can increase.
+- `no_history`: user has no completed working session logs for this exercise yet.
+- `below_min`: at least one set in the previous completed session was below its Logged Range's minimum.
+- `working`: previous session did not progress, but all sets met their Logged Range's minimum. Always the value in a deload session that has history.
+- `ready`: every set in the previous completed session reached the top of its Logged Range, so the weight has increased.
 
 `progression_mode` values (on `WorkoutSessionExerciseResource`):
 
@@ -2669,7 +2708,7 @@ interface UserProfileResource {
   unit_system: UnitSystem | null;     // 'metric' or 'imperial' - use as the display label for height/weight
   training_experience: TrainingExperience | null;
   training_days_per_week: number | null;  // 1-7
-  workout_duration_minutes: number | null;
+  workout_duration_minutes: WorkoutDuration | null;  // 30 | 45 | 60 | 90 | 120
 }
 
 interface UserPartner {

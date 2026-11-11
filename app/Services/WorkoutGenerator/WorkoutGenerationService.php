@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class WorkoutGenerationService
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator
+        private BlueprintWorkoutGenerator $workoutGenerator
     ) {}
 
     /**
@@ -26,17 +26,21 @@ class WorkoutGenerationService
         $this->validateUserProfile($user);
 
         try {
-            // Generate workout using deterministic algorithm
-            $generatedWorkout = $this->workoutGenerator->generate($user, $preferences);
+            // A single session is a one-day plan (ADR-0010, #124)
+            $generatedWorkout = $this->workoutGenerator->generatePlan(
+                $user,
+                $preferences,
+                [$preferences['target_regions'] ?? []],
+            )[0];
 
             Log::info('Workout generated', [
                 'user_id' => $user->id,
-                'exercises_count' => count($generatedWorkout['exercises'] ?? []),
-                'exercise_ids' => array_column($generatedWorkout['exercises'] ?? [], 'exercise_id'),
+                'exercises_count' => count($generatedWorkout->rows),
+                'exercise_ids' => array_column($generatedWorkout->rows, 'exercise_id'),
             ]);
 
             // Validate we have exercises
-            if (empty($generatedWorkout['exercises'])) {
+            if ($generatedWorkout->rows === []) {
                 throw new \Exception('No exercises could be selected for this workout. Please try different criteria.');
             }
 
@@ -48,23 +52,24 @@ class WorkoutGenerationService
                     'performed_at' => null, // Draft sessions don't have performed_at
                     'is_auto_generated' => true,
                     'status' => WorkoutSessionStatus::Draft,
-                    'notes' => $generatedWorkout['rationale'],
+                    'notes' => $generatedWorkout->description,
                 ]);
 
                 // Create workout session exercises
                 $now = now();
                 $exercisesToInsert = [];
 
-                foreach ($generatedWorkout['exercises'] as $exerciseData) {
+                foreach ($generatedWorkout->rows as $exerciseData) {
                     $exercisesToInsert[] = [
                         'workout_session_id' => $session->id,
                         'exercise_id' => $exerciseData['exercise_id'],
-                        'order' => $exerciseData['order'] ?? 0,
-                        'target_sets' => $exerciseData['target_sets'] ?? 3,
-                        'min_target_reps' => $exerciseData['min_target_reps'] ?? 8,
-                        'max_target_reps' => $exerciseData['max_target_reps'] ?? 12,
-                        'target_weight' => $exerciseData['target_weight'] ?? 0,
-                        'rest_seconds' => $exerciseData['rest_seconds'] ?? 90,
+                        'order' => $exerciseData['order'],
+                        'target_sets' => $exerciseData['target_sets'],
+                        'min_target_reps' => $exerciseData['min_target_reps'],
+                        'max_target_reps' => $exerciseData['max_target_reps'],
+                        'target_weight' => $exerciseData['target_weight'],
+                        'rest_seconds' => $exerciseData['rest_seconds'],
+                        'slot_key' => $exerciseData['slot_key'],
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -175,24 +180,5 @@ class WorkoutGenerationService
         if (! $profile->training_experience) {
             throw new \Exception('Training experience is required for workout generation');
         }
-    }
-
-    /**
-     * Calculate estimated duration based on exercises
-     */
-    private function calculateEstimatedDuration(array $exercises): int
-    {
-        $setDuration = config('workout_generator.set_duration_seconds', 45);
-        $totalSeconds = 0;
-
-        foreach ($exercises as $exercise) {
-            $sets = $exercise['target_sets'] ?? 3;
-            $restSeconds = $exercise['rest_seconds'] ?? 90;
-
-            // Time = sets × set_duration + (sets - 1) × rest
-            $totalSeconds += ($sets * $setDuration) + (($sets - 1) * $restSeconds);
-        }
-
-        return (int) ceil($totalSeconds / 60);
     }
 }

@@ -4,16 +4,22 @@ namespace Tests\Feature;
 
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
+use App\Enums\MovementClass;
+use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\MovementPattern;
 use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\User;
+use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
+use App\Services\WorkoutGenerator\Slots\Blueprint;
+use App\Services\WorkoutGenerator\Slots\BlueprintRepository;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 /**
@@ -22,6 +28,7 @@ use Tests\TestCase;
  */
 class MesocycleProgramTest extends TestCase
 {
+    use CreatesCatalogExercises;
     use RefreshDatabase;
 
     private Partner $partner;
@@ -42,8 +49,7 @@ class MesocycleProgramTest extends TestCase
         Exercise::factory()->row()->barbell()->lowToHigh()->create(['name' => 'Landmine Row']);
 
         // An isolation movement, so the deload's compound/isolation split is
-        // observable. With five compounds and a six-exercise target, this curl
-        // is always selected.
+        // observable: this curl fills a Full Body day's isolation Slot.
         $elbowFlexion = MovementPattern::firstOrCreate(
             ['code' => 'ELBOW_FLEXION'],
             ['name' => 'Elbow Flexion', 'display_order' => 200]
@@ -75,6 +81,20 @@ class MesocycleProgramTest extends TestCase
         ]);
 
         return $user->refresh();
+    }
+
+    public function test_generated_template_rows_persist_the_slot_key_that_produced_them(): void
+    {
+        $service = app(WelcomePlanGenerationService::class);
+
+        $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
+        $plan->load('workoutTemplates.workoutTemplateExercises');
+
+        $slotKeys = $plan->workoutTemplates
+            ->flatMap(fn ($template) => $template->workoutTemplateExercises->pluck('slot_key'));
+
+        $this->assertNotEmpty($slotKeys);
+        $this->assertFalse($slotKeys->contains(null), 'Every generated template row carries its slot key');
     }
 
     public function test_program_length_comes_from_the_fitness_goal(): void
@@ -140,7 +160,7 @@ class MesocycleProgramTest extends TestCase
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
-        $plan->load('workoutTemplates.workoutTemplateExercises.exercise.movementPattern');
+        $plan->load('workoutTemplates.workoutTemplateExercises');
 
         $deloadTemplates = $plan->workoutTemplates->where('week_number', 8);
         $this->assertCount(3, $deloadTemplates);
@@ -166,17 +186,15 @@ class MesocycleProgramTest extends TestCase
             foreach ($template->workoutTemplateExercises as $row) {
                 $this->assertSame(2, $row->target_sets);
 
-                $isCompound = DeterministicWorkoutGenerator::isCompoundPattern(
-                    $row->exercise->movementPattern?->code
-                );
-
-                if ($isCompound) {
+                // The Slot's class decides the deload reps, not the
+                // exercise's (ADR-0010).
+                if ($this->slotClass($row->slot_key)->isCompound()) {
                     $this->assertSame(3, $row->min_target_reps);
                     $this->assertSame(4, $row->max_target_reps);
                 } else {
                     $isolationRowsSeen++;
                     $weekOneRow = $weekOne->workoutTemplateExercises
-                        ->firstWhere('exercise_id', $row->exercise_id);
+                        ->firstWhere('slot_key', $row->slot_key);
                     $this->assertSame($weekOneRow->min_target_reps, $row->min_target_reps);
                     $this->assertSame($weekOneRow->max_target_reps, $row->max_target_reps);
                 }
@@ -185,5 +203,103 @@ class MesocycleProgramTest extends TestCase
 
         // The isolation branch must actually have been exercised.
         $this->assertGreaterThan(0, $isolationRowsSeen);
+    }
+
+    /**
+     * The class of the Slot a generated row fills, from its slot_key. A key
+     * names the same role in every Blueprint and Fragment it appears in.
+     */
+    private function slotClass(string $slotKey): MovementClass
+    {
+        $repository = new BlueprintRepository;
+        $slots = array_merge(
+            ...array_map(fn (Blueprint $blueprint) => $blueprint->slots(), $repository->blueprints()),
+            ...array_values($repository->fragments()),
+        );
+
+        $slot = collect($slots)->firstWhere('key', $slotKey);
+        $this->assertNotNull($slot, "No Slot has the key {$slotKey}");
+
+        return $slot->movementClass();
+    }
+
+    /**
+     * The Slot's class, not the exercise's, decides a generated row's
+     * treatment (ADR-0010): a split squat (a compound pattern) filling the
+     * quad-isolation Slot keeps 10–15 and the isolation rest floor in the
+     * accumulation weeks, and keeps 10–15 in the Deload Week, where the squat
+     * filling the compound Slot drops to 3–4.
+     */
+    public function test_a_split_squat_filling_the_quad_isolation_slot_is_an_isolation_in_every_week(): void
+    {
+        $user = $this->makeUser(FitnessGoal::FatLoss);
+
+        $squat = $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $splitSquat = $this->catalogExercise('LUNGE_SPLIT_SQUAT', 'LOWER', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE', null, ['default_rest_sec' => 60]);
+        foreach (Exercise::all() as $exercise) {
+            $exercise->partners()->syncWithoutDetaching([$this->partner->id]);
+        }
+
+        $day = app(BlueprintWorkoutGenerator::class)->generatePlan($user, ['duration_minutes' => 60], [['LOWER']])[0];
+        $deload = app(WelcomePlanGenerationService::class)->deloadWorkout($day);
+
+        $accumulation = collect($day->rows)->keyBy('slot_key');
+        $this->assertSame($splitSquat->id, $accumulation['quad_iso']['exercise_id']);
+        $this->assertSame([10, 15], [$accumulation['quad_iso']['min_target_reps'], $accumulation['quad_iso']['max_target_reps']]);
+        $this->assertSame(30, $accumulation['quad_iso']['rest_seconds'], '60 × 0.6 = 36 → 30 under the isolation floor, not raised to the compound 60');
+
+        $deloadRows = collect($deload->rows)->keyBy('slot_key');
+        $this->assertSame($splitSquat->id, $deloadRows['quad_iso']['exercise_id']);
+        $this->assertSame(2, $deloadRows['quad_iso']['target_sets']);
+        $this->assertSame([10, 15], [$deloadRows['quad_iso']['min_target_reps'], $deloadRows['quad_iso']['max_target_reps']]);
+
+        $this->assertSame($squat->id, $deloadRows['quad_compound']['exercise_id']);
+        $this->assertSame(2, $deloadRows['quad_compound']['target_sets']);
+        $this->assertSame([3, 4], [$deloadRows['quad_compound']['min_target_reps'], $deloadRows['quad_compound']['max_target_reps']]);
+    }
+
+    /**
+     * A workout's name and description come from the same resolved day
+     * (#131): push+pull+arms is an Upper day in both, a composed day is
+     * named from its regions, and Full Body keeps its focus in the name.
+     */
+    public function test_workout_names_and_descriptions_name_the_same_day_type(): void
+    {
+        $this->setBalancedThreeDaySplit([
+            ['UPPER_PUSH', 'UPPER_PULL', 'ARMS'],
+            ['UPPER_PUSH', 'LOWER'],
+            ['UPPER_PULL', 'UPPER_PUSH', 'LOWER'],
+        ]);
+
+        $plan = app(WelcomePlanGenerationService::class)->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
+
+        $weekOne = $plan->workoutTemplates->where('week_number', 1)->sortBy('day_of_week')->values();
+        $this->assertSame(
+            ['Upper Body Day', 'Push & Legs Day', 'Full Body (Pull)'],
+            $weekOne->pluck('name')->all()
+        );
+        foreach (['Upper Body day, 60 min: ', 'Push & Legs day, 60 min: ', 'Full Body day, 60 min: '] as $day => $opening) {
+            $this->assertStringStartsWith($opening, $weekOne[$day]->description);
+        }
+
+        $this->assertSame(
+            ['Upper Body Day (Deload)', 'Push & Legs Day (Deload)', 'Full Body (Pull) (Deload)'],
+            $plan->workoutTemplates->where('week_number', 8)->sortBy('day_of_week')->pluck('name')->values()->all()
+        );
+    }
+
+    /**
+     * @param  list<list<string>>  $days
+     */
+    private function setBalancedThreeDaySplit(array $days): void
+    {
+        foreach ($days as $dayIndex => $regions) {
+            WorkoutSplit::where('days_per_week', 3)
+                ->where('focus', SplitFocus::Balanced)
+                ->where('day_index', $dayIndex)
+                ->update(['target_regions' => $regions]);
+        }
     }
 }

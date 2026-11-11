@@ -36,6 +36,7 @@ app/
 tests/
   Feature/                # Integration tests (hit real DB via RefreshDatabase)
   Unit/                   # Unit tests for isolated logic
+  Support/                # Shared test traits (e.g. CreatesCatalogExercises)
 ```
 
 ## Branding
@@ -68,9 +69,9 @@ The admin panel must match the marketing site (`front-end/apps/landing_page`):
 
 ## Branch convention
 
-- `feat/<description>` → main
-- `fix/<description>` → main
-- Never commit directly to `main`
+- `feat/<description>` and other feature work → `dev` (see the git-workflow skill)
+- `fix/<description>` (hotfixes) → `main`
+- Never commit directly to `main`, `staging`, or `dev`
 
 ## Agent skills
 

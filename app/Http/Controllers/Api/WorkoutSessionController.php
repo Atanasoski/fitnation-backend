@@ -126,26 +126,8 @@ class WorkoutSessionController extends Controller
                     'is_deload' => (bool) $template?->is_deload,
                 ]);
 
-                // Snapshot template exercises if template is provided
-                if ($template && $template->workoutTemplateExercises->isNotEmpty()) {
-                    // Bulk insert instead of individual creates
-                    $now = now();
-                    $exercisesToInsert = $template->workoutTemplateExercises->map(function ($templateExercise) use ($newSession, $now) {
-                        return [
-                            'workout_session_id' => $newSession->id,
-                            'exercise_id' => $templateExercise->exercise_id,
-                            'order' => $templateExercise->order,
-                            'target_sets' => $templateExercise->target_sets,
-                            'min_target_reps' => $templateExercise->min_target_reps,
-                            'max_target_reps' => $templateExercise->max_target_reps,
-                            'target_weight' => $templateExercise->target_weight,
-                            'rest_seconds' => $templateExercise->rest_seconds,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
-                    })->toArray();
-
-                    WorkoutSessionExercise::insert($exercisesToInsert);
+                if ($template) {
+                    WorkoutSessionExercise::copyFromTemplate($newSession, $template->workoutTemplateExercises);
                 }
 
                 return $newSession;
@@ -323,10 +305,11 @@ class WorkoutSessionController extends Controller
             'min_target_reps' => $request->min_target_reps ?? 8,
             'max_target_reps' => $request->max_target_reps ?? 12,
             'target_weight' => $request->target_weight ?? 0,
-            'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec ?? 90,
+            'rest_seconds' => $request->rest_seconds ?? $exercise->default_rest_sec,
         ]);
 
         $sessionExercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
+        $sessionExercise->setRelation('workoutSession', $session);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($sessionExercise),
@@ -378,6 +361,7 @@ class WorkoutSessionController extends Controller
         ]));
 
         $exercise->load(WorkoutSessionExercise::EXERCISE_RELATIONS);
+        $exercise->setRelation('workoutSession', $session);
 
         return response()->json([
             'data' => new WorkoutSessionExerciseResource($exercise),
@@ -431,6 +415,10 @@ class WorkoutSessionController extends Controller
             fn (string $relation) => 'workoutSessionExercises.'.$relation,
             WorkoutSessionExercise::EXERCISE_RELATIONS
         ));
+
+        // Targets read each row's session (deload flag); hand it the one in
+        // memory so no row lazy-loads it back.
+        $session->workoutSessionExercises->each->setRelation('workoutSession', $session);
 
         return response()->json([
             // collectionForRows, not ::collection(): the latter leaves every row

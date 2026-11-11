@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
 
             ExerciseSeeder::class,       // Create global exercises
             ExerciseClassificationSeeder::class, // Classify exercises with lookup table FKs
+            CatalogEnrichmentSeeder::class, // Spreadsheet imports with explicit classification (issue #108)
             PartnerExerciseSeeder::class, // Link partners to default exercises
             WorkoutSplitSeeder::class,   // Create workout splits
         ]);

@@ -9,6 +9,7 @@ use App\Models\MovementPattern;
 use App\Models\SetLog;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use App\Models\WorkoutSessionExercise;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,12 +28,13 @@ class ProgressionCalculatorBatchTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new ProgressionCalculatorService;
+        $this->service = app(ProgressionCalculatorService::class);
     }
 
     public function test_batch_matches_the_single_lookup_for_every_exercise(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
 
         $withHistory = $this->createExercise('SQUAT', 'BARBELL');
         $withOlderAndNewerHistory = $this->createExercise('PRESS', 'DUMBBELL');
@@ -61,6 +63,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_picks_the_most_recently_completed_session(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $older = $this->completedSession($user, now()->subMonth());
@@ -79,6 +82,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_ignores_sessions_that_are_not_completed(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $completed = $this->completedSession($user, now()->subMonth());
@@ -101,6 +105,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_ignores_another_users_history(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $otherUser = User::factory()->create();
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
@@ -119,6 +124,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_matches_the_single_lookup_on_fractional_weights(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $session = $this->completedSession($user, now()->subDay());
@@ -141,6 +147,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_and_single_break_completed_at_ties_identically(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $sameMoment = now()->subDay()->startOfSecond();
@@ -162,6 +169,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_batch_returns_empty_for_no_exercises(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
 
         $this->assertSame([], $this->service->getLastPerformanceForExercises([], $user));
     }
@@ -169,6 +177,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_deload_sessions_are_not_performance_history(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $working = $this->completedSession($user, now()->subWeek());
@@ -189,6 +198,7 @@ class ProgressionCalculatorBatchTest extends TestCase
     public function test_only_deload_history_reads_as_no_history(): void
     {
         $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
         $exercise = $this->createExercise('SQUAT', 'BARBELL');
 
         $deload = $this->completedSession($user, now()->subDay(), isDeload: true);
@@ -199,6 +209,57 @@ class ProgressionCalculatorBatchTest extends TestCase
             $exercise->id,
             $this->service->getLastPerformanceForExercises([$exercise], $user)
         );
+    }
+
+    /**
+     * Each set carries its Logged Range: its row's stored range, the matrix
+     * range when the row stored none or the set has no row. Both lookups must
+     * report the same ranges in the same set order, including for one
+     * exercise logged on two rows whose set numbers collide.
+     */
+    public function test_batch_matches_the_single_lookup_on_logged_ranges(): void
+    {
+        $user = User::factory()->create();
+        $user->profile->update(['fitness_goal' => \App\Enums\FitnessGoal::GeneralFitness]);
+
+        $press = $this->createExercise('PRESS', 'BARBELL');
+        $curl = $this->createExercise('ELBOW_FLEXION', 'DUMBBELL');
+
+        $session = $this->completedSession($user, now()->subDay());
+        $topSet = $this->sessionRow($session, $press, 4, 6);
+        $rangeless = $this->sessionRow($session, $press, null, null);
+
+        $this->logSets($session, $press, [[100.0, 6], [100.0, 5]], $topSet);
+        $this->logSets($session, $press, [[80.0, 12]], $rangeless);
+        $this->logSets($session, $curl, [[12.0, 15]]); // legacy: no row
+
+        $batch = $this->service->getLastPerformanceForExercises([$press, $curl], $user);
+
+        foreach ([$press, $curl] as $exercise) {
+            $this->assertEquals(
+                $this->service->getLastPerformance($exercise, $user),
+                $batch[$exercise->id],
+                "Batched last performance diverged from the single lookup for exercise {$exercise->id}."
+            );
+        }
+
+        // Set 1 of each row, then set 2. General-fitness matrix: compound 8–12, isolation 10–15.
+        $this->assertSame([6, 12, 5], $batch[$press->id]['reps']);
+        $this->assertSame([[4, 6], [8, 12], [4, 6]], $batch[$press->id]['logged_ranges']);
+        $this->assertSame([[10, 15]], $batch[$curl->id]['logged_ranges']);
+    }
+
+    private function sessionRow(WorkoutSession $session, Exercise $exercise, ?int $minReps, ?int $maxReps): WorkoutSessionExercise
+    {
+        return WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $exercise->id,
+            'order' => $session->workoutSessionExercises()->count(),
+            'target_sets' => 3,
+            'min_target_reps' => $minReps,
+            'max_target_reps' => $maxReps,
+            'rest_seconds' => 90,
+        ]);
     }
 
     private function completedSession(User $user, \DateTimeInterface $completedAt, bool $isDeload = false): WorkoutSession
@@ -216,11 +277,12 @@ class ProgressionCalculatorBatchTest extends TestCase
     /**
      * @param  array<int, array{0: float, 1: int}>  $sets  [weight, reps] pairs
      */
-    private function logSets(WorkoutSession $session, Exercise $exercise, array $sets): void
+    private function logSets(WorkoutSession $session, Exercise $exercise, array $sets, ?WorkoutSessionExercise $row = null): void
     {
         foreach ($sets as $index => [$weight, $reps]) {
             SetLog::create([
                 'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $row?->id,
                 'exercise_id' => $exercise->id,
                 'set_number' => $index + 1,
                 'weight' => $weight,

@@ -34,11 +34,13 @@ class ExerciseClassificationSeeder extends Seeder
     private array $trainingStyles = [];
 
     /**
-     * Movement pattern to target region mapping.
+     * Movement pattern to target region mapping (region-ownership rule:
+     * arm isolations live under ARMS, never UPPER_PUSH/UPPER_PULL).
+     * Shared with CatalogEnrichmentSeeder so the rule has one home.
      *
      * @var array<string, string>
      */
-    private const MOVEMENT_TO_TARGET = [
+    public const MOVEMENT_TO_TARGET = [
         'PRESS' => 'UPPER_PUSH',
         'FLY' => 'UPPER_PUSH',
         'PUSHUP' => 'UPPER_PUSH',
@@ -110,7 +112,7 @@ class ExerciseClassificationSeeder extends Seeder
                     $exercise->update($classification);
 
                     // Sync training styles
-                    $trainingStyleCodes = $this->inferTrainingStyles($exercise);
+                    $trainingStyleCodes = self::inferTrainingStyles($exercise->name, $exercise->equipmentType?->code);
                     if (! empty($trainingStyleCodes)) {
                         $trainingStyleIds = [];
                         foreach ($trainingStyleCodes as $code) {
@@ -131,19 +133,22 @@ class ExerciseClassificationSeeder extends Seeder
     }
 
     /**
-     * Infer training styles from exercise name and equipment type.
+     * The catalogue's one training-style inference, from an exercise's name
+     * and equipment code. Shared with CatalogEnrichmentSeeder so the rule
+     * has one home: functional equipment is FUNCTIONAL (never BODYBUILDING),
+     * Olympic, functional and calisthenics names add their style, and an
+     * exercise matching none is BODYBUILDING.
      *
-     * @return array<string>
+     * @return list<string>
      */
-    private function inferTrainingStyles(Exercise $exercise): array
+    public static function inferTrainingStyles(string $exerciseName, ?string $equipmentCode): array
     {
-        $name = Str::lower($exercise->name);
-        $equipmentCode = $exercise->equipmentType?->code ?? '';
+        $name = Str::lower($exerciseName);
 
         $styles = [];
 
         // Equipment-based classification
-        if (in_array($equipmentCode, ['TRX', 'LANDMINE', 'MEDICINE_BALL', 'KETTLEBELL', 'BAND'])) {
+        if (in_array($equipmentCode, EquipmentType::FUNCTIONAL_CODES, true)) {
             $styles[] = 'FUNCTIONAL';
         }
 
@@ -198,7 +203,7 @@ class ExerciseClassificationSeeder extends Seeder
             $styles[] = 'BODYBUILDING';
         }
 
-        return array_unique($styles);
+        return array_values(array_unique($styles));
     }
 
     /**

@@ -14,9 +14,11 @@ exercises show no total target at all rather than "beat last week + 1".
 
 Plan cloning propagates the template flag for free (`replicate()`), and the
 flag is exposed on template and session API resources so clients can label
-deload work. Nothing else reads it: deload sessions still complete their
-templates in `ProgramProgress`, and weight-raise logic needed no guard
-(3–4 reps never satisfies `shouldProgressWeight()`).
+deload work. Deload sessions still complete their templates in
+`ProgramProgress`, and the weight raise needs no guard of its own: the
+Logged Range verdict (ADR-0011) judges only working sessions, so a deload's
+3–4 reps are never judged, and a Deload Week session holds the Working
+Weight.
 
 ## Considered Options
 

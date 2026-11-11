@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
 use App\Enums\WorkoutSessionStatus;
@@ -358,7 +359,9 @@ class UnitSystemTest extends TestCase
         $imperialUser = User::factory()->entitled()->create();
 
         foreach ([$metricUser, $imperialUser] as $user) {
-            $user->profile->update(['weight' => 80.0]);
+            // Same weight and goal: fitness_goal drives the rep range, so only
+            // unit_system may differ between the two users under comparison.
+            $user->profile->update(['weight' => 80.0, 'fitness_goal' => FitnessGoal::MuscleGain]);
         }
 
         $metricUser->profile->update(['unit_system' => UnitSystem::Metric]);
@@ -388,7 +391,7 @@ class UnitSystemTest extends TestCase
             }
         }
 
-        $service = new ProgressionCalculatorService;
+        $service = app(ProgressionCalculatorService::class);
 
         $metricTargets = $service->calculateTargets($exercise, $metricUser->fresh(), TrainingExperience::Intermediate);
         $imperialTargets = $service->calculateTargets($exercise, $imperialUser->fresh(), TrainingExperience::Intermediate);

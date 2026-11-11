@@ -35,7 +35,6 @@ class WorkoutGeneratorController extends Controller
                 'angles' => $request->input('angles'),
                 'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
-                'difficulty' => $request->input('difficulty'),
             ];
 
             // Remove null and empty array values
@@ -109,7 +108,6 @@ class WorkoutGeneratorController extends Controller
                 'angles' => $request->input('angles'),
                 'training_styles' => $request->input('training_styles'),
                 'duration_minutes' => $request->input('duration_minutes'),
-                'difficulty' => $request->input('difficulty'),
             ];
 
             // Remove null and empty array values

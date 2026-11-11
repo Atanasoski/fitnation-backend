@@ -8,20 +8,22 @@ use App\Enums\FitnessGoal;
 use App\Enums\Gender;
 use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
+use App\Enums\WorkoutDuration;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\DeterministicWorkoutGenerator;
+use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class WorkoutPreviewController extends Controller
 {
     public function __construct(
-        private DeterministicWorkoutGenerator $workoutGenerator,
+        private BlueprintWorkoutGenerator $workoutGenerator,
         private WelcomePlanGenerationService $planGenerationService
     ) {}
 
@@ -45,7 +47,7 @@ class WorkoutPreviewController extends Controller
             'training_experience' => ['required', 'string', 'in:beginner,intermediate,advanced'],
             'gender' => ['required', 'string', 'in:male,female,other'],
             'training_days_per_week' => ['required', 'integer', 'min:1', 'max:7'],
-            'duration_minutes' => ['required', 'integer', 'in:30,45,60,75,90'],
+            'duration_minutes' => ['required', 'integer', Rule::in(WorkoutDuration::values())],
             'weeks' => ['required', 'integer', 'min:1', 'max:12'],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'equipment_types' => ['nullable', 'array'],
@@ -91,18 +93,22 @@ class WorkoutPreviewController extends Controller
         }
 
         // Mirror the mesocycle structure a generated program carries (ADR-0007):
-        // each split day is generated once and repeated identically across the
+        // each split day is generated once — the whole split as one plan, the
+        // same path members get (#124) — and repeated identically across the
         // weeks, with the final week shown as the deload.
+        $split = array_values($split);
+        $workouts = $this->workoutGenerator->generatePlan($fakeUser, array_filter([
+            'duration_minutes' => (int) $validated['duration_minutes'],
+            'equipment_types' => $validated['equipment_types'] ?? null,
+            'training_styles' => $validated['training_styles'] ?? null,
+        ], fn ($v) => $v !== null), $split);
+
+        // Named from the resolved day, exactly as a member's program is (#131).
         $days = [];
-        foreach (array_values($split) as $dayIndex => $targetRegions) {
+        foreach ($workouts as $dayIndex => $workout) {
             $days[$dayIndex] = [
-                'name' => $this->getWorkoutName($targetRegions, $dayIndex),
-                'workout' => $this->workoutGenerator->generate($fakeUser, array_filter([
-                    'target_regions' => $targetRegions,
-                    'duration_minutes' => (int) $validated['duration_minutes'],
-                    'equipment_types' => $validated['equipment_types'] ?? null,
-                    'training_styles' => $validated['training_styles'] ?? null,
-                ], fn ($v) => $v !== null)),
+                'name' => $workout->blueprint->workoutName(),
+                'workout' => $workout,
             ];
         }
 
@@ -120,11 +126,11 @@ class WorkoutPreviewController extends Controller
 
                 $weeks[$week][] = [
                     'name' => $isDeloadWeek ? $day['name'].' (Deload)' : $day['name'],
-                    'exercises' => $workout['exercises'],
+                    'exercises' => $workout->rows,
                 ];
 
                 // Collect exercise IDs for eager loading
-                foreach ($workout['exercises'] as $exerciseData) {
+                foreach ($workout->rows as $exerciseData) {
                     $allExerciseIds[] = $exerciseData['exercise_id'];
                 }
             }
@@ -164,63 +170,5 @@ class WorkoutPreviewController extends Controller
             'params' => $validated,
             'partners' => $partners,
         ]);
-    }
-
-    /**
-     * Generate a workout name based on target regions
-     * (Same logic as WelcomePlanGenerationService)
-     */
-    private function getWorkoutName(array $targetRegions, int $dayIndex): string
-    {
-        // Check for special multi-region combinations first
-        $regionSet = array_unique($targetRegions);
-        sort($regionSet);
-        $regionKey = implode('|', $regionSet);
-
-        // Check if it's a full body workout (all three main regions)
-        $isFullBody = count($regionSet) === 3
-            && in_array('UPPER_PUSH', $regionSet)
-            && in_array('UPPER_PULL', $regionSet)
-            && in_array('LOWER', $regionSet);
-
-        if ($isFullBody) {
-            // Determine focus based on first region in the array (order matters for exercise selection)
-            $firstRegion = $targetRegions[0];
-            $focus = match ($firstRegion) {
-                'UPPER_PUSH' => 'Push',
-                'UPPER_PULL' => 'Pull',
-                'LOWER' => 'Legs',
-                default => '',
-            };
-
-            return $focus ? "Full Body ({$focus})" : 'Full Body';
-        }
-
-        $specialNames = [
-            'CORE|LOWER' => 'Legs Day',
-            'UPPER_PULL|UPPER_PUSH' => 'Upper Body Day',
-            'ARMS|UPPER_PUSH' => 'Push Day',
-            'ARMS|UPPER_PULL' => 'Pull Day',
-        ];
-
-        if (isset($specialNames[$regionKey])) {
-            return $specialNames[$regionKey];
-        }
-
-        // Single region or other combinations
-        $regionNames = [
-            'UPPER_PUSH' => 'Push',
-            'UPPER_PULL' => 'Pull',
-            'LOWER' => 'Legs',
-            'ARMS' => 'Arms',
-            'CORE' => 'Core',
-        ];
-
-        $names = [];
-        foreach ($regionSet as $region) {
-            $names[] = $regionNames[$region] ?? $region;
-        }
-
-        return implode(' + ', $names);
     }
 }

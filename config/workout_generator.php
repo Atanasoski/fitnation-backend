@@ -6,9 +6,9 @@ return [
     | Movement Pattern Classification
     |--------------------------------------------------------------------------
     |
-    | Compound movements are multi-joint exercises that should be prioritized
-    | at the beginning of a workout. Isolation movements target single muscles
-    | and are typically performed later in the workout.
+    | Compound movements are multi-joint exercises: they fill a Blueprint's
+    | heavy early Slots and take compound prescriptions. Any pattern not
+    | listed here is an isolation.
     |
     */
 
@@ -25,40 +25,44 @@ return [
         'PUSHUP',
     ],
 
-    'isolation_patterns' => [
-        'FLY',
-        'ELBOW_FLEXION',
-        'ELBOW_EXTENSION',
-        'KNEE_FLEXION',
-        'KNEE_EXTENSION',
-        'CALF_RAISE',
-        'REAR_DELT_FLY',
-        'FACE_PULL',
-        'SHOULDER_RAISE',
-        'PULLOVER_STRAIGHT_ARM',
-        'HIP_ABDUCTION',
-        'BACK_EXTENSION',
-        'TRUNK_FLEXION',
-        'ROTATION',
-    ],
-
     /*
     |--------------------------------------------------------------------------
-    | Selection Aliases
+    | Prescription Matrix (ADR-0009)
     |--------------------------------------------------------------------------
     |
-    | A movement pattern the generator selects, orders and gives sets as if it
-    | were another. Lateral and front raises were filed as PRESS until
-    | 2026-10-25, when they got SHOULDER_RAISE so their starting weight stops
-    | being a bench press's. This alias keeps push days as they were: a raise
-    | on about 80% of them, with a compound's sets. Without it, raises become
-    | isolation work (2-3 sets, later in the session) on about half as many
-    | push days. That is a programming decision of its own.
+    | Rep ranges for non-generated rows (manual templates, hand-added session
+    | exercises), by the exercise's compound/isolation class crossed with
+    | fitness goal; generated rows take their Slot's range (ADR-0010). Rest,
+    | for any row without logged rest, is the exercise's Default Rest scaled
+    | by the goal's multiplier, clamped with floors for the class (a generated
+    | row's Slot's, otherwise the exercise's) so a fat-loss deadlift is never
+    | rushed, then rounded to the nearest 15s. prescription_overrides
+    | is the per-pattern escape hatch; it ships empty on purpose — add entries
+    | only for genuinely exceptional patterns, never to tune one exercise.
     |
     */
-    'selection_aliases' => [
-        'SHOULDER_RAISE' => 'PRESS',
+    'rep_ranges' => [
+        'strength' => ['compound' => [3, 6], 'isolation' => [6, 10]],
+        'muscle_gain' => ['compound' => [6, 10], 'isolation' => [10, 15]],
+        'general_fitness' => ['compound' => [8, 12], 'isolation' => [10, 15]],
+        'fat_loss' => ['compound' => [8, 12], 'isolation' => [10, 15]],
     ],
+
+    'rest_multipliers' => [
+        'strength' => 1.5,
+        'muscle_gain' => 1.0,
+        'general_fitness' => 0.8,
+        'fat_loss' => 0.6,
+    ],
+
+    'rest_bounds' => [
+        'compound_min' => 60,
+        'isolation_min' => 30,
+        'max' => 240,
+        'round_to' => 15,
+    ],
+
+    'prescription_overrides' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -127,175 +131,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Set-Based Duration Calculation
-    |--------------------------------------------------------------------------
-    |
-    | Simple formula: 1 set = 3 minutes (universal, no variations).
-    | Total sets = duration (minutes) ÷ 3.
-    |
-    */
-
-    'minutes_per_set' => 3,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Exercise Count by Goal and Duration
-    |--------------------------------------------------------------------------
-    |
-    | Target number of exercises based on fitness goal and workout duration.
-    | Strength: fewer exercises (more sets each)
-    | Muscle Gain: balanced
-    | Fat Loss: more exercises (fewer sets each)
-    |
-    */
-
-    'exercise_count_by_goal' => [
-        'strength' => [
-            30 => 4,   // 10 sets total
-            45 => 4,   // 15 sets total
-            60 => 5,   // 20 sets total
-            90 => 7,   // 30 sets total
-        ],
-        'muscle_gain' => [
-            30 => 4,   // 10 sets total
-            45 => 5,   // 15 sets total
-            60 => 6,   // 20 sets total
-            90 => 8,   // 30 sets total
-        ],
-        'fat_loss' => [
-            30 => 5,   // 10 sets total
-            45 => 6,   // 15 sets total
-            60 => 7,   // 20 sets total
-            90 => 10,  // 30 sets total
-        ],
-        'general_fitness' => [
-            30 => 4,   // 10 sets total
-            45 => 5,   // 15 sets total
-            60 => 6,   // 20 sets total
-            90 => 8,   // 30 sets total
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Exercise Limits
-    |--------------------------------------------------------------------------
-    |
-    | Maximum and minimum exercises per target region, movement pattern, and total workout.
-    |
-    */
-
-    'max_exercises_per_region' => 4,
-    'min_exercises_per_region' => 1,
-    'max_exercises_per_pattern' => 4,
-    'max_total_exercises' => 12,
-    'min_total_exercises' => 4,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Per-Pattern Cap Overrides
-    |--------------------------------------------------------------------------
-    |
-    | max_exercises_per_pattern is a global 4. These override it for a single
-    | pattern, keyed by the ALIASED pattern the selector counts by (see
-    | selection_aliases: a SHOULDER_RAISE counts as PRESS). Two curls or two
-    | triceps extensions are plenty for the seeded arm days; without the cap a
-    | Pull + Biceps day with enough distinct-angle curls fills half its slots
-    | with them.
-    |
-    */
-
-    'max_per_pattern_overrides' => [
-        'ELBOW_FLEXION' => 2,
-        'ELBOW_EXTENSION' => 2,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Composition Rules
-    |--------------------------------------------------------------------------
-    |
-    | Guardrails to prevent overly compound-dominant sessions.
-    |
-    */
-
-    'max_compound_by_region' => [
-        'LOWER' => 2,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Complementary Patterns
-    |--------------------------------------------------------------------------
-    |
-    | When a target region is selected, we can optionally pull in complementary
-    | movement patterns from other regions to round out the session.
-    |
-    */
-
-    'complementary_patterns' => [
-        'UPPER_PULL' => ['ELBOW_FLEXION'],
-        'UPPER_PUSH' => ['ELBOW_EXTENSION'],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Fitness Goal Defaults
-    |--------------------------------------------------------------------------
-    |
-    | Default sets, reps, and rest periods based on fitness goal.
-    | These are used when user has no exercise history.
-    |
-    */
-
-    'fitness_goal_defaults' => [
-        'strength' => [
-            'sets' => 4,
-            'min_reps' => 3,
-            'max_reps' => 5,
-            'rest_seconds' => 180,
-        ],
-        'muscle_gain' => [
-            'sets' => 4,
-            'min_reps' => 8,
-            'max_reps' => 12,
-            'rest_seconds' => 90,
-        ],
-        'fat_loss' => [
-            'sets' => 3,
-            'min_reps' => 12,
-            'max_reps' => 15,
-            'rest_seconds' => 45,
-        ],
-        'general_fitness' => [
-            'sets' => 3,
-            'min_reps' => 8,
-            'max_reps' => 12,
-            'rest_seconds' => 60,
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Set Distribution Limits
-    |--------------------------------------------------------------------------
-    |
-    | Maximum sets per exercise type. Compounds can have more sets than isolation.
-    | Every exercise gets at least min_sets_per_exercise. Until 2026-10-25 the
-    | sets were handed out one exercise at a time, so the last one got what was
-    | left: a 60-minute push day (20 sets) came out 4, 4, 4, 4, 3 and 1, and an
-    | exercise left with none fell back to the goal's default sets, over the
-    | time. The minimum wins over the time only below 24 minutes, where four
-    | exercises at 2 sets need more than duration ÷ 3.
-    |
-    */
-
-    'min_sets_per_exercise' => 2,
-    'max_sets_per_compound' => 4,
-    'max_sets_per_isolation' => 3,
-
-    /*
-    |--------------------------------------------------------------------------
     | Program (Mesocycle) Structure
     |--------------------------------------------------------------------------
     |
@@ -331,4 +166,17 @@ return [
     */
 
     'beginner_excluded_equipment' => ['SMITH'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Beginner Difficulty Exclusions
+    |--------------------------------------------------------------------------
+    |
+    | Exercise difficulties excluded for beginner users (ADR-0009). An exercise
+    | with no difficulty counts as intermediate and is never excluded, so the
+    | gate only bites once the difficulty column is curated. Selection gates on
+    | training experience, never on gender.
+    |
+    */
+    'beginner_excluded_difficulties' => ['advanced'],
 ];

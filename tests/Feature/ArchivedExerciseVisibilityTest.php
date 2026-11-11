@@ -11,7 +11,8 @@ use App\Models\WorkoutSession;
 use App\Models\WorkoutSessionExercise;
 use App\Models\WorkoutTemplate;
 use App\Models\WorkoutTemplateExercise;
-use App\Services\WorkoutGenerator\ExerciseSelectorService;
+use App\Services\WorkoutGenerator\Slots\SlotConstraints;
+use App\Services\WorkoutGenerator\Slots\SlotPool;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -35,8 +36,8 @@ class ArchivedExerciseVisibilityTest extends TestCase
         parent::setUp();
 
         $this->partner = Partner::factory()->create();
-        $this->live = Exercise::factory()->create(['name' => 'Live Bench Press']);
-        $this->archived = Exercise::factory()->create(['name' => 'Retired Bench Press', 'archived_at' => now()]);
+        $this->live = Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Live Bench Press']);
+        $this->archived = Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Retired Bench Press', 'archived_at' => now()]);
         $this->partner->exercises()->attach([$this->live->id, $this->archived->id]);
     }
 
@@ -62,9 +63,14 @@ class ArchivedExerciseVisibilityTest extends TestCase
 
     public function test_the_generator_never_picks_an_archived_exercise(): void
     {
-        $candidates = app(ExerciseSelectorService::class)->getAvailableExercises([], $this->partner);
+        // The day pool every Slot fills from (ADR-0010) queries available()
+        // exercises only, so an archived exercise can never enter a workout.
+        $pool = SlotPool::load(new SlotConstraints(partner: $this->partner));
 
-        $this->assertSame([$this->live->id], $candidates->modelKeys());
+        $mainPress = collect((new \App\Services\WorkoutGenerator\Slots\BlueprintRepository)->blueprint('PUSH')->slots())
+            ->firstWhere('key', 'main_press');
+
+        $this->assertSame([$this->live->id], $pool->roleCandidates($mainPress)->pluck('id')->all());
     }
 
     public function test_a_new_partner_is_not_linked_to_archived_exercises(): void

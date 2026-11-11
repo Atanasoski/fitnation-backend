@@ -99,6 +99,42 @@ class ExerciseStoreUpdateCharacterizationTest extends TestCase
         $this->assertEquals([$back->id], $exercise->primaryMuscleGroups()->pluck('muscle_groups.id')->all());
     }
 
+    /**
+     * Every Exercise has a Default Rest: an update that leaves it out, or
+     * blank, keeps the stored one rather than clearing it.
+     */
+    public function test_an_update_without_a_rest_keeps_the_stored_default_rest(): void
+    {
+        $omitted = Exercise::factory()->create(['default_rest_sec' => 150]);
+        $blank = Exercise::factory()->create(['default_rest_sec' => 45]);
+
+        $this->actingAs($this->admin())
+            ->put(route('exercises.update', $omitted), $this->fields(['name' => 'Renamed']))
+            ->assertRedirect(route('exercises.index'));
+        $this->actingAs($this->admin())
+            ->put(route('exercises.update', $blank), $this->fields(['name' => 'Blanked', 'default_rest_sec' => '']))
+            ->assertRedirect(route('exercises.index'));
+
+        $this->assertSame('Renamed', $omitted->fresh()->name);
+        $this->assertSame(150, $omitted->fresh()->default_rest_sec);
+        $this->assertSame(45, $blank->fresh()->default_rest_sec);
+    }
+
+    public function test_a_rest_must_be_a_whole_number_of_seconds(): void
+    {
+        $exercise = Exercise::factory()->create(['default_rest_sec' => 90]);
+
+        $this->actingAs($this->admin())
+            ->post(route('exercises.store'), $this->fields(['name' => 'Bad rest', 'default_rest_sec' => -5]))
+            ->assertSessionHasErrors('default_rest_sec');
+        $this->actingAs($this->admin())
+            ->put(route('exercises.update', $exercise), $this->fields(['name' => 'Bad rest', 'default_rest_sec' => 'soon']))
+            ->assertSessionHasErrors('default_rest_sec');
+
+        $this->assertDatabaseMissing('workout_exercises', ['name' => 'Bad rest']);
+        $this->assertSame(90, $exercise->fresh()->default_rest_sec);
+    }
+
     public function test_a_non_admin_can_neither_create_nor_update(): void
     {
         $exercise = Exercise::factory()->create(['name' => 'Untouched']);

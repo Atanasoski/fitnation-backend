@@ -2,6 +2,7 @@
 
 namespace App\Services\WorkoutSession;
 
+use App\Enums\ProgressionStatus;
 use App\Models\Exercise;
 use App\Models\User;
 use App\Services\WorkoutGenerator\ProgressionCalculatorService;
@@ -104,7 +105,9 @@ class SessionProgression
                 'target_weight' => 0,
                 'total_reps_previous' => null,
                 'total_reps_target' => null,
-                'rest_seconds' => $exercise->default_rest_sec ?? 90,
+                // With no exercise there is no Default Rest to read: 90 is the column's default.
+                'rest_seconds' => $exercise?->default_rest_sec ?? 90,
+                'progression_status' => ProgressionStatus::NoHistory,
             ],
             'last_performance' => null,
         ];
@@ -121,18 +124,33 @@ class SessionProgression
      * Per-row rather than part of forRows(), which keys by exercise id: two rows
      * carrying the same exercise share a calculation but resolve separately.
      *
+     * A Deload Week session holds the Working Weight in both directions
+     * (ADR-0011): the last working session's weight, never raised, and no
+     * lighter-weight offer.
+     *
+     * Reads the row's session for its deload flag. Callers resolving many rows
+     * hand each row the session they already hold (setRelation), or every row
+     * lazy-loads it.
+     *
      * @param  \App\Models\WorkoutSessionExercise  $row
-     * @param  array<string, mixed>  $calculated
+     * @param  array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}  $resolved
      * @return array<string, mixed>
      */
-    public function targetsFor($row, array $calculated): array
+    public function targetsFor($row, array $resolved): array
     {
+        $calculated = $resolved['targets'];
+        $lastPerformance = $resolved['last_performance'];
+        $isDeload = (bool) $row->workoutSession?->is_deload;
+        $isTotalReps = ($calculated['progression_mode'] ?? 'double_progression') === 'total_reps';
+
         $targets = [
             'progression_mode' => $calculated['progression_mode'],
             'target_sets' => $row->target_sets ?: $calculated['target_sets'],
             'min_target_reps' => $row->min_target_reps ?: $calculated['min_target_reps'],
             'max_target_reps' => $row->max_target_reps ?: $calculated['max_target_reps'],
-            'target_weight' => $calculated['target_weight'],
+            'target_weight' => $isDeload && ! $isTotalReps && $lastPerformance !== null
+                ? $lastPerformance['weight']
+                : $calculated['target_weight'],
             'total_reps_previous' => $calculated['total_reps_previous'],
             'total_reps_target' => $calculated['total_reps_target'],
             'rest_seconds' => $row->rest_seconds ?: $calculated['rest_seconds'],
@@ -143,18 +161,17 @@ class SessionProgression
         $exercise = $row->exercise;
         $step = $exercise ? $this->calculator->getWeightIncrement($exercise) : 0.0;
         $targets['weight_step'] = $step > 0 ? $step : null;
-        $targets['target_weight_lowered'] = $exercise && $targets['target_weight'] > 0
+        $targets['target_weight_lowered'] = ! $isDeload && $exercise && $targets['target_weight'] > 0
             ? $this->calculator->lowerByOneStep((float) $targets['target_weight'], $exercise)
             : null;
 
-        if (($calculated['progression_mode'] ?? 'double_progression') === 'total_reps') {
+        if ($isTotalReps) {
             $targets['min_target_reps'] = null;
             $targets['max_target_reps'] = null;
 
             // A deload session asks for recovery, not a new total: no "beat
-            // last week + 1" during the deload (ADR-0008). Only reached for
-            // bodyweight rows, so the lazy session load stays rare.
-            if ($row->workoutSession?->is_deload) {
+            // last week + 1" during the deload (ADR-0008).
+            if ($isDeload) {
                 $targets['total_reps_target'] = null;
             }
         }
@@ -163,15 +180,27 @@ class SessionProgression
     }
 
     /**
-     * Where the user stands against the rep range they are working in.
+     * Where the user stands: the verdict on their last working session, as
+     * the app reads it.
      *
-     * Takes the *resolved* rep bounds, not the stored ones, because the bounds
-     * a user is judged against are the ones they were shown.
+     * Not judged against this row's range. The calculator judged each logged
+     * set against its own Logged Range, the range it was prescribed when it
+     * was logged, and the same verdict decided target_weight, so the status
+     * and the weight cannot disagree (ADR-0011). Today's range is only today's
+     * target.
      *
-     * @param  array<string, mixed>|null  $lastPerformance
+     * A Deload Week session holds the weight, so it reads "working", or
+     * "no_history" when there is no working session to hold.
+     *
+     * @param  \App\Models\WorkoutSessionExercise  $row
+     * @param  array{targets: array<string, mixed>, last_performance: array<string, mixed>|null}  $resolved
      */
-    public function statusFor(?array $lastPerformance, int $minReps, int $maxReps, ?Exercise $exercise): string
+    public function statusFor($row, array $resolved): ProgressionStatus
     {
-        return $this->calculator->getProgressionStatus($lastPerformance, $minReps, $maxReps, $exercise);
+        if ($row->workoutSession?->is_deload) {
+            return ProgressionStatus::unjudged($resolved['last_performance'] !== null);
+        }
+
+        return $resolved['targets']['progression_status'] ?? ProgressionStatus::NoHistory;
     }
 }

@@ -6,21 +6,25 @@ namespace App\Services\WorkoutGenerator;
 
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
+use App\Models\EquipmentType;
 use App\Models\User;
 use App\Services\WorkoutGenerator\Slots\Blueprint;
 use App\Services\WorkoutGenerator\Slots\BlueprintResolver;
+use App\Services\WorkoutGenerator\Slots\FilledSlot;
 use App\Services\WorkoutGenerator\Slots\SessionTier;
 use App\Services\WorkoutGenerator\Slots\Slot;
 use App\Services\WorkoutGenerator\Slots\SlotConstraints;
 use App\Services\WorkoutGenerator\Slots\SlotFiller;
 use App\Services\WorkoutGenerator\Slots\SlotPool;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Generates a day from its Blueprint (ADR-0010): the resolver picks the
- * day type, the session tier picks the slots, the filler resolves each
- * slot through the Relaxation Waterfall, skipped slots hand their sets to
- * the earliest filled ones, and every row carries a slot-consistent
- * prescription plus the slot key that produced it.
+ * Generates a plan's days from their Blueprints (ADR-0010): per day, the
+ * resolver picks the day type, the session tier picks the slots, the
+ * filler resolves each slot through the Relaxation Waterfall, skipped
+ * slots hand their sets to the earliest filled ones, and every row carries
+ * a slot-consistent prescription plus the slot key that produced it. A
+ * single session is a one-day plan.
  */
 class BlueprintWorkoutGenerator
 {
@@ -30,55 +34,66 @@ class BlueprintWorkoutGenerator
     /** A redistributed slot may grow by at most this many sets. */
     private const REDISTRIBUTION_HEADROOM = 1;
 
-    /**
-     * Equipment whose exercises live mostly in the FUNCTIONAL catalog: a
-     * member who selected any of these meant the equipment, so a
-     * client-sent BODYBUILDING-only default yields instead of starving
-     * the day.
-     *
-     * @var list<string>
-     */
-    private const FUNCTIONAL_EQUIPMENT_CODES = [
-        'TRX',
-        'LANDMINE',
-        'KETTLEBELL',
-        'BAND',
-        'MEDICINE_BALL',
-    ];
-
     public function __construct(
         private BlueprintResolver $resolver,
         private SlotFiller $filler,
         private ProgressionCalculatorService $progressionCalculator,
+        private PrescriptionCalculator $prescriptionCalculator,
     ) {}
 
     /**
-     * @param  array<string, mixed>  $preferences
-     * @return array{exercises: list<array<string, mixed>>, rationale: string}
+     * Generates a plan's days (ADR-0010): the pool loads once, since a
+     * plan's days share their constraints; each day resolves and fills on
+     * its own, so duplicate day types still differ; the member's history
+     * for every picked exercise resolves in one batched lookup; then each
+     * day's filled Slots are prescribed.
+     *
+     * @param  array<string, mixed>  $preferences  duration_minutes, equipment_types, movement_patterns, angles, training_styles — shared by every day
+     * @param  list<list<string>>  $days  each day's requested regions, in plan order
+     * @return list<GeneratedDay> one per requested day, in the same order
      */
-    public function generate(User $user, array $preferences = []): array
+    public function generatePlan(User $user, array $preferences, array $days): array
     {
         $durationMinutes = (int) ($preferences['duration_minutes']
             ?? $user->profile?->workout_duration_minutes
             ?? 60);
         $tier = SessionTier::fromDuration($durationMinutes);
+        $pool = SlotPool::load($this->constraintsFor($user, $preferences));
 
-        $blueprint = $this->resolver->resolve(
-            $this->normalizeStringList($preferences['target_regions'] ?? null) ?? [],
-            $tier,
+        $fills = array_map(function (mixed $regions) use ($tier, $pool) {
+            $blueprint = $this->resolver->resolve($this->normalizeStringList($regions) ?? [], $tier);
+            [$filled, $skipped] = $this->fillSlots($this->tierAdjustedSets($blueprint, $tier), $pool);
+
+            if ($filled === []) {
+                throw new \Exception('No exercises available matching the specified criteria');
+            }
+
+            Log::info('workout.day_generated', [
+                'blueprint' => $blueprint->code,
+                'tier' => $tier->value,
+                'filled_slots' => array_map(fn (FilledSlot $filledSlot) => $filledSlot->slot->key, $filled),
+                'skipped_slots' => array_map(fn (Slot $slot) => $slot->key, $skipped),
+            ]);
+
+            return ['blueprint' => $blueprint, 'filled' => $filled, 'skipped' => $skipped];
+        }, array_values($days));
+
+        $lastPerformances = $this->progressionCalculator->getLastPerformanceForExercises(
+            collect($fills)
+                ->flatMap(fn (array $fill) => $fill['filled'])
+                ->map(fn (FilledSlot $filledSlot) => $filledSlot->exercise),
+            $user,
         );
 
-        $slotSets = $this->tierAdjustedSets($blueprint, $tier);
-        $filled = $this->fillSlots($blueprint, $tier, $slotSets, $this->constraintsFor($user, $preferences));
-
-        if ($filled === []) {
-            throw new \Exception('No exercises available matching the specified criteria');
-        }
-
-        return [
-            'exercises' => $this->prescribeRows($filled, $user),
-            'rationale' => $this->buildRationale($blueprint, $tier, $durationMinutes, count($filled)),
-        ];
+        return array_map(fn (array $fill) => new GeneratedDay(
+            blueprint: $fill['blueprint'],
+            tier: $tier,
+            durationMinutes: $durationMinutes,
+            filledSlots: $fill['filled'],
+            skippedSlots: $fill['skipped'],
+            rows: $this->prescribeRows($fill['filled'], $user, $lastPerformances),
+            description: $this->describeDay($fill['blueprint'], $durationMinutes, $fill['filled'], $fill['skipped']),
+        ), $fills);
     }
 
     /**
@@ -163,23 +178,22 @@ class BlueprintWorkoutGenerator
     private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
     {
         return collect($equipmentTypes)->contains(
-            fn (string $code) => in_array($code, self::FUNCTIONAL_EQUIPMENT_CODES, true)
+            fn (string $code) => in_array($code, EquipmentType::FUNCTIONAL_CODES, true)
         );
     }
 
     /**
-     * Fill every slot from one day pool, then redistribute skipped slots'
-     * sets: +1 at a time to the earliest filled slots, each capped at its
-     * own slot's sets + 1; sets that fit nowhere are dropped.
+     * Fill one day's slots from the plan's pool, then redistribute skipped
+     * slots' sets: +1 at a time to the earliest filled slots, each capped
+     * at its own slot's sets + 1; sets that fit nowhere are dropped.
      *
      * @param  list<array{slot: Slot, sets: int}>  $slotSets
-     * @return list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise}>
+     * @return array{0: list<FilledSlot>, 1: list<Slot>} the filled slots and the skipped ones
      */
-    private function fillSlots(Blueprint $blueprint, SessionTier $tier, array $slotSets, SlotConstraints $constraints): array
+    private function fillSlots(array $slotSets, SlotPool $pool): array
     {
-        $pool = SlotPool::load($constraints);
-
         $filled = [];
+        $skipped = [];
         $pickedIds = [];
         $skippedSlotSets = 0;
 
@@ -187,6 +201,7 @@ class BlueprintWorkoutGenerator
             $result = $this->filler->fill($slot, $pool, $pickedIds);
 
             if ($result->isSkipped()) {
+                $skipped[] = $slot;
                 $skippedSlotSets += $sets;
 
                 continue;
@@ -196,12 +211,12 @@ class BlueprintWorkoutGenerator
             $pickedIds[] = $result->exercise->id;
         }
 
-        return $this->redistribute($filled, $skippedSlotSets);
+        return [$this->redistribute($filled, $skippedSlotSets), $skipped];
     }
 
     /**
      * @param  list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise, cap: int}>  $filled
-     * @return list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise}>
+     * @return list<FilledSlot>
      */
     private function redistribute(array $filled, int $skippedSlotSets): array
     {
@@ -227,50 +242,55 @@ class BlueprintWorkoutGenerator
         }
 
         return array_map(
-            fn (array $row) => ['slot' => $row['slot'], 'sets' => $row['sets'], 'exercise' => $row['exercise']],
+            fn (array $row) => new FilledSlot($row['slot'], $row['exercise'], $row['sets']),
             $filled
         );
     }
 
     /**
-     * Prescription precedence (#107): the member's logged history outranks
-     * everything; without history the slot's rep range applies, goal-shifted
-     * on compound slots only. Slot sets always win in generated flows; the
-     * ADR-0009 matrix contributes only its rest fallback, exactly as before.
+     * Prescribes one day's filled slots from the plan's batch of last
+     * performances (ADR-0010). Every row stores its Slot's sets and rep
+     * range, the range goal-shifted on compound Slots only, with or without
+     * history. History moves only the Working Weight (progression, or the
+     * starting estimate without history) and the rest: the member's logged
+     * rest when they have one, otherwise the Prescription rest for the
+     * Slot's class — the exercise's Default Rest scaled by the goal and
+     * clamped by that class's floor.
      *
-     * @param  list<array{slot: Slot, sets: int, exercise: \App\Models\Exercise}>  $filled
+     * @param  list<FilledSlot>  $filled
+     * @param  array<int, array<string, mixed>>  $lastPerformances  keyed by exercise id; absent = no history
      * @return list<array<string, mixed>>
      */
-    private function prescribeRows(array $filled, User $user): array
+    private function prescribeRows(array $filled, User $user, array $lastPerformances): array
     {
-        $goal = $user->profile?->fitness_goal ?? FitnessGoal::GeneralFitness;
+        $goal = $user->fitnessGoal();
         $experience = $user->profile?->training_experience;
-        $matrixDefaults = config('workout_generator.fitness_goal_defaults', [])[$goal->value] ?? ['rest_seconds' => 90];
 
         $rows = [];
         $order = 1;
 
-        foreach ($filled as ['slot' => $slot, 'sets' => $sets, 'exercise' => $exercise]) {
-            $lastPerformance = $this->progressionCalculator->getLastPerformance($exercise, $user);
+        foreach ($filled as $filledSlot) {
+            $slot = $filledSlot->slot;
+            $exercise = $filledSlot->exercise;
+            $lastPerformance = $lastPerformances[$exercise->id] ?? null;
             $targets = $this->progressionCalculator->calculateTargetsFrom($exercise, $user, $experience, $lastPerformance);
 
             [$minReps, $maxReps] = $this->slotRepRange($slot, $goal);
 
-            if ($lastPerformance !== null && $targets['min_target_reps'] !== null) {
-                $minReps = $targets['min_target_reps'];
-                $maxReps = $targets['max_target_reps'];
-            }
-
             $rows[] = [
                 'exercise_id' => $exercise->id,
                 'order' => $order++,
-                'target_sets' => $sets,
+                'target_sets' => $filledSlot->sets,
                 'min_target_reps' => $minReps,
                 'max_target_reps' => $maxReps,
                 'target_weight' => $targets['target_weight'] ?? 0,
-                'rest_seconds' => $lastPerformance !== null
-                    ? $targets['rest_seconds']
-                    : ($matrixDefaults['rest_seconds'] ?? 90),
+                'rest_seconds' => $lastPerformance['rest_seconds']
+                    ?? $this->prescriptionCalculator->defaults(
+                        $slot->movementClass(),
+                        $goal,
+                        $exercise->default_rest_sec,
+                        $exercise->movementPattern?->code,
+                    )['rest_seconds'],
                 'slot_key' => $slot->key,
             ];
         }
@@ -299,19 +319,46 @@ class BlueprintWorkoutGenerator
         };
     }
 
-    private function buildRationale(Blueprint $blueprint, SessionTier $tier, int $durationMinutes, int $filledSlots): string
+    /**
+     * The description members read as session notes and as a program
+     * workout's description (#131): "Push day, 60 min: 5 exercises, heavy
+     * compound lifts first, then isolation work.", plus the roles the day
+     * could not fill. The order of work is named only when the filled Slots
+     * include both classes; a day of one kind ends "…: 2 exercises.". It
+     * names the same day type as the workout name; the tier and relaxation
+     * detail stay in the logs.
+     *
+     * @param  list<FilledSlot>  $filled
+     * @param  list<Slot>  $skipped
+     */
+    private function describeDay(Blueprint $blueprint, int $durationMinutes, array $filled, array $skipped): string
     {
-        $dayName = str_replace(['_', '+'], [' ', ' + '], strtolower($blueprint->code));
+        $exercises = count($filled) === 1 ? '1 exercise' : count($filled).' exercises';
+        $fillsBothClasses = collect($filled)->contains(fn (FilledSlot $filledSlot) => $filledSlot->slot->isCompound())
+            && collect($filled)->contains(fn (FilledSlot $filledSlot) => ! $filledSlot->slot->isCompound());
 
-        if ($blueprint->fragmentComposed) {
-            return "Composed a {$dayName} day from its region fragments at the {$tier->value} tier "
-                ."({$durationMinutes} minutes): {$filledSlots} slots filled in request order, "
-                ."trimmed to the tier's set budget.";
+        $description = "{$blueprint->label} day, {$durationMinutes} min: {$exercises}"
+            .($fillsBothClasses ? ', heavy compound lifts first, then isolation work.' : '.');
+
+        if ($skipped === []) {
+            return $description;
         }
 
-        return "Generated a {$dayName} day from its blueprint at the {$tier->value} tier "
-            ."({$durationMinutes} minutes): {$filledSlots} slots filled in blueprint order, "
-            .'heavy lifts leading, with sets and rep ranges read off each slot.';
+        $roles = $this->joinWithOr(array_values(array_unique(array_map(fn (Slot $slot) => $slot->label, $skipped))));
+
+        return "{$description} No suitable exercise was available for {$roles}, so their sets went to earlier exercises.";
+    }
+
+    /**
+     * "a", "a or b", "a, b or c".
+     *
+     * @param  non-empty-list<string>  $items
+     */
+    private function joinWithOr(array $items): string
+    {
+        $last = array_pop($items);
+
+        return $items === [] ? $last : implode(', ', $items)." or {$last}";
     }
 
     /**

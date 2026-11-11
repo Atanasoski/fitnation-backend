@@ -19,12 +19,10 @@ to progression code, because of an existing asymmetry in
 `SessionProgression::targetsFor()`: stored `target_sets`/`target_reps` win
 over calculated targets, while `target_weight` is always recomputed from the
 latest completed session (see **Working Weight** in the glossary). A deload
-session cannot falsely trigger a weight raise afterwards:
-`shouldProgressWeight()` compares reps against the *experience-based* default
-max from `getDefaultTargets()` (8–12, or 6–10 advanced) — not the goal's rep
-range — and 3–4 never reaches any tier's max. That invariant holds only while
-`program.deload.compound_max_reps` stays below every experience tier's max;
-check there before tuning either.
+session cannot trigger a weight raise afterwards: deload sessions are not
+performance history (ADR-0008), and every performance is judged against its
+own Logged Range (ADR-0011). The deload week itself holds the Working Weight
+(ADR-0011).
 
 ## Considered Options
 

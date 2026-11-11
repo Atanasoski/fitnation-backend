@@ -8,9 +8,9 @@ use App\Models\Plan;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\WelcomePlanGenerationService;
-use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\StubsPlanGeneration;
 use Tests\TestCase;
 
 /**
@@ -20,6 +20,7 @@ use Tests\TestCase;
 class PlanActivationTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPlanGeneration;
 
     public function test_creating_an_active_routine_leaves_the_active_program_alone(): void
     {
@@ -157,10 +158,7 @@ class PlanActivationTest extends TestCase
 
         $this->seed(\Database\Seeders\WorkoutSplitSeeder::class);
 
-        $generator = $this->createMock(BlueprintWorkoutGenerator::class);
-        $generator->method('generate')->willReturn(['exercises' => [], 'rationale' => 'Test']);
-
-        $plan = (new WelcomePlanGenerationService($generator))->generatePlan($user);
+        $plan = (new WelcomePlanGenerationService($this->stubPlanGenerator()))->generatePlan($user);
 
         $this->assertTrue($plan->fresh()->is_active);
         $this->assertFalse($autoProgram->fresh()->is_active);

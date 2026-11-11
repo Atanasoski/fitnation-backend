@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\WorkoutGenerator\Slots;
 
+use App\Enums\MovementClass;
+
 /**
  * One position in a Blueprint: a movement role carrying a Tier, a set
  * count, and a rep range (GLOSSARY: Slot). Hydrated from
@@ -14,6 +16,7 @@ final class Slot
     /**
      * @param  list<SlotRole>  $roles
      * @param  list<string>  $regions
+     * @param  string  $label  the role in members' words ("side delts"), named when the day could not fill it
      */
     public function __construct(
         public readonly string $key,
@@ -23,6 +26,7 @@ final class Slot
         public readonly int $repMax,
         public readonly array $regions,
         public readonly array $roles,
+        public readonly string $label,
     ) {}
 
     /**
@@ -41,28 +45,21 @@ final class Slot
                 fn (array $role) => new SlotRole($role['pattern'], $role['angles'] ?? null),
                 $config['roles']
             ),
+            label: $config['label'],
         );
     }
 
     /**
-     * The slot's compound/isolation class, read off its first pattern via
-     * the existing classification in config/workout_generator.php.
+     * The slot's compound/isolation class: the class of its first role's
+     * pattern.
      */
+    public function movementClass(): MovementClass
+    {
+        return MovementClass::fromPattern($this->roles[0]->pattern);
+    }
+
     public function isCompound(): bool
     {
-        return self::isCompoundPattern($this->roles[0]->pattern);
-    }
-
-    /**
-     * Whether a movement pattern is classified compound — the one place
-     * the compound_patterns classification is consulted.
-     */
-    public static function isCompoundPattern(?string $pattern): bool
-    {
-        return $pattern !== null && in_array(
-            $pattern,
-            config('workout_generator.compound_patterns', []),
-            true
-        );
+        return $this->movementClass()->isCompound();
     }
 }

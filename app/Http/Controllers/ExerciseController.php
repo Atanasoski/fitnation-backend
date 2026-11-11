@@ -83,7 +83,7 @@ class ExerciseController extends Controller
     public function store(StoreExerciseRequest $request): RedirectResponse
     {
         $attributes = $this->exerciseAttributes($request) + [
-            'default_rest_sec' => $request->default_rest_sec ?? 90,
+            'default_rest_sec' => $request->default_rest_sec,
             'selection_priority' => $request->selection_priority ?? 100,
         ];
 

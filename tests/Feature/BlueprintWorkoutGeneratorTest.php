@@ -11,6 +11,7 @@ use App\Services\WorkoutGenerator\Slots\Slot;
 use App\Services\WorkoutGenerator\Slots\SlotRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
+use Tests\Support\GeneratesOneDay;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class BlueprintWorkoutGeneratorTest extends TestCase
 {
     use CreatesCatalogExercises;
+    use GeneratesOneDay;
     use RefreshDatabase;
 
     private BlueprintWorkoutGenerator $generator;
@@ -105,6 +107,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'UPPER express' => [['UPPER_PUSH', 'UPPER_PULL'], 30, 'UPPER', ['chest_press', 'heavy_pull', 'press_2'], [3, 3, 3]],
             'UPPER standard' => [['UPPER_PUSH', 'UPPER_PULL'], 60, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts'], [3, 3, 3, 3, 3]],
             'UPPER extended' => [['UPPER_PUSH', 'UPPER_PULL'], 90, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts', 'arms'], [4, 4, 3, 3, 3, 3]],
+            // Push+pull+arms (the split seeder's Upper Body day) is an UPPER
+            // day in any order; its arms slot is tier 3, so arm work arrives
+            // at Extended only (#127).
+            'UPPER via push+pull+arms standard' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 60, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts'], [3, 3, 3, 3, 3]],
+            'UPPER via arms+pull+push extended' => [['ARMS', 'UPPER_PULL', 'UPPER_PUSH'], 90, 'UPPER', ['chest_press', 'heavy_pull', 'press_2', 'second_pull', 'side_delts', 'arms'], [4, 4, 3, 3, 3, 3]],
             'LOWER express' => [['LOWER'], 30, 'LOWER', ['quad_compound', 'hinge', 'ham_iso'], [3, 3, 3]],
             'LOWER standard' => [['LOWER'], 60, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves'], [3, 3, 3, 3, 3]],
             'LOWER extended' => [['LOWER'], 90, 'LOWER', ['quad_compound', 'hinge', 'quad_iso', 'ham_iso', 'calves', 'abs'], [4, 4, 3, 3, 3, 3]],
@@ -132,12 +139,9 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     ): void {
         $this->seedFullGymCatalog();
 
-        $workout = $this->generator->generate($this->user, [
-            'target_regions' => $regions,
-            'duration_minutes' => $durationMinutes,
-        ]);
+        $workout = $this->generateDay($this->user, $regions, ['duration_minutes' => $durationMinutes]);
 
-        $rows = $workout['exercises'];
+        $rows = $workout->rows;
         $this->assertSame($expectedSlotKeys, array_column($rows, 'slot_key'));
         $this->assertSame($expectedSets, array_column($rows, 'target_sets'));
         $this->assertSame(range(1, count($expectedSlotKeys)), array_column($rows, 'order'));
@@ -168,10 +172,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->user->profile->update(['fitness_goal' => FitnessGoal::Strength]);
         $this->seedFullGymCatalog();
 
-        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 45,
-        ])['exercises']);
+        $rows = $this->rowsBySlotKey($this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 45])->rows);
 
         foreach (['main_press', 'incline_press', 'overhead_press'] as $compoundSlot) {
             $this->assertSame(4, $rows[$compoundSlot]['min_target_reps'], $compoundSlot);
@@ -189,10 +190,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->user->profile->update(['fitness_goal' => FitnessGoal::FatLoss]);
         $this->seedFullGymCatalog();
 
-        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
-            'target_regions' => ['LOWER'],
-            'duration_minutes' => 45,
-        ])['exercises']);
+        $rows = $this->rowsBySlotKey($this->generateDay($this->user, ['LOWER'], ['duration_minutes' => 45])->rows);
 
         foreach (['quad_compound', 'hinge'] as $compoundSlot) {
             $this->assertSame(8, $rows[$compoundSlot]['min_target_reps'], $compoundSlot);
@@ -210,58 +208,84 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->user->profile->update(['fitness_goal' => FitnessGoal::MuscleGain]);
         $this->seedFullGymCatalog();
 
-        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 45,
-        ])['exercises']);
+        $rows = $this->rowsBySlotKey($this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 45])->rows);
 
         $this->assertSame(6, $rows['main_press']['min_target_reps']);
         $this->assertSame(10, $rows['main_press']['max_target_reps']);
     }
 
-    public function test_logged_history_outranks_the_goal_shifted_slot_range(): void
+    /**
+     * One completed working session in which the member logged every set of
+     * the exercise at the weight, reps and rest given, against a row shown
+     * the rep range given.
+     *
+     * @param  array{0: int, 1: int}  $shownRange
+     */
+    private function logCompletedSession(\App\Models\Exercise $exercise, float $weight, int $reps, ?int $restSeconds, array $shownRange): void
+    {
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => \App\Enums\WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+        $row = \App\Models\WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $exercise->id,
+            'order' => 1,
+            'target_sets' => 3,
+            'min_target_reps' => $shownRange[0],
+            'max_target_reps' => $shownRange[1],
+            'target_weight' => $weight,
+            'rest_seconds' => $restSeconds ?? 90,
+        ]);
+
+        foreach ([1, 2, 3] as $setNumber) {
+            \App\Models\SetLog::create([
+                'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $row->id,
+                'exercise_id' => $exercise->id,
+                'set_number' => $setNumber,
+                'weight' => $weight,
+                'reps' => $reps,
+                'rest_seconds' => $restSeconds,
+            ]);
+        }
+    }
+
+    /**
+     * History moves only the Working Weight and rest of a generated row,
+     * never its sets or rep range (ADR-0010): a strength member who logged
+     * their bench and their pushdown regenerates into the same Slot ranges
+     * as a member with no history — 4–6 on the main press, 10–15 on
+     * triceps — while the bench weight steps up and their own rest stays.
+     */
+    public function test_logged_history_moves_the_working_weight_and_rest_but_never_the_slot_range(): void
     {
         $this->user->profile->update(['fitness_goal' => FitnessGoal::Strength]);
         $this->seedFullGymCatalog();
 
         // The catalog's only FLAT press — main_press lands on it deterministically.
         $bench = \App\Models\Exercise::whereHas('angle', fn ($q) => $q->where('code', 'FLAT'))->sole();
+        $this->logCompletedSession($bench, 50, 6, 200, [4, 6]);
 
-        $session = \App\Models\WorkoutSession::factory()->create([
-            'user_id' => $this->user->id,
-            'status' => \App\Enums\WorkoutSessionStatus::Completed,
-            'completed_at' => now(),
-        ]);
-        foreach ([1, 2, 3] as $setNumber) {
-            \App\Models\SetLog::create([
-                'workout_session_id' => $session->id,
-                'exercise_id' => $bench->id,
-                'set_number' => $setNumber,
-                'weight' => 50,
-                'reps' => 12,
-            ]);
+        // Either elbow extension may fill triceps; both carry history.
+        $extensions = \App\Models\Exercise::whereHas('movementPattern', fn ($q) => $q->where('code', 'ELBOW_EXTENSION'))->get();
+        foreach ($extensions as $extension) {
+            $this->logCompletedSession($extension, 20, 10, 75, [10, 15]);
         }
 
-        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 45,
-        ])['exercises']);
+        $rows = $this->rowsBySlotKey($this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 45])->rows);
 
-        // History wins: the calculator's full prescription — rep range from
-        // the ADR-0009 matrix (strength compound 3–6), weight progressed by
-        // double progression (reps maxed at 50kg ⇒ 52.5kg) — not the
-        // no-history goal-shifted slot range (4–6).
         $this->assertSame($bench->id, $rows['main_press']['exercise_id']);
-        $this->assertSame(3, $rows['main_press']['min_target_reps']);
-        $this->assertSame(6, $rows['main_press']['max_target_reps']);
-        $this->assertEqualsWithDelta(52.5, (float) $rows['main_press']['target_weight'], 0.001);
-
-        // Slot sets still win for generated rows, even with history.
+        $this->assertSame([4, 6], [$rows['main_press']['min_target_reps'], $rows['main_press']['max_target_reps']]);
         $this->assertSame(3, $rows['main_press']['target_sets']);
+        $this->assertEqualsWithDelta(52.5, (float) $rows['main_press']['target_weight'], 0.001, 'every set topped 4–6 at 50kg, so the Working Weight steps up');
+        $this->assertSame(200, $rows['main_press']['rest_seconds'], 'their own logged rest');
 
-        // A compound without history keeps the strength shift.
-        $this->assertSame(4, $rows['overhead_press']['min_target_reps']);
-        $this->assertSame(6, $rows['overhead_press']['max_target_reps']);
+        $this->assertContains($rows['triceps']['exercise_id'], $extensions->modelKeys());
+        $this->assertSame([10, 15], [$rows['triceps']['min_target_reps'], $rows['triceps']['max_target_reps']]);
+        $this->assertSame(3, $rows['triceps']['target_sets']);
+        $this->assertSame(75, $rows['triceps']['rest_seconds'], 'their own logged rest');
     }
 
     public function test_a_skipped_slots_sets_move_one_at_a_time_to_the_earliest_filled_slots(): void
@@ -273,10 +297,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
         $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 45,
-        ])['exercises'];
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 45])->rows;
 
         $this->assertSame(
             ['main_press', 'incline_press', 'overhead_press', 'triceps'],
@@ -294,11 +315,10 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BODYWEIGHT', 'VERTICAL');
         $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'BODYWEIGHT');
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['ARMS'],
+        $rows = $this->generateDay($this->user, ['ARMS'], [
             'duration_minutes' => 45,
             'equipment_types' => ['BODYWEIGHT'],
-        ])['exercises'];
+        ])->rows;
 
         $this->assertCount(2, $rows);
         $this->assertSame(['overhead_press', 'biceps_heavy'], array_column($rows, 'slot_key'));
@@ -307,18 +327,25 @@ class BlueprintWorkoutGeneratorTest extends TestCase
 
     public function test_duplicate_day_types_in_a_split_fill_independently(): void
     {
-        // A split with two push days calls the generator once per day:
-        // each fill shuffles its own picks, so the week gets variety while
-        // both days stay proper push days (#107 stories 17 and 19 —
-        // regenerating a draft rides the same mechanism).
+        // One plan, many push days, one shared pool (#124): each day's fill
+        // shuffles its own picks, so the week gets variety while every day
+        // stays a proper push day (#107 stories 17 and 19 — regenerating a
+        // draft rides the same mechanism).
         $this->seedFullGymCatalog();
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
 
-        $mainPressPicks = collect(range(1, 20))
-            ->map(fn () => $this->rowsBySlotKey($this->generator->generate($this->user, [
-                'target_regions' => ['UPPER_PUSH'],
-                'duration_minutes' => 30,
-            ])['exercises'])['main_press']['exercise_id'])
+        $days = $this->generator->generatePlan(
+            $this->user,
+            ['duration_minutes' => 30],
+            array_fill(0, 20, ['UPPER_PUSH']),
+        );
+
+        foreach ($days as $day) {
+            $this->assertSame(['main_press', 'overhead_press', 'triceps'], array_column($day->rows, 'slot_key'));
+        }
+
+        $mainPressPicks = collect($days)
+            ->map(fn ($day) => $this->rowsBySlotKey($day->rows)['main_press']['exercise_id'])
             ->unique();
 
         $this->assertGreaterThan(1, $mainPressPicks->count());
@@ -336,10 +363,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
         $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 90,
-        ])['exercises'];
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 90])->rows;
 
         $this->assertSame(
             ['main_press', 'incline_press', 'overhead_press', 'triceps'],
@@ -352,9 +376,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     {
         $this->seedFullGymCatalog();
 
-        $rows = $this->generator->generate($this->user, [
-            'duration_minutes' => 60,
-        ])['exercises'];
+        $rows = $this->generateDay($this->user, [], ['duration_minutes' => 60])->rows;
 
         $this->assertSame(
             ['push', 'lower_compound', 'pull', 'delts_arms', 'lower_iso'],
@@ -365,7 +387,10 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     /**
      * Fragment-composed days (#112): a combination matching no Blueprint
      * concatenates its regions' Fragments in request order, tier-filters,
-     * and trims trailing slots to the tier's set budget (10/16/22).
+     * and trims fairly to the tier's set budget (10/16/22): the region
+     * holding the most sets loses its last slot (ties: the later-requested
+     * region), and no region loses its first slot while another still has
+     * two (#127).
      *
      * @return array<string, array{0: list<string>, 1: int, 2: list<string>, 3: list<int>}>
      */
@@ -379,12 +404,19 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'arms+core standard' => [['ARMS', 'CORE'], 60, ['biceps', 'triceps', 'side_delts', 'trunk_flexion', 'rotation'], [3, 3, 3, 3, 3]],
             'core alone standard' => [['CORE'], 60, ['trunk_flexion', 'rotation'], [3, 3]],
             'core alone express' => [['CORE'], 30, ['trunk_flexion'], [3]],
-            // 7 tier-filtered slots × 3 = 21 sets > the 16 budget: the
-            // trailing side_delts and triceps slots trim away.
-            'three regions trim at standard' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 60, ['main_press', 'secondary_press', 'vertical_pull', 'row', 'biceps'], [3, 3, 3, 3, 3]],
+            // Express, 12 sets > 10 with a 6–6 tie: the later-requested
+            // region loses its last slot.
+            'two regions trim at express' => [['ARMS', 'LOWER'], 30, ['biceps', 'triceps', 'quad_compound'], [3, 3, 3]],
+            // Express, 18 sets > 10: LOWER then ARMS lose their second
+            // slot, then the later-requested UPPER_PUSH its only one — no
+            // region empties while another keeps two.
+            'four regions trim at express' => [['ARMS', 'CORE', 'LOWER', 'UPPER_PUSH'], 30, ['biceps', 'trunk_flexion', 'quad_compound'], [3, 3, 3]],
+            // Standard, 21 sets > 16: ARMS holds the most and loses
+            // side_delts; then the 6–6–6 tie trims the later UPPER_PUSH.
+            'three regions trim at standard' => [['ARMS', 'CORE', 'UPPER_PUSH'], 60, ['biceps', 'triceps', 'trunk_flexion', 'rotation', 'main_press'], [3, 3, 3, 3, 3]],
             // Extended: 9 slots, 27 sets > 22 — and no Extended +1 bonus:
             // the set budget is a fragment day's whole volume mechanism.
-            'three regions trim at extended' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, ['main_press', 'secondary_press', 'chest_iso', 'vertical_pull', 'row', 'rear_delts', 'biceps'], [3, 3, 3, 3, 3, 3, 3]],
+            'three regions trim at extended' => [['UPPER_PUSH', 'LOWER', 'ARMS'], 90, ['main_press', 'secondary_press', 'chest_iso', 'quad_compound', 'hinge', 'biceps', 'triceps'], [3, 3, 3, 3, 3, 3, 3]],
         ];
     }
 
@@ -402,10 +434,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     ): void {
         $this->seedFullGymCatalog();
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => $regions,
-            'duration_minutes' => $durationMinutes,
-        ])['exercises'];
+        $rows = $this->generateDay($this->user, $regions, ['duration_minutes' => $durationMinutes])->rows;
 
         $this->assertSame($expectedSlotKeys, array_column($rows, 'slot_key'));
         $this->assertSame($expectedSets, array_column($rows, 'target_sets'));
@@ -427,32 +456,159 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         }
     }
 
-    public function test_a_fragment_days_rationale_names_the_regions_and_the_budget_not_a_blueprint(): void
+    /**
+     * Members read the description as session notes and as a program
+     * workout's description (#131): the day type, its length and its
+     * exercise count in plain words — never blueprint, slot or tier
+     * wording. The order of work is named only when the day fills both
+     * compound and isolation Slots (by Slot class); a day of one kind
+     * stops at its exercise count.
+     *
+     * @return array<string, array{0: list<string>, 1: int, 2: string}>
+     */
+    public static function plainDescriptionTable(): array
     {
-        $this->seedFullGymCatalog();
+        $order = 'heavy compound lifts first, then isolation work.';
 
-        $rationale = $this->generator->generate($this->user, [
-            'target_regions' => ['ARMS', 'CORE'],
-            'duration_minutes' => 45,
-        ])['rationale'];
-
-        $this->assertStringContainsString('arms + core', $rationale);
-        $this->assertStringContainsString('fragments', $rationale);
-        $this->assertStringNotContainsString('blueprint', $rationale);
+        return [
+            'a mixed push day names the order of work' => [['UPPER_PUSH'], 60, "Push day, 60 min: 5 exercises, {$order}"],
+            'a mixed legs day names the order of work' => [['LOWER', 'CORE'], 30, "Legs day, 30 min: 3 exercises, {$order}"],
+            'push+pull+arms is an upper day' => [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 90, "Upper Body day, 90 min: 6 exercises, {$order}"],
+            'full body names no focus' => [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 60, "Full Body day, 60 min: 5 exercises, {$order}"],
+            'an all-isolation composed day is named from its regions' => [['ARMS', 'CORE'], 45, 'Arms & Core day, 45 min: 5 exercises.'],
+            'an all-isolation core day' => [['CORE'], 60, 'Core day, 60 min: 2 exercises.'],
+        ];
     }
 
-    public function test_a_conditioning_only_request_fails_like_an_empty_pool_not_a_crash(): void
+    /**
+     * @param  list<string>  $regions
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('plainDescriptionTable')]
+    public function test_a_day_is_described_in_plain_words(array $regions, int $durationMinutes, string $expected): void
     {
-        // CONDITIONING contributes no Fragment (#107), so the composed day
-        // has no slots — the ordinary "no exercises" refusal, not a crash.
         $this->seedFullGymCatalog();
 
-        $this->expectExceptionMessage('No exercises available matching the specified criteria');
+        $description = $this->generateDay($this->user, $regions, ['duration_minutes' => $durationMinutes])->description;
 
-        $this->generator->generate($this->user, [
-            'target_regions' => ['CONDITIONING'],
-            'duration_minutes' => 45,
+        $this->assertSame($expected, $description);
+    }
+
+    /**
+     * A day that came out short says which roles had no suitable exercise
+     * and where their sets went, so it reads as deliberate (#131). This
+     * catalog holds presses only: no isolation can stand in for the side
+     * delts, triceps or chest fly Slots, even after relaxation — so the
+     * day fills compound Slots only and names no order of work.
+     *
+     * @return array<string, array{0: int, 1: string}>
+     */
+    public static function skippedSlotDescriptionTable(): array
+    {
+        return [
+            'two skipped slots' => [60, 'Push day, 60 min: 3 exercises. '
+                .'No suitable exercise was available for side delts or triceps, so their sets went to earlier exercises.'],
+            'three skipped slots' => [90, 'Push day, 90 min: 3 exercises. '
+                .'No suitable exercise was available for side delts, triceps or chest fly, so their sets went to earlier exercises.'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('skippedSlotDescriptionTable')]
+    public function test_a_day_with_skipped_slots_names_the_roles_it_could_not_fill(int $durationMinutes, string $expected): void
+    {
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'INCLINE');
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
+
+        $description = $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => $durationMinutes])->description;
+
+        $this->assertSame($expected, $description);
+    }
+
+    /**
+     * An Arms day whose catalog has no press fills only its isolation
+     * Slots: the overhead press skips, and the description names no order
+     * of work.
+     */
+    public function test_an_arms_day_filling_only_isolation_slots_names_no_order_of_work(): void
+    {
+        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL');
+        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'CABLE');
+        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
+        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'BARBELL');
+        $this->catalogExercise('SHOULDER_RAISE', 'UPPER_PUSH', 'DUMBBELL');
+
+        $description = $this->generateDay($this->user, ['ARMS'], ['duration_minutes' => 60])->description;
+
+        $this->assertSame(
+            'Arms day, 60 min: 4 exercises. '
+                .'No suitable exercise was available for overhead press, so their sets went to earlier exercises.',
+            $description,
+        );
+    }
+
+    /**
+     * A program workout's name comes from the day its regions resolved to
+     * (#131), keeping every name programs carried before; push+pull+arms
+     * is now an Upper day, so it is named like one.
+     */
+    public function test_each_day_is_named_from_the_day_it_resolved_to(): void
+    {
+        $this->seedFullGymCatalog();
+
+        $cases = [
+            [['UPPER_PUSH'], 'Push Day'],
+            [['UPPER_PUSH', 'ARMS'], 'Push Day'],
+            [['UPPER_PULL'], 'Pull Day'],
+            [['UPPER_PULL', 'ARMS'], 'Pull Day'],
+            [['LOWER'], 'Legs Day'],
+            [['LOWER', 'CORE'], 'Legs Day'],
+            [['UPPER_PUSH', 'UPPER_PULL'], 'Upper Body Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'ARMS'], 'Upper Body Day'],
+            [['ARMS'], 'Arms Day'],
+            [['UPPER_PUSH', 'UPPER_PULL', 'LOWER'], 'Full Body (Push)'],
+            [['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], 'Full Body (Pull)'],
+            [['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], 'Full Body (Legs)'],
+            [['UPPER_PUSH', 'LOWER'], 'Push & Legs Day'],
+            [['LOWER', 'UPPER_PUSH'], 'Legs & Push Day'],
+            [['CORE'], 'Core Day'],
+        ];
+
+        $days = $this->generator->generatePlan($this->user, ['duration_minutes' => 60], array_column($cases, 0));
+
+        $this->assertSame(
+            array_column($cases, 1),
+            array_map(fn (\App\Services\WorkoutGenerator\GeneratedDay $day) => $day->blueprint->workoutName(), $days),
+        );
+    }
+
+    public function test_the_tier_and_skipped_slots_go_to_the_log_not_the_description(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+
+        $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 30]);
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with('workout.day_generated', [
+            'blueprint' => 'PUSH',
+            'tier' => 'express',
+            'filled_slots' => ['main_press'],
+            'skipped_slots' => ['overhead_press', 'triceps'],
         ]);
+    }
+
+    public function test_a_one_exercise_day_is_described_in_the_singular(): void
+    {
+        // The only press fills main_press; overhead_press finds nothing left
+        // to relax to, and nothing can stand in for triceps.
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
+
+        $description = $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 30])->description;
+
+        $this->assertSame(
+            'Push day, 30 min: 1 exercise. '
+                .'No suitable exercise was available for overhead press or triceps, so their sets went to earlier exercises.',
+            $description,
+        );
     }
 
     public function test_the_literal_full_body_region_generates_the_push_focused_full_body_day(): void
@@ -461,10 +617,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         // #107's mapping table — it resolves like an empty region list.
         $this->seedFullGymCatalog();
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['FULL_BODY'],
-            'duration_minutes' => 60,
-        ])['exercises'];
+        $rows = $this->generateDay($this->user, ['FULL_BODY'], ['duration_minutes' => 60])->rows;
 
         $this->assertSame(
             ['push', 'lower_compound', 'pull', 'delts_arms', 'lower_iso'],
@@ -477,10 +630,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->user->profile->update(['fitness_goal' => FitnessGoal::Strength]);
         $this->seedFullGymCatalog();
 
-        $rows = $this->rowsBySlotKey($this->generator->generate($this->user, [
-            'target_regions' => ['LOWER', 'ARMS'],
-            'duration_minutes' => 60,
-        ])['exercises']);
+        $rows = $this->rowsBySlotKey($this->generateDay($this->user, ['LOWER', 'ARMS'], ['duration_minutes' => 60])->rows);
 
         // Compound fragment slots shift to 4–6 under the strength goal…
         foreach (['quad_compound', 'hinge'] as $compoundSlot) {
@@ -499,10 +649,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     {
         $this->expectExceptionMessage('No exercises available matching the specified criteria');
 
-        $this->generator->generate($this->user, [
-            'target_regions' => ['ARMS'],
-            'duration_minutes' => 45,
-        ]);
+        $this->generateDay($this->user, ['ARMS'], ['duration_minutes' => 45]);
     }
 
     /**
@@ -532,10 +679,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->tagFunctionalOnly($thruster);
 
         $pickedIds = collect(range(1, 10))
-            ->flatMap(fn () => array_column($this->generator->generate($this->user, [
-                'target_regions' => ['UPPER_PUSH'],
-                'duration_minutes' => 60,
-            ])['exercises'], 'exercise_id'))
+            ->flatMap(fn () => array_column($this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 60])->rows, 'exercise_id'))
             ->unique();
 
         $this->assertNotContains($thruster->id, $pickedIds->all());
@@ -548,11 +692,10 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
         $this->tagFunctionalOnly($trxPress);
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['TRX'],
-        ])['exercises'];
+        ])->rows;
 
         $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
     }
@@ -565,12 +708,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
         $this->tagFunctionalOnly($trxPress);
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['TRX'],
             'training_styles' => ['BODYBUILDING'],
-        ])['exercises'];
+        ])->rows;
 
         $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
     }
@@ -581,12 +723,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->tagFunctionalOnly($trxFunctional);
         $trxBodybuilding = $this->catalogExercise('FLY', 'UPPER_PUSH', 'TRX', 'HORIZONTAL');
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['TRX'],
             'training_styles' => ['FUNCTIONAL'],
-        ])['exercises'];
+        ])->rows;
 
         $pickedIds = array_column($rows, 'exercise_id');
         $this->assertContains($trxFunctional->id, $pickedIds);
@@ -599,12 +740,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $dumbbellThruster = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'VERTICAL');
         $this->tagFunctionalOnly($dumbbellThruster);
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['DUMBBELL'],
             'training_styles' => ['BODYBUILDING'],
-        ])['exercises'];
+        ])->rows;
 
         $pickedIds = array_column($rows, 'exercise_id');
         $this->assertContains($dumbbellPress->id, $pickedIds);
@@ -617,12 +757,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $trxRow = $this->catalogExercise('ROW', 'UPPER_PULL', 'TRX', 'HORIZONTAL');
         $this->tagFunctionalOnly($trxRow);
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH', 'UPPER_PULL'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH', 'UPPER_PULL'], [
             'duration_minutes' => 45,
             'equipment_types' => ['DUMBBELL', 'TRX'],
             'training_styles' => ['BODYBUILDING'],
-        ])['exercises'];
+        ])->rows;
 
         $pickedIds = array_column($rows, 'exercise_id');
         $this->assertContains($dumbbellPress->id, $pickedIds);
@@ -634,12 +773,11 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
         $this->tagFunctionalOnly($trxPress);
 
-        $rows = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['TRX'],
             'training_styles' => [],
-        ])['exercises'];
+        ])->rows;
 
         $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
     }
@@ -651,27 +789,46 @@ class BlueprintWorkoutGeneratorTest extends TestCase
 
         $this->expectExceptionMessage('No exercises available matching the specified criteria');
 
-        $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
+        $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['BARBELL'],
             'training_styles' => ['BODYBUILDING'],
         ]);
     }
 
+    /**
+     * The beginner difficulty exclusion is the config value it appears to
+     * be (#123): changing which difficulties are excluded changes which
+     * exercise a beginner's main press can be.
+     */
+    public function test_the_beginner_difficulty_exclusion_is_read_from_config(): void
+    {
+        $this->user->profile->update(['training_experience' => TrainingExperience::Beginner]);
+        $intermediatePress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['difficulty' => 'intermediate']);
+        $advancedPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT', ['difficulty' => 'advanced']);
+
+        $pickedIds = fn () => array_column($this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 30])->rows, 'exercise_id');
+
+        $byDefault = $pickedIds();
+        $this->assertContains($intermediatePress->id, $byDefault);
+        $this->assertNotContains($advancedPress->id, $byDefault);
+
+        config(['workout_generator.beginner_excluded_difficulties' => ['intermediate']]);
+
+        $reconfigured = $pickedIds();
+        $this->assertContains($advancedPress->id, $reconfigured);
+        $this->assertNotContains($intermediatePress->id, $reconfigured);
+    }
+
     public function test_a_standard_push_day_is_the_push_blueprints_tier_one_and_two_slots_in_order(): void
     {
         $this->seedFullGymCatalog();
 
-        $workout = $this->generator->generate($this->user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 45,
-        ]);
+        $workout = $this->generateDay($this->user, ['UPPER_PUSH'], ['duration_minutes' => 45]);
 
-        $this->assertIsString($workout['rationale']);
-        $this->assertNotSame('', $workout['rationale']);
+        $this->assertNotSame('', $workout->description);
 
-        $rows = $workout['exercises'];
+        $rows = $workout->rows;
         $this->assertSame(
             ['main_press', 'incline_press', 'overhead_press', 'side_delts', 'triceps'],
             array_column($rows, 'slot_key'),

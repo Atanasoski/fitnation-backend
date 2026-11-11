@@ -10,8 +10,10 @@ use App\Models\EquipmentType;
 use App\Models\Exercise;
 use App\Models\MovementPattern;
 use App\Models\MuscleGroup;
+use App\Models\Partner;
 use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
+use App\Services\Exercise\PartnerOverrides;
 use Illuminate\Database\Seeder;
 
 /**
@@ -27,9 +29,17 @@ use Illuminate\Database\Seeder;
  * UPPER_PUSH/UPPER_PULL. Names that already exist — in any state, including
  * archived — are left untouched, so re-running the seeder is a no-op and
  * production rows are never modified or resurrected.
+ *
+ * Training styles come from the classification seeder's shared inference,
+ * so bands and kettlebells are FUNCTIONAL only (#130). Every import joins
+ * the House Partner's library, with no override, and no other Partner
+ * Library: gyms opt in through the admin link. Without a House Partner the
+ * seeder refuses to run rather than import exercises no member can reach.
  */
 class CatalogEnrichmentSeeder extends Seeder
 {
+    public function __construct(private PartnerOverrides $overrides) {}
+
     /**
      * The spreadsheet exercises missing from the catalog.
      * Format: name, equipment (code), pattern (code), angle (code|null),
@@ -447,6 +457,11 @@ class CatalogEnrichmentSeeder extends Seeder
             TrainingStyleSeeder::class,
         ]);
 
+        $house = Partner::find(Partner::houseId());
+        if ($house === null) {
+            throw new \RuntimeException('The House Partner (id '.Partner::houseId().', HOUSE_PARTNER_ID) does not exist; create it before importing, or the imports reach no member.');
+        }
+
         $categories = Category::pluck('id', 'slug');
         $muscleGroups = MuscleGroup::pluck('id', 'name');
         $patterns = MovementPattern::pluck('id', 'code');
@@ -486,14 +501,17 @@ class CatalogEnrichmentSeeder extends Seeder
             }
             $exercise->muscleGroups()->sync($muscleAttachments);
 
-            // BODYBUILDING is the catalog default; functional implements
-            // (bands, kettlebells) also carry FUNCTIONAL, matching the
-            // classification seeder's inference.
-            $styleIds = [$trainingStyles['BODYBUILDING']];
-            if (in_array($data['equipment'], ExerciseClassificationSeeder::FUNCTIONAL_EQUIPMENT, true)) {
-                $styleIds[] = $trainingStyles['FUNCTIONAL'];
-            }
-            $exercise->trainingStyles()->sync($styleIds);
+            // The classification seeder's inference: bands and kettlebells
+            // are FUNCTIONAL only, so a member on the default BODYBUILDING
+            // style never draws them; everything else is BODYBUILDING.
+            $styleCodes = ExerciseClassificationSeeder::inferTrainingStyles($data['name'], $data['equipment']);
+            $exercise->trainingStyles()->sync(
+                array_map(fn (string $code) => $trainingStyles[$code], $styleCodes)
+            );
+
+            // Only the House Partner's library gains the import; gyms opt
+            // in through the admin link.
+            $this->overrides->link($house, $exercise);
 
             $created++;
         }

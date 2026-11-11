@@ -52,13 +52,11 @@ class WeeklyVolumeAuditTest extends TestCase
         $split = WorkoutSplit::getSplit(4, SplitFocus::Balanced);
         $this->assertCount(4, $split);
 
-        $generator = app(BlueprintWorkoutGenerator::class);
-        $weekRows = collect($split)->flatMap(
-            fn (array $targetRegions) => $generator->generate($user, [
-                'target_regions' => $targetRegions,
-                'duration_minutes' => 60, // Standard tier
-            ])['exercises']
-        );
+        $weekRows = collect(app(BlueprintWorkoutGenerator::class)->generatePlan(
+            $user,
+            ['duration_minutes' => 60], // Standard tier
+            array_values($split),
+        ))->flatMap(fn ($day) => $day->rows);
 
         $setsBySlotKey = $weekRows
             ->groupBy('slot_key')

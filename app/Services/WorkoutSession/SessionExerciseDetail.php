@@ -2,6 +2,7 @@
 
 namespace App\Services\WorkoutSession;
 
+use App\Enums\ProgressionStatus;
 use App\Models\WorkoutSessionExercise;
 use Illuminate\Support\Collection;
 
@@ -34,7 +35,7 @@ final readonly class SessionExerciseDetail
         public Collection $loggedSets,
         public Collection $previousSets,
         public bool $isCompleted,
-        public string $progressionStatus,
+        public ProgressionStatus $progressionStatus,
         public ?array $bestSet = null,
     ) {}
 }

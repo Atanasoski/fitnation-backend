@@ -7,32 +7,25 @@ use App\Enums\TrainingExperience;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
-use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
+use Tests\Support\GeneratesOneDay;
 use Tests\TestCase;
 
 /**
- * Prescription precedence at the generator seam (ADR-0009/0010): logged
- * history outranks everything; without history a generated row reads reps
- * off its Slot and rest off the goal default; the ADR-0009 matrix survives
- * as the fallback for non-generated rows. Day shape itself is read off the
+ * Prescription precedence at the generator seam (ADR-0009/0010): a generated
+ * row always reads sets and reps off its Slot; its rest is the member's
+ * logged rest, or else the exercise's Default Rest scaled by the goal and
+ * clamped by the Slot's class floor; the ADR-0009 matrix survives for
+ * non-generated rows. Day shape itself is read off the
  * Blueprint and asserted in BlueprintWorkoutGeneratorTest, not here — the
  * legacy compound-cap cases died with the caps.
  */
 class WorkoutGeneratorPrescriptionTest extends TestCase
 {
     use CreatesCatalogExercises;
+    use GeneratesOneDay;
     use RefreshDatabase;
-
-    private BlueprintWorkoutGenerator $generator;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->generator = app(BlueprintWorkoutGenerator::class);
-    }
 
     private function makeUser(Partner $partner, FitnessGoal $goal, TrainingExperience $experience = TrainingExperience::Intermediate): User
     {
@@ -52,7 +45,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         }
     }
 
-    public function test_no_history_rows_read_reps_off_the_slot_and_rest_off_the_goal_default(): void
+    public function test_no_history_rows_read_reps_off_the_slot_and_rest_off_the_scaled_default_rest(): void
     {
         $partner = Partner::factory()->create();
         $user = $this->makeUser($partner, FitnessGoal::MuscleGain);
@@ -61,21 +54,55 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         $pushdown = $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE', null, ['default_rest_sec' => 60]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['UPPER_PUSH'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
-        // main_press slot: 6–10; triceps slot: 10–15. Rest comes from the
-        // muscle-gain goal default (90s), not the exercise's Default Rest —
-        // that scaling now serves only rows with logged history.
+        // main_press slot: 6–10; triceps slot: 10–15. Rest is each
+        // exercise's own Default Rest at the muscle-gain multiplier (× 1.0).
         $this->assertSame(6, $byId[$press->id]['min_target_reps']);
         $this->assertSame(10, $byId[$press->id]['max_target_reps']);
-        $this->assertSame(90, $byId[$press->id]['rest_seconds']);
+        $this->assertSame(120, $byId[$press->id]['rest_seconds']);
 
         $this->assertSame(10, $byId[$pushdown->id]['min_target_reps']);
         $this->assertSame(15, $byId[$pushdown->id]['max_target_reps']);
-        $this->assertSame(90, $byId[$pushdown->id]['rest_seconds']);
+        $this->assertSame(60, $byId[$pushdown->id]['rest_seconds']);
+    }
+
+    /**
+     * A fat-loss member's heavy lifts are not rushed: rest is the Default
+     * Rest × 0.6, but never under the 60s floor of a compound Slot.
+     */
+    public function test_a_fat_loss_compound_slot_rests_its_scaled_default_rest_but_never_under_the_compound_floor(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::FatLoss);
+
+        $squat = $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $deadlift = $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 90]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $byId = collect($this->generateDay($user, ['LOWER'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
+
+        $this->assertSame(90, $byId[$squat->id]['rest_seconds']); // 150 × 0.6
+        $this->assertSame(60, $byId[$deadlift->id]['rest_seconds']); // 90 × 0.6 = 54 → compound floor 60
+    }
+
+    /**
+     * A strength member's curl is not padded to a heavy lift's rest: it is
+     * the curl's own Default Rest × 1.5.
+     */
+    public function test_a_strength_isolation_slot_rests_its_scaled_default_rest(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::Strength);
+
+        $curl = $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $byId = collect($this->generateDay($user, ['UPPER_PULL'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
+
+        $this->assertSame(90, $byId[$curl->id]['rest_seconds']); // 60 × 1.5
+        $this->assertSame(10, $byId[$curl->id]['min_target_reps'], 'an isolation Slot keeps its range for strength');
+        $this->assertSame(15, $byId[$curl->id]['max_target_reps']);
     }
 
     /**
@@ -129,10 +156,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         ]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $selectedIds = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PULL'],
-            'duration_minutes' => 30,
-        ])['exercises'])->pluck('exercise_id');
+        $selectedIds = collect($this->generateDay($user, ['UPPER_PULL'], ['duration_minutes' => 30])->rows)->pluck('exercise_id');
 
         $this->assertNotContains($deadlift->id, $selectedIds->all());
         $this->assertNotEmpty($selectedIds->all(), 'NULL and beginner difficulties stay reachable');
@@ -153,10 +177,7 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
         ]);
         $this->attachToPartner(Exercise::all(), $partner);
 
-        $byId = collect($this->generator->generate($user, [
-            'target_regions' => ['UPPER_PUSH'],
-            'duration_minutes' => 30,
-        ])['exercises'])->keyBy('exercise_id');
+        $byId = collect($this->generateDay($user, ['UPPER_PUSH'], ['duration_minutes' => 30])->rows)->keyBy('exercise_id');
 
         $this->assertIsInt($byId[$pushup->id]['min_target_reps']);
         $this->assertIsInt($byId[$pushup->id]['max_target_reps']);
@@ -183,5 +204,56 @@ class WorkoutGeneratorPrescriptionTest extends TestCase
             ]);
 
         $this->assertSame(75, $targets['rest_seconds']); // 120 × 0.6 = 72 → 75
+    }
+
+    /**
+     * A member whose history logged no rest gets the Prescription rest on a
+     * generated row, for the Slot's class: a split squat (a compound
+     * pattern) filling the quad-isolation Slot rests under the isolation
+     * floor, not the compound one.
+     */
+    public function test_history_without_logged_rest_gets_the_prescription_rest_for_the_slots_class(): void
+    {
+        $partner = Partner::factory()->create();
+        $user = $this->makeUser($partner, FitnessGoal::FatLoss);
+
+        $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL', null, ['default_rest_sec' => 150]);
+        $splitSquat = $this->catalogExercise('LUNGE_SPLIT_SQUAT', 'LOWER', 'DUMBBELL', null, ['default_rest_sec' => 60]);
+        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE', null, ['default_rest_sec' => 60]);
+        $this->attachToPartner(Exercise::all(), $partner);
+
+        $session = \App\Models\WorkoutSession::factory()->create([
+            'user_id' => $user->id,
+            'status' => \App\Enums\WorkoutSessionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+        $row = \App\Models\WorkoutSessionExercise::create([
+            'workout_session_id' => $session->id,
+            'exercise_id' => $splitSquat->id,
+            'order' => 1,
+            'target_sets' => 3,
+            'min_target_reps' => 10,
+            'max_target_reps' => 15,
+            'target_weight' => 12,
+            'rest_seconds' => 30,
+        ]);
+        foreach ([1, 2, 3] as $setNumber) {
+            \App\Models\SetLog::create([
+                'workout_session_id' => $session->id,
+                'workout_session_exercise_id' => $row->id,
+                'exercise_id' => $splitSquat->id,
+                'set_number' => $setNumber,
+                'weight' => 12,
+                'reps' => 12,
+                'rest_seconds' => null,
+            ]);
+        }
+
+        $rows = collect($this->generateDay($user, ['LOWER'], ['duration_minutes' => 60])->rows)->keyBy('slot_key');
+
+        $this->assertSame($splitSquat->id, $rows['quad_iso']['exercise_id']);
+        $this->assertEqualsWithDelta(12.0, (float) $rows['quad_iso']['target_weight'], 0.001, 'the history is read');
+        $this->assertSame(30, $rows['quad_iso']['rest_seconds'], '60 × 0.6 = 36 → 30 under the isolation floor, not raised to the compound 60');
     }
 }

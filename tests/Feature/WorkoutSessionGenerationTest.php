@@ -12,7 +12,9 @@ use App\Models\TargetRegion;
 use App\Models\TrainingStyle;
 use App\Models\User;
 use App\Models\WorkoutSession;
+use Database\Seeders\TargetRegionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class WorkoutSessionGenerationTest extends TestCase
@@ -53,6 +55,15 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotEmpty($response->json('data.exercises'));
         $this->assertEquals('draft', $response->json('data.status'));
         $this->assertTrue($response->json('data.is_auto_generated'));
+
+        // The session notes are member-facing plain words (#131): an empty
+        // region request is a Full Body day, and only presses exist here.
+        $rationale = $response->json('data.rationale');
+        $this->assertStringStartsWith('Full Body day, ', $rationale);
+        $this->assertStringContainsString('No suitable exercise was available for ', $rationale);
+        foreach (['blueprint', 'slot', 'tier'] as $internalWord) {
+            $this->assertStringNotContainsStringIgnoringCase($internalWord, $rationale);
+        }
 
         // Verify session was created in database
         $session = WorkoutSession::find($response->json('data.id'));
@@ -361,36 +372,73 @@ class WorkoutSessionGenerationTest extends TestCase
             ]);
     }
 
-    public function test_a_region_combination_with_no_fillable_day_returns_422(): void
+    /**
+     * FULL_BODY is requested alone or not at all (ADR-0010, #127).
+     *
+     * @return array<string, array{0: list<string>}>
+     */
+    public static function fullBodyCombinations(): array
     {
-        // CONDITIONING contributes no Fragment (#107): the composed day has
-        // no slots, which surfaces as the ordinary "no exercises" 422, not
-        // a 500.
-        TargetRegion::firstOrCreate(
-            ['code' => 'CONDITIONING'],
-            ['name' => 'Conditioning', 'display_order' => 60]
-        );
+        return [
+            'full body first' => [['FULL_BODY', 'ARMS']],
+            'full body last' => [['UPPER_PUSH', 'LOWER', 'FULL_BODY']],
+            'full body with every region' => [['FULL_BODY', 'UPPER_PUSH', 'UPPER_PULL', 'LOWER', 'ARMS', 'CORE']],
+        ];
+    }
 
-        $partner = Partner::factory()->create();
-        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
-        $user->profile()->update([
-            'fitness_goal' => FitnessGoal::MuscleGain,
-            'training_experience' => TrainingExperience::Intermediate,
-        ]);
+    #[DataProvider('fullBodyCombinations')]
+    public function test_generate_rejects_full_body_combined_with_another_region(array $regions): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
 
-        $exercise = Exercise::factory()->press()->barbell()->flat()->create();
-        $exercise->partners()->attach($partner->id);
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => $regions])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+    }
+
+    #[DataProvider('fullBodyCombinations')]
+    public function test_regenerate_rejects_full_body_combined_with_another_region(array $regions): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+        $draftId = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', [])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/workout-sessions/{$draftId}/regenerate", ['target_regions' => $regions])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions']);
+
+        $this->assertSame(WorkoutSessionStatus::Draft, WorkoutSession::find($draftId)->status);
+    }
+
+    public function test_full_body_alone_still_generates_a_day(): void
+    {
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->postJson('/api/workout-sessions/generate', [
-                'target_regions' => ['CONDITIONING'],
-                'duration_minutes' => 60,
-            ]);
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => ['FULL_BODY']]);
 
-        $response->assertStatus(422)
-            ->assertJsonFragment([
-                'message' => 'No exercises available matching the specified criteria',
-            ]);
+        $response->assertStatus(201);
+        $this->assertNotEmpty($response->json('data.exercises'));
+    }
+
+    public function test_conditioning_is_not_a_requestable_region(): void
+    {
+        // CONDITIONING was removed (#127): no exercise or split used it and
+        // it declared no Fragment, so all it could do was shrink a day.
+        $this->seed(TargetRegionSeeder::class);
+        $user = $this->memberWithAPressCatalog();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => ['CONDITIONING']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['target_regions.0']);
     }
 
     public function test_confirm_requires_draft_status(): void
@@ -502,5 +550,24 @@ class WorkoutSessionGenerationTest extends TestCase
             ->assertJsonFragment([
                 'message' => 'Only draft sessions can be regenerated',
             ]);
+    }
+
+    /**
+     * An entitled member whose Partner Library holds five flat barbell presses.
+     */
+    private function memberWithAPressCatalog(): User
+    {
+        $partner = Partner::factory()->create();
+        $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
+        $user->profile()->update([
+            'fitness_goal' => FitnessGoal::MuscleGain,
+            'training_experience' => TrainingExperience::Intermediate,
+        ]);
+
+        foreach (Exercise::factory()->count(5)->press()->barbell()->flat()->create() as $exercise) {
+            $exercise->partners()->attach($partner->id);
+        }
+
+        return $user;
     }
 }

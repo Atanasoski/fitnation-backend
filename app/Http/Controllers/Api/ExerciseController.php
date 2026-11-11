@@ -67,7 +67,7 @@ class ExerciseController extends Controller
             'description' => $request->description,
             'category_id' => $request->category_id,
             'image' => $request->file('image')?->store('exercises/images'),
-            'default_rest_sec' => $request->default_rest_sec ?? 90,
+            'default_rest_sec' => $request->default_rest_sec,
         ]);
 
         return response()->json([

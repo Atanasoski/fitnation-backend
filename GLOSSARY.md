@@ -26,6 +26,10 @@ The offer to join a nearby Partner, shown to an eligible House Partner customer 
 **Gym Location**:
 A geographic point with a radius marking where a Partner's gym is; a Partner may have several. A customer "near" a Partner is one inside any of its Gym Locations. Partners only match when the Join Prompt is enabled for them.
 
+**Paywall Discount**:
+A fixed tier — 10, 20, 30 or 50% off the subscription — that a super admin gives a Partner; its customers see the discounted prices on the paywall. Each tier is its own monthly and yearly products in both stores, grouped in the RevenueCat offering `discount-<percent>`, which the app shows instead of the default one. A deactivated Partner discounts no one. The stores never reprice a running subscription: a customer already paying full price keeps that price until they switch plans, and one who leaves the Partner keeps the discount until they cancel.
+_Avoid_: coupon, promo code, offer code (store features this does not use)
+
 **Onboarding**:
 The post-registration questionnaire (profile, goal, training setup) that ends with the welcome program being generated. Lives only in the mobile app; the web app sends non-onboarded users to the app download screen instead.
 

@@ -34,7 +34,7 @@ class PartnerController extends Controller
     {
         $this->authorize('create', Partner::class);
 
-        $partner = Partner::create($request->only(['name', 'slug', 'domain', 'is_active']));
+        $partner = Partner::create($request->only(['name', 'slug', 'domain', 'is_active', 'paywall_discount_tier']));
 
         $identityData = $request->only(config('branding.identity_fields'));
 
@@ -82,7 +82,7 @@ class PartnerController extends Controller
             return back()->withInput()->withErrors(['is_active' => Partner::HOUSE_CANNOT_BE_DEACTIVATED]);
         }
 
-        $partner->update($request->only(['name', 'slug', 'domain', 'is_active', 'geo_prompt_enabled', 'benefits']));
+        $partner->update($request->only(['name', 'slug', 'domain', 'is_active', 'geo_prompt_enabled', 'benefits', 'paywall_discount_tier']));
 
         if ($request->gymLocationsSubmitted()) {
             $partner->syncGymLocations($request->validated('gym_locations', []));

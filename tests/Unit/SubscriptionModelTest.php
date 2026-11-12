@@ -115,13 +115,14 @@ class SubscriptionModelTest extends TestCase
 
     public function test_every_paywall_discount_product_grants_app_access_in_both_stores(): void
     {
-        // Each tier sells `…premium.discount<percent>.<period>`: the bare ID from
-        // the App Store, `<product>:<base plan>` from Google Play.
+        // App Store: the bare ID. Google Play: `<product>:<base plan>`, with a
+        // shorter product ID (Play caps them at 40 characters).
         foreach (PaywallDiscountTier::cases() as $tier) {
             foreach (['monthly', 'yearly'] as $period) {
-                $product = "com.fitnation.app.premium.discount{$tier->value}.{$period}";
+                $appStore = "com.fitnation.app.premium.discount{$tier->value}.{$period}";
+                $play = "com.fitnation.app.discount{$tier->value}.{$period}:{$period}";
 
-                foreach ([$product, "{$product}:{$period}"] as $productId) {
+                foreach ([$appStore, $play] as $productId) {
                     $subscription = Subscription::factory()->make(['product_id' => $productId]);
 
                     $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);

@@ -2716,6 +2716,7 @@ interface UserPartner {
   name: string;
   slug: string;
   visual_identity: PartnerVisualIdentityResource | null;
+  paywall_offering_id: string | null;  // RevenueCat offering the paywall shows, e.g. "discount-30" (Paywall Discount); null = the default offering
 }
 
 // ============================================

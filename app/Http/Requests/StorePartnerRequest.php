@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PaywallDiscountTier;
 use App\Models\Partner;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePartnerRequest extends FormRequest
 {
@@ -27,6 +29,7 @@ class StorePartnerRequest extends FormRequest
             'slug' => ['required', 'string', 'max:255', 'unique:partners,slug', 'alpha_dash'],
             'domain' => ['nullable', 'string', 'max:255', 'unique:partners,domain'],
             'is_active' => ['boolean'],
+            'paywall_discount_tier' => ['nullable', Rule::enum(PaywallDiscountTier::class)],
 
             // Identity fields
             'primary_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],

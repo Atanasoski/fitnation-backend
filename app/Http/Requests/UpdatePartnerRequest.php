@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PaywallDiscountTier;
 use App\Models\Partner;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -100,6 +101,7 @@ class UpdatePartnerRequest extends FormRequest
             'slug' => ['required', 'string', 'max:255', Rule::unique('partners')->ignore($partnerId), 'alpha_dash'],
             'domain' => ['nullable', 'string', 'max:255', Rule::unique('partners')->ignore($partnerId)],
             'is_active' => ['boolean'],
+            'paywall_discount_tier' => ['nullable', Rule::enum(PaywallDiscountTier::class)],
 
             // Join Prompt configuration
             'geo_prompt_enabled' => ['boolean'],

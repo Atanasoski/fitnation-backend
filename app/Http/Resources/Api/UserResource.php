@@ -38,6 +38,7 @@ class UserResource extends JsonResource
                     'visual_identity' => $this->partner->identity
                         ? new PartnerVisualIdentityResource($this->partner->identity)
                         : null,
+                    'paywall_offering_id' => $this->partner->paywallOfferingId(),
                 ];
             }),
             'onboarding_completed_at' => $this->onboarding_completed_at,

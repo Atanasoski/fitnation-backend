@@ -129,6 +129,24 @@ class SubscriptionSyncTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson(self::GATED_ROUTE)->assertOk();
     }
 
+    public function test_a_paywall_discount_play_subscription_syncs_with_access(): void
+    {
+        // REST v1 names a Google Play subscription by its bare product id, the
+        // base plan apart in product_plan_identifier (the webhook sends
+        // `com.fitnation.app.discount20.monthly:monthly`). The bare id used to
+        // grant nothing: Subscribed in admin, the paywall in the app.
+        $user = User::factory()->create();
+        $body = $this->subscriber(['store' => 'play_store', 'product_plan_identifier' => 'monthly'], 'com.fitnation.app.discount20.monthly');
+        $body['subscriber']['entitlements']['app_access']['product_plan_identifier'] = 'monthly';
+        $this->fakeRevenueCat($body);
+
+        $this->sync($user)->assertOk()
+            ->assertJsonPath('user.subscription.status', 'active')
+            ->assertJsonPath('user.entitlements', ['app_access']);
+
+        $this->actingAs($user, 'sanctum')->getJson(self::GATED_ROUTE)->assertOk();
+    }
+
     public function test_sync_requires_authentication(): void
     {
         $this->postJson('/api/subscription/sync')->assertUnauthorized();

@@ -2,12 +2,15 @@
 
 use App\Enums\Entitlement;
 
-// Product ID (as RevenueCat sends it in the webhook) → the entitlements it grants.
+// Product ID (as RevenueCat reports it) → the entitlements it grants.
 //
-// Google Play products carry their base plan: RevenueCat reports a Play
-// subscription as `<product id>:<base plan id>`, and the base plans are named
-// `monthly` and `yearly` in Play Console / RevenueCat. App Store products are
-// the bare ID. Both spellings grant the same access.
+// RevenueCat spells a Google Play subscription two ways: the webhook sends
+// `<product id>:<base plan id>`, while the REST v1 subscriber that Subscription
+// Sync reads gives the bare product id (the base plan apart, in
+// product_plan_identifier). The base plans are named `monthly` and `yearly` in
+// Play Console / RevenueCat. App Store products are the bare ID. Every
+// spelling grants the same access: a missing one leaves a Play subscriber
+// Subscribed with no access after a sync.
 //
 // Each Paywall Discount tier (PaywallDiscountTier) sells its own monthly and
 // yearly product, with the same access as the standard products. App Store:
@@ -32,7 +35,7 @@ return [
     'com.fitnation.app.premium.discount50.monthly' => [Entitlement::AppAccess],
     'com.fitnation.app.premium.discount50.yearly' => [Entitlement::AppAccess],
 
-    // Paywall Discount, Google Play.
+    // Paywall Discount, Google Play: as the webhook sends them…
     'com.fitnation.app.discount10.monthly:monthly' => [Entitlement::AppAccess],
     'com.fitnation.app.discount10.yearly:yearly' => [Entitlement::AppAccess],
     'com.fitnation.app.discount20.monthly:monthly' => [Entitlement::AppAccess],
@@ -41,4 +44,15 @@ return [
     'com.fitnation.app.discount30.yearly:yearly' => [Entitlement::AppAccess],
     'com.fitnation.app.discount50.monthly:monthly' => [Entitlement::AppAccess],
     'com.fitnation.app.discount50.yearly:yearly' => [Entitlement::AppAccess],
+
+    // …and as Subscription Sync reads them. (The standard Play products need no
+    // bare entries of their own: their bare IDs are the App Store IDs above.)
+    'com.fitnation.app.discount10.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount10.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount20.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount20.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount30.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount30.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount50.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.discount50.yearly' => [Entitlement::AppAccess],
 ];

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Enums\Entitlement;
+use App\Enums\PaywallDiscountTier;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -109,6 +110,23 @@ class SubscriptionModelTest extends TestCase
             $subscription = Subscription::factory()->make(['product_id' => $productId]);
 
             $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);
+        }
+    }
+
+    public function test_every_paywall_discount_product_grants_app_access_in_both_stores(): void
+    {
+        // Each tier sells `<standard product>.d<percent>`: the bare ID from the
+        // App Store, `<product>:<base plan>` from Google Play.
+        foreach (PaywallDiscountTier::cases() as $tier) {
+            foreach (['monthly', 'yearly'] as $period) {
+                $product = "com.fitnation.app.premium.{$period}.d{$tier->value}";
+
+                foreach ([$product, "{$product}:{$period}"] as $productId) {
+                    $subscription = Subscription::factory()->make(['product_id' => $productId]);
+
+                    $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);
+                }
+            }
         }
     }
 

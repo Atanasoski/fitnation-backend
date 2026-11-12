@@ -10,8 +10,10 @@ use App\Enums\Entitlement;
 // the bare ID. Both spellings grant the same access.
 //
 // Each Paywall Discount tier (PaywallDiscountTier) sells its own monthly and
-// yearly product, named after the standard one plus `.d<percent>`. They grant
-// the same access as the standard products.
+// yearly product, `com.fitnation.app.premium.discount<percent>.<period>`, with
+// the same access as the standard products. On the App Store every tier has its
+// own subscription group: iOS lets a subscriber switch to any plan in their
+// group from Settings, so a discount in the standard group would be open to all.
 return [
     'com.fitnation.app.premium.monthly' => [Entitlement::AppAccess],
     'com.fitnation.app.premium.yearly' => [Entitlement::AppAccess],
@@ -19,22 +21,22 @@ return [
     'com.fitnation.app.premium.yearly:yearly' => [Entitlement::AppAccess],
 
     // Paywall Discount, App Store.
-    'com.fitnation.app.premium.monthly.d10' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d20' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d30' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d50' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d10' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d20' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d30' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d50' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount10.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount10.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount20.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount20.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount30.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount30.yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount50.monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount50.yearly' => [Entitlement::AppAccess],
 
     // Paywall Discount, Google Play.
-    'com.fitnation.app.premium.monthly.d10:monthly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d20:monthly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d30:monthly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.monthly.d50:monthly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d10:yearly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d20:yearly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d30:yearly' => [Entitlement::AppAccess],
-    'com.fitnation.app.premium.yearly.d50:yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount10.monthly:monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount10.yearly:yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount20.monthly:monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount20.yearly:yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount30.monthly:monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount30.yearly:yearly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount50.monthly:monthly' => [Entitlement::AppAccess],
+    'com.fitnation.app.premium.discount50.yearly:yearly' => [Entitlement::AppAccess],
 ];

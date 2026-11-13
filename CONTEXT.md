@@ -66,6 +66,23 @@ same transition as the athlete's own cancel (logged sets are kept), recorded
 as an [Admin Change](#admin-change). Only a Stuck Session may be cancelled
 this way; a session someone is mid-workout on may not.
 
+### Draft Session
+
+A generated workout the athlete has been shown but not started. Starting it
+makes it active; regenerating it makes it a [Swapped
+Session](#swapped-session). One left for more than a day was abandoned, not
+previewed: it no longer counts as a session in progress.
+
+_Avoid_: preview, pending workout.
+
+### Swapped Session
+
+A Draft Session the athlete regenerated: cancelled, with the new draft pointing
+back at it. It means "didn't like it", as opposed to every other cancel, which
+means "gave up".
+
+_Avoid_: regenerated session, replaced session.
+
 ## Fitness Metrics
 
 ### Completed Session
@@ -275,8 +292,9 @@ with none yet is measured from the day they finished onboarding.
 Sent on a **ladder** — 3, 7 and 14 days of inactivity — at 18:00 in the
 [Device](#device)'s local time, then never again until the user trains, which
 resets the ladder. A user is not nudged while onboarding is incomplete, while a
-session of theirs is in progress, or while their [Push Switch](#push-switch)
-is off.
+session of theirs is in progress (active, or a [Draft
+Session](#draft-session) generated within the last day), or while their [Push
+Switch](#push-switch) is off.
 
 _Avoid_: reminder — a Reminder is tied to a scheduled workout day, not to
 silence; re-engagement, win-back.

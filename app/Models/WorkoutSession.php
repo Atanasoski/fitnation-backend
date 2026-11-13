@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Enums\WorkoutSessionStatus;
+use App\Services\Admin\Insights;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class WorkoutSession extends Model
 {
-    use HasFactory;
+    use HasFactory, MassPrunable;
 
     protected $fillable = [
         'user_id',
@@ -37,6 +39,19 @@ class WorkoutSession extends Model
     protected $appends = ['status_label', 'status_badge_classes'];
 
     /**
+     * Draft Sessions and Cancelled ones with no set logged, once Insights can
+     * no longer look back at them (ADR-0012). Mass-pruned: no files hang off
+     * a session, and the database cascades its exercise rows.
+     */
+    public function prunable(): Builder
+    {
+        return static::query()
+            ->whereIn('status', [WorkoutSessionStatus::Draft, WorkoutSessionStatus::Cancelled])
+            ->where('created_at', '<', now()->subDays(max(Insights::RANGES)))
+            ->whereDoesntHave('setLogs');
+    }
+
+    /**
      * Completed Sessions (CONTEXT.md): the one place the definition is written.
      * A session carries both a status and a completed_at, and only the status
      * decides — completing writes the status, and everything derived from a
@@ -51,6 +66,11 @@ class WorkoutSession extends Model
      * How long a session may stay active before it counts as stuck.
      */
     public const STUCK_AFTER_HOURS = 24;
+
+    /**
+     * How long a Draft Session counts as in progress before it was abandoned.
+     */
+    public const DRAFT_ABANDONED_AFTER_HOURS = 24;
 
     /**
      * Stuck Sessions (CONTEXT.md): still active more than 24 hours after they

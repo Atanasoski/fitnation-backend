@@ -69,6 +69,10 @@ _Avoid_: cycle, block (unqualified)
 The final week of a Mesocycle: a scheduled low-volume recovery week. Every exercise drops to 2 sets; compound Slots at 3–4 reps, isolation Slots keep their normal rep range. The Working Weight holds: it is neither raised nor lowered during a Deload Week. Sessions completed in a Deload Week are recovery, not performance: they never count as performance history.
 _Avoid_: rest week, recovery week
 
+**Untrained Program**:
+A generated Program the user moved on from — by regenerating or switching to another — without completing a single session of it. Unlike a Program the user trained on, which is a past Mesocycle, it carries no history worth keeping. Partner library programs are never Untrained Programs.
+_Avoid_: old program, stale plan
+
 **Working Weight**:
 The weight progression currently prescribes for an exercise: recomputed on every read from the user's latest completed working (non-deload) session of that exercise, never stored as a target. It rises one equipment step once every set of that session topped its Logged Range. A stored `target_weight` on a template or session row is only the starting estimate for a user with no history.
 _Avoid_: current weight, last weight

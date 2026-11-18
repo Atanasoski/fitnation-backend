@@ -674,16 +674,8 @@ interface CompleteOnboardingResponse {
 **Notes:**
 - This endpoint can only be called once per user. If `onboarding_completed_at` is already set, it will return a 409 Conflict error.
 - The generated plan is automatically set as active (`is_active: true`) and marked as auto-generated (`is_auto_generated: true`).
-- The workout split is determined by the pair (`training_days_per_week`, `split_focus`), looked up in a curated, staff-maintained catalog that covers every focus at 1-7 days. A member with no `split_focus` is built `balanced`. The balanced splits are:
-  - 1 day: Full Body
-  - 2 days: Full Body, Full Body
-  - 3 days: Full Body, Full Body, Full Body
-  - 4 days: Push, Legs, Pull, Legs
-  - 5 days: Push, Legs, Pull, Legs, Upper Body
-  - 6 days: Push, Pull, Legs, Push, Pull, Legs
-  - 7 days: Push, Pull, Legs, Push, Pull, Legs, Full Body
-
-  The `upper_focus` and `lower_focus` catalogs carry different day types at the same frequencies, so a client must not assume the table above. The generated plan's `description` names the focus it was built from.
+- The workout split is determined by the pair (`training_days_per_week`, `split_focus`), looked up in a curated catalog covering every focus at 1-7 days. A member with no `split_focus` is built `balanced`. The generated plan's `description` names the focus it was built from.
+- **The catalog is staff-maintained and editable in the admin panel, so clients must not hard-code which day types a given pair produces.** This document previously listed the day types per frequency; that table had drifted from the live catalog and has been removed rather than re-synced. The authoritative list is the admin panel's Workout Splits page; the day types a member actually received are in their plan's workout names.
 - Each workout template is generated from the user's fitness goal, training experience and `workout_duration_minutes`. The duration picks each day's Tier, which decides how many exercises it gets: 30 → Express, 45 or 60 → Standard, 90 or 120 → Extended (see the session length notes under [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---

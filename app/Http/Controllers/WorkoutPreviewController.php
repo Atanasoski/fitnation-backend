@@ -46,6 +46,7 @@ class WorkoutPreviewController extends Controller
             'fitness_goal' => ['required', 'string', 'in:fat_loss,muscle_gain,strength,general_fitness'],
             'training_experience' => ['required', 'string', 'in:beginner,intermediate,advanced'],
             'gender' => ['required', 'string', 'in:male,female,other'],
+            'split_focus' => ['nullable', Rule::enum(SplitFocus::class)],
             'training_days_per_week' => ['required', 'integer', 'min:1', 'max:7'],
             'duration_minutes' => ['required', 'integer', Rule::in(WorkoutDuration::values())],
             'weeks' => ['required', 'integer', 'min:1', 'max:12'],
@@ -73,11 +74,10 @@ class WorkoutPreviewController extends Controller
             $fakeUser->setRelation('partner', $partner);
         }
 
-        // Determine split focus based on gender (same logic as WelcomePlanGenerationService)
-        $splitFocus = match ($fakeProfile->gender) {
-            Gender::Female => SplitFocus::LowerFocus,
-            default => SplitFocus::Balanced,
-        };
+        // The previewed member's own emphasis, exactly as generation reads
+        // it (#143, ADR-0013). Gender used to decide this, which left two
+        // thirds of the seeded Splits impossible to preview.
+        $splitFocus = SplitFocus::tryFrom((string) ($validated['split_focus'] ?? '')) ?? SplitFocus::Balanced;
 
         // Get workout split
         $split = WorkoutSplit::getSplit((int) $validated['training_days_per_week'], $splitFocus);
@@ -86,7 +86,7 @@ class WorkoutPreviewController extends Controller
             $partners = Partner::orderBy('name')->get();
 
             return view('admin.workout-preview.index', [
-                'error' => "No workout split found for {$validated['training_days_per_week']} days/week",
+                'error' => "No workout split found for {$validated['training_days_per_week']} days/week with {$splitFocus->value} focus",
                 'partners' => $partners,
                 'params' => $validated,
             ]);

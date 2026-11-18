@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
-use App\Enums\MovementClass;
 use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Models\Exercise;
@@ -15,11 +14,10 @@ use App\Models\User;
 use App\Models\WorkoutSplit;
 use App\Services\WelcomePlanGenerationService;
 use App\Services\WorkoutGenerator\BlueprintWorkoutGenerator;
-use App\Services\WorkoutGenerator\Slots\Blueprint;
-use App\Services\WorkoutGenerator\Slots\BlueprintRepository;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
+use Tests\Support\ReadsSlotDefinitions;
 use Tests\TestCase;
 
 /**
@@ -29,6 +27,7 @@ use Tests\TestCase;
 class MesocycleProgramTest extends TestCase
 {
     use CreatesCatalogExercises;
+    use ReadsSlotDefinitions;
     use RefreshDatabase;
 
     private Partner $partner;
@@ -41,7 +40,9 @@ class MesocycleProgramTest extends TestCase
 
         $this->partner = Partner::factory()->create();
 
-        // A catalog big enough for the generator to fill any split day.
+        // Upper-day exercises only. A test whose plan contains a Legs day
+        // adds the lower-body half itself with seedLegDayCatalog(), so that
+        // the split-squat test below keeps a lower catalog it fully controls.
         Exercise::factory()->press()->barbell()->flat()->create(['name' => 'Barbell Bench Press']);
         Exercise::factory()->press()->barbell()->incline()->create(['name' => 'Incline Bench Press']);
         Exercise::factory()->press()->barbell()->vertical()->create(['name' => 'Overhead Press']);
@@ -69,6 +70,24 @@ class MesocycleProgramTest extends TestCase
         }
     }
 
+    /**
+     * The lower-body half of the gym. The 3-day balanced split is Upper /
+     * Legs / Upper (#146), so every full-plan test here generates a Legs
+     * day and needs its tier-1 and tier-2 Slots fillable.
+     */
+    private function seedLegDayCatalog(): void
+    {
+        $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL');
+        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL');
+        $this->catalogExercise('KNEE_EXTENSION', 'LOWER', 'MACHINE');
+        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE');
+        $this->catalogExercise('CALF_RAISE', 'LOWER', 'MACHINE');
+
+        foreach (Exercise::all() as $exercise) {
+            $exercise->partners()->syncWithoutDetaching([$this->partner->id]);
+        }
+    }
+
     private function makeUser(FitnessGoal $goal): User
     {
         $user = User::factory()->create(['partner_id' => $this->partner->id]);
@@ -85,6 +104,7 @@ class MesocycleProgramTest extends TestCase
 
     public function test_generated_template_rows_persist_the_slot_key_that_produced_them(): void
     {
+        $this->seedLegDayCatalog();
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
@@ -99,6 +119,7 @@ class MesocycleProgramTest extends TestCase
 
     public function test_program_length_comes_from_the_fitness_goal(): void
     {
+        $this->seedLegDayCatalog();
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
@@ -112,6 +133,7 @@ class MesocycleProgramTest extends TestCase
 
     public function test_fat_loss_gets_a_six_week_mesocycle(): void
     {
+        $this->seedLegDayCatalog();
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::FatLoss));
@@ -122,6 +144,7 @@ class MesocycleProgramTest extends TestCase
 
     public function test_accumulation_weeks_carry_identical_workouts(): void
     {
+        $this->seedLegDayCatalog();
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
@@ -157,6 +180,7 @@ class MesocycleProgramTest extends TestCase
 
     public function test_final_week_is_a_deload(): void
     {
+        $this->seedLegDayCatalog();
         $service = app(WelcomePlanGenerationService::class);
 
         $plan = $service->generatePlan($this->makeUser(FitnessGoal::MuscleGain));
@@ -203,24 +227,6 @@ class MesocycleProgramTest extends TestCase
 
         // The isolation branch must actually have been exercised.
         $this->assertGreaterThan(0, $isolationRowsSeen);
-    }
-
-    /**
-     * The class of the Slot a generated row fills, from its slot_key. A key
-     * names the same role in every Blueprint and Fragment it appears in.
-     */
-    private function slotClass(string $slotKey): MovementClass
-    {
-        $repository = new BlueprintRepository;
-        $slots = array_merge(
-            ...array_map(fn (Blueprint $blueprint) => $blueprint->slots(), $repository->blueprints()),
-            ...array_values($repository->fragments()),
-        );
-
-        $slot = collect($slots)->firstWhere('key', $slotKey);
-        $this->assertNotNull($slot, "No Slot has the key {$slotKey}");
-
-        return $slot->movementClass();
     }
 
     /**

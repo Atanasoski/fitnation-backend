@@ -10,10 +10,14 @@ use App\Models\User;
 use App\Models\WorkoutSplit;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesCatalogExercises;
+use Tests\Support\ReadsSlotDefinitions;
 use Tests\TestCase;
 
 class WorkoutPreviewTest extends TestCase
 {
+    use CreatesCatalogExercises;
+    use ReadsSlotDefinitions;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -73,15 +77,9 @@ class WorkoutPreviewTest extends TestCase
 
     public function test_preview_generates_workouts_for_valid_input(): void
     {
-        // Create exercises with proper relationships for different target regions
-        Exercise::factory()->press()->barbell()->flat()->count(5)->create();
-        Exercise::factory()->row()->barbell()->horizontal()->count(5)->create();
-        Exercise::factory()->count(10)->create([
-            'target_region_id' => \App\Models\TargetRegion::firstOrCreate(
-                ['code' => 'LOWER'],
-                ['name' => 'Lower', 'display_order' => 30]
-            )->id,
-        ]);
+        // The 3-day balanced split is Upper / Legs / Upper (#146), so the
+        // catalog has to cover a real Legs day, not just a LOWER region.
+        $this->seedFullGymCatalog();
 
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
@@ -114,6 +112,36 @@ class WorkoutPreviewTest extends TestCase
         $this->assertArrayHasKey('unique_exercises', $summary);
         $this->assertArrayHasKey('avg_exercises_per_session', $summary);
         $this->assertEquals(3, $summary['total_workouts']); // 1 week × 3 days
+    }
+
+    /**
+     * The preview takes a Split Focus of its own (#143). It used to derive
+     * one from the previewed gender, which left staff unable to preview
+     * two thirds of the seeded Splits.
+     */
+    public function test_preview_builds_the_split_the_selected_focus_names(): void
+    {
+        $this->seedFullGymCatalog();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+            'fitness_goal' => 'general_fitness',
+            'training_experience' => 'beginner',
+            'gender' => 'male',
+            'split_focus' => 'upper_focus',
+            'training_days_per_week' => 4,
+            'duration_minutes' => 60,
+            'weeks' => 1,
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertSame(
+            ['Push Day', 'Pull Day', 'Upper Body Day', 'Legs Day'],
+            array_column($response->viewData('weeks')[1], 'name'),
+        );
     }
 
     public function test_preview_handles_multiple_weeks(): void
@@ -174,14 +202,7 @@ class WorkoutPreviewTest extends TestCase
 
     public function test_preview_accepts_every_menu_duration(): void
     {
-        Exercise::factory()->press()->barbell()->flat()->count(5)->create();
-        Exercise::factory()->row()->barbell()->horizontal()->count(5)->create();
-        Exercise::factory()->count(10)->create([
-            'target_region_id' => \App\Models\TargetRegion::firstOrCreate(
-                ['code' => 'LOWER'],
-                ['name' => 'Lower', 'display_order' => 30]
-            )->id,
-        ]);
+        $this->seedFullGymCatalog();
 
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
@@ -203,10 +224,7 @@ class WorkoutPreviewTest extends TestCase
 
     public function test_preview_mirrors_the_mesocycle_structure(): void
     {
-        Exercise::factory()->press()->barbell()->flat()->count(3)->create();
-        Exercise::factory()->press()->barbell()->incline()->count(2)->create();
-        Exercise::factory()->row()->barbell()->horizontal()->count(3)->create();
-        Exercise::factory()->row()->barbell()->lowToHigh()->count(2)->create();
+        $this->seedFullGymCatalog();
 
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
@@ -237,23 +255,31 @@ class WorkoutPreviewTest extends TestCase
             $this->assertStringEndsNotWith(' (Deload)', $day['name']);
         }
 
-        foreach ($weeks[3] as $day) {
+        foreach ($weeks[3] as $dayIndex => $day) {
             $this->assertStringEndsWith(' (Deload)', $day['name']);
 
             foreach ($day['exercises'] as $row) {
                 $this->assertSame(2, $row['target_sets']);
-                // The catalog here is all compounds (press/row).
-                $this->assertSame(3, $row['min_target_reps']);
-                $this->assertSame(4, $row['max_target_reps']);
+
+                // The Slot's class decides the deload reps, not the
+                // exercise's (ADR-0010). A Legs day's ham_iso Slot is
+                // tier 1, so an isolation row reaches the Deload Week.
+                if ($this->slotClass($row['slot_key'])->isCompound()) {
+                    $this->assertSame(3, $row['min_target_reps']);
+                    $this->assertSame(4, $row['max_target_reps']);
+                } else {
+                    $weekOneRow = collect($weeks[1][$dayIndex]['exercises'])
+                        ->firstWhere('slot_key', $row['slot_key']);
+                    $this->assertSame($weekOneRow['min_target_reps'], $row['min_target_reps']);
+                    $this->assertSame($weekOneRow['max_target_reps'], $row['max_target_reps']);
+                }
             }
         }
     }
 
     public function test_preview_days_are_blueprint_days_with_slot_keys(): void
     {
-        Exercise::factory()->press()->barbell()->flat()->count(3)->create();
-        Exercise::factory()->press()->barbell()->incline()->count(2)->create();
-        Exercise::factory()->row()->barbell()->horizontal()->count(3)->create();
+        $this->seedFullGymCatalog();
 
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));

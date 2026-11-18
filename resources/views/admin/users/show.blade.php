@@ -72,6 +72,7 @@
                         <dt class="text-gray-500 dark:text-gray-400">Height</dt><dd class="text-gray-800 dark:text-white/90">{{ $height ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Weight</dt><dd class="text-gray-800 dark:text-white/90">{{ $weight ?? '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Training days</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->training_days_per_week ? $profile->training_days_per_week.' per week' : '—' }}</dd>
+                        <dt class="text-gray-500 dark:text-gray-400">Split focus</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->split_focus?->label() ?? 'Balanced' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Workout duration</dt><dd class="text-gray-800 dark:text-white/90">{{ $profile->workout_duration_minutes ? $profile->workout_duration_minutes.' min' : '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Unit System</dt><dd class="text-gray-800 dark:text-white/90">{{ $user->unitSystem()->label() }}</dd>
                     </dl>

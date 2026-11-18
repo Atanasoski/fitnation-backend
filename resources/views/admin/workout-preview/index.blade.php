@@ -97,6 +97,19 @@
                     </select>
                 </div>
 
+                <!-- Split Focus -->
+                <div>
+                    <label for="split_focus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Split Focus
+                    </label>
+                    <select name="split_focus" id="split_focus"
+                        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300">
+                        @foreach(\App\Enums\SplitFocus::cases() as $focus)
+                            <option value="{{ $focus->value }}" {{ (old('split_focus', $params['split_focus'] ?? 'balanced') === $focus->value) ? 'selected' : '' }}>{{ $focus->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <!-- Training Days Per Week -->
                 <div>
                     <label for="training_days_per_week" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

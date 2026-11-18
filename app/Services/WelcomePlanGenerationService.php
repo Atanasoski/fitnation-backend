@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\Gender;
 use App\Enums\PlanType;
 use App\Enums\SplitFocus;
 use App\Models\Plan;
@@ -44,10 +43,11 @@ class WelcomePlanGenerationService
         $this->validateUserProfile($user);
 
         return DB::transaction(function () use ($user, $planName, $preferences) {
-            $splitFocus = match ($user->profile->gender) {
-                Gender::Female => SplitFocus::LowerFocus,
-                default => SplitFocus::Balanced,
-            };
+            // The member's own choice (#143, ADR-0013). Gender used to pick
+            // this — Female ⇒ lower focus — invisibly and unchangeably; it
+            // no longer takes part in generation. A member who has never
+            // chosen trains Balanced.
+            $splitFocus = $user->profile->split_focus ?? SplitFocus::Balanced;
 
             $split = $this->determineSplit($user->profile->training_days_per_week, $splitFocus);
             $durationWeeks = self::durationWeeksFor($user);
@@ -56,7 +56,7 @@ class WelcomePlanGenerationService
                 'user_id' => $user->id,
                 'partner_id' => $user->partner_id,
                 'name' => $planName ?? 'Your Personalized Plan',
-                'description' => 'Auto-generated '.$durationWeeks.'-week program based on your profile',
+                'description' => 'Auto-generated '.$durationWeeks.'-week program based on your profile ('.$splitFocus->label().' focus)',
                 'type' => PlanType::Program,
                 'duration_weeks' => $durationWeeks,
                 'is_active' => false,

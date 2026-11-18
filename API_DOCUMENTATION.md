@@ -531,6 +531,7 @@ interface ProfileUpdateRequest {
   weight?: number;                  // in the unit_system being submitted (kg if metric/omitted, lbs if imperial) - converted and stored as kg
   training_experience?: TrainingExperience; // enum value
   training_days_per_week?: number;  // 1-7
+  split_focus?: SplitFocus | null;  // which emphasis the generated program is built from - see below
   workout_duration_minutes?: WorkoutDuration; // session length in minutes - menu values only, see below
 }
 
@@ -538,8 +539,11 @@ type FitnessGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness';
 type Gender = 'male' | 'female' | 'other';
 type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
 type UnitSystem = 'metric' | 'imperial';
+type SplitFocus = 'balanced' | 'upper_focus' | 'lower_focus';
 type WorkoutDuration = 30 | 45 | 60 | 90 | 120;
 ```
+
+**Split focus:** `split_focus` is the emphasis the member's program is built from — `balanced`, `upper_focus` or `lower_focus`. It selects which of the curated weekly splits their training frequency resolves to, so it changes which day types the week contains, not the length or difficulty of a session. Anything outside the three values is a 422. `null` is accepted and means the member has never chosen: their programs are built `balanced`. The emphasis takes effect the next time a program is generated — storing it does not touch the member's active program. It replaces an earlier rule that derived the emphasis from `gender`; gender no longer affects program generation at all.
 
 **Session length:** `workout_duration_minutes` accepts only the menu values 30, 45, 60, 90 and 120. Any other value is a 422 with `errors.workout_duration_minutes: ["Workout duration must be one of: 30, 45, 60, 90, 120 minutes."]`. Every stored profile value is on the menu, so a client can send `user.profile.workout_duration_minutes` back unchanged. The same menu applies to `duration_minutes` on [Generate](#generate-draft-workout-session) and [Regenerate](#regenerate-draft-workout-session).
 
@@ -670,14 +674,8 @@ interface CompleteOnboardingResponse {
 **Notes:**
 - This endpoint can only be called once per user. If `onboarding_completed_at` is already set, it will return a 409 Conflict error.
 - The generated plan is automatically set as active (`is_active: true`) and marked as auto-generated (`is_auto_generated: true`).
-- The workout split is automatically determined based on `training_days_per_week`:
-  - 1 day: Full Body
-  - 2 days: Full Body, Full Body
-  - 3 days: Full Body, Full Body, Full Body
-  - 4 days: Push, Pull, Push, Pull
-  - 5 days: Push, Legs, Pull, Lower Body, Upper Body
-  - 6 days: Push, Pull, Legs, Push, Pull, Legs
-  - 7 days: Push, Pull, Legs, Push, Pull, Legs, Full Body
+- The workout split is determined by the pair (`training_days_per_week`, `split_focus`), looked up in a curated catalog covering every focus at 1-7 days. A member with no `split_focus` is built `balanced`. The generated plan's `description` names the focus it was built from.
+- **The catalog is staff-maintained and editable in the admin panel, so clients must not hard-code which day types a given pair produces.** This document previously listed the day types per frequency; that table had drifted from the live catalog and has been removed rather than re-synced. The authoritative list is the admin panel's Workout Splits page; the day types a member actually received are in their plan's workout names.
 - Each workout template is generated from the user's fitness goal, training experience and `workout_duration_minutes`. The duration picks each day's Tier, which decides how many exercises it gets: 30 → Express, 45 or 60 → Standard, 90 or 120 → Extended (see the session length notes under [Generate Draft Workout Session](#generate-draft-workout-session)).
 
 ---
@@ -2708,6 +2706,7 @@ interface UserProfileResource {
   unit_system: UnitSystem | null;     // 'metric' or 'imperial' - use as the display label for height/weight
   training_experience: TrainingExperience | null;
   training_days_per_week: number | null;  // 1-7
+  split_focus: SplitFocus | null;     // null means the member has never chosen; programs are built Balanced
   workout_duration_minutes: WorkoutDuration | null;  // 30 | 45 | 60 | 90 | 120
 }
 

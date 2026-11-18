@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
+use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
 use App\Enums\WorkoutDuration;
@@ -64,6 +65,7 @@ class ProfileUpdateRequest extends FormRequest
             'weight' => ['nullable', 'numeric', 'min:1', 'max:500'],
             'training_experience' => ['nullable', Rule::enum(TrainingExperience::class)],
             'training_days_per_week' => ['nullable', 'integer', 'min:1', 'max:7'],
+            'split_focus' => ['nullable', Rule::enum(SplitFocus::class)],
             'workout_duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
             'unit_system' => ['sometimes', Rule::enum(UnitSystem::class)],
         ];

@@ -33,8 +33,10 @@ class WeeklyVolumeAuditTest extends TestCase
     private const DIRECT_SLOTS_BY_MUSCLE = [
         // UPPER's press and pull slots carry their own keys, so a split
         // containing an Upper Body day (every upper-focus split) is audited
-        // through them as well (#143).
-        'chest' => ['main_press', 'incline_press', 'chest_iso', 'chest_press', 'press_2'],
+        // through them as well (#143). press_2 is left out for the same
+        // reason overhead_press is: its role admits a VERTICAL press, so a
+        // delt movement can fill it and its sets are not reliably chest.
+        'chest' => ['main_press', 'incline_press', 'chest_iso', 'chest_press'],
         'quads' => ['quad_compound', 'quad_iso'],
         'back' => ['vertical_pull', 'heavy_row', 'second_row', 'lats_iso', 'heavy_pull', 'second_pull'],
         'hamstrings' => ['hinge', 'ham_iso'],
@@ -62,12 +64,12 @@ class WeeklyVolumeAuditTest extends TestCase
      * second chest and a second back exposure in place of the balanced
      * split's second Legs day, so chest and back rise while quads and
      * hamstrings halve. Its arms slot is tier-3, so biceps stays at PULL's
-     * three sets.
+     * three sets, and its press_2 slot is not counted as chest.
      */
     public function test_a_four_day_upper_focus_split_delivers_the_declared_weekly_direct_sets(): void
     {
         $this->assertWeeklyDirectSets(SplitFocus::UpperFocus, [
-            'chest' => 12,
+            'chest' => 9,
             'quads' => 6,
             'back' => 15,
             'hamstrings' => 6,

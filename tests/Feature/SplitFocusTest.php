@@ -9,6 +9,7 @@ use App\Enums\Gender;
 use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Models\User;
+use App\Models\WorkoutSplit;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesCatalogExercises;
@@ -94,6 +95,26 @@ class SplitFocusTest extends TestCase
             'Lower Body focus',
             $user->fresh()->activeProgram->description,
         );
+    }
+
+    /**
+     * The Split catalog is staff-maintained, and this feature triples the
+     * combinations that have to stay populated — from 7 to 21. A member
+     * whose pair has been emptied is told their request cannot be met,
+     * rather than meeting a 500.
+     */
+    public function test_a_member_whose_split_is_missing_is_answered_not_failed(): void
+    {
+        $user = $this->member(trainingDays: 4, focus: SplitFocus::UpperFocus);
+
+        WorkoutSplit::query()
+            ->where('days_per_week', 4)
+            ->where('focus', SplitFocus::UpperFocus)
+            ->delete();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/plans/regenerate')
+            ->assertStatus(422);
     }
 
     /**

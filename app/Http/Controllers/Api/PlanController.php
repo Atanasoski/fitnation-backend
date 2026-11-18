@@ -70,7 +70,10 @@ class PlanController extends Controller
 
             $message = $e->getMessage();
 
-            if (str_contains($message, 'is required')) {
+            // A Split the staff-maintained catalog does not hold is the
+            // member's request being unmeetable, not the server breaking
+            // (#143): say so, with the combination that has no Split.
+            if (str_contains($message, 'is required') || str_contains($message, 'No workout split found')) {
                 return response()->json([
                     'message' => $message,
                 ], 422);

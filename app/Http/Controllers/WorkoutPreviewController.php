@@ -86,7 +86,7 @@ class WorkoutPreviewController extends Controller
             $partners = Partner::orderBy('name')->get();
 
             return view('admin.workout-preview.index', [
-                'error' => "No workout split found for {$validated['training_days_per_week']} days/week",
+                'error' => "No workout split found for {$validated['training_days_per_week']} days/week with {$splitFocus->value} focus",
                 'partners' => $partners,
                 'params' => $validated,
             ]);

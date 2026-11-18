@@ -51,7 +51,8 @@ The admin panel must match the marketing site (`front-end/apps/landing_page`):
 ## Domain concepts
 
 - **Plan** — a structured training program with one or more splits
-- **WorkoutSplit** — a weekly schedule of workout days within a plan
+- **WorkoutSplit** — one day of a catalogued Split: a global, staff-maintained table keyed by training days per week and Split Focus, not a per-plan schedule
+- **Split Focus** — the emphasis a member chooses (balanced / upper / lower), selecting which Split their Program is generated from (ADR-0013)
 - **WorkoutTemplate** — a reusable template of exercises for a session
 - **WorkoutSession** — a logged instance of a completed workout
 - **Exercise** — a catalogued movement (with muscle groups, category, equipment)

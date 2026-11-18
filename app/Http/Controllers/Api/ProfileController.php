@@ -63,6 +63,7 @@ class ProfileController extends Controller
             'weight',
             'training_experience',
             'training_days_per_week',
+            'split_focus',
             'workout_duration_minutes',
             'unit_system',
         ];

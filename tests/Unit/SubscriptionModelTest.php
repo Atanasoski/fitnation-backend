@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Enums\Entitlement;
+use App\Enums\PaywallDiscountTier;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -109,6 +110,26 @@ class SubscriptionModelTest extends TestCase
             $subscription = Subscription::factory()->make(['product_id' => $productId]);
 
             $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);
+        }
+    }
+
+    public function test_every_paywall_discount_product_grants_app_access_in_both_stores(): void
+    {
+        // App Store: the bare ID. Google Play: a shorter product ID (Play caps
+        // them at 40 characters), spelled `<product>:<base plan>` by the
+        // webhook and bare by Subscription Sync (RevenueCat REST v1).
+        foreach (PaywallDiscountTier::cases() as $tier) {
+            foreach (['monthly', 'yearly'] as $period) {
+                $appStore = "com.fitnation.app.premium.discount{$tier->value}.{$period}";
+                $playWebhook = "com.fitnation.app.discount{$tier->value}.{$period}:{$period}";
+                $playSync = "com.fitnation.app.discount{$tier->value}.{$period}";
+
+                foreach ([$appStore, $playWebhook, $playSync] as $productId) {
+                    $subscription = Subscription::factory()->make(['product_id' => $productId]);
+
+                    $this->assertTrue($subscription->grantedEntitlements()->contains(Entitlement::AppAccess), $productId);
+                }
+            }
         }
     }
 

@@ -31,9 +31,11 @@ class WorkoutSplitTest extends TestCase
 
         $this->assertIsArray($split);
         $this->assertCount(3, $split);
-        $this->assertEquals(['UPPER_PUSH', 'UPPER_PULL', 'LOWER'], $split[0]);
-        $this->assertEquals(['UPPER_PULL', 'UPPER_PUSH', 'LOWER'], $split[1]);
-        $this->assertEquals(['LOWER', 'UPPER_PUSH', 'UPPER_PULL'], $split[2]);
+        // Upper / Legs / Upper, as the live catalog has it (#146) — not
+        // three Full Body days, which is what the seeder used to claim.
+        $this->assertEquals(['UPPER_PUSH', 'UPPER_PULL'], $split[0]);
+        $this->assertEquals(['LOWER'], $split[1]);
+        $this->assertEquals(['UPPER_PUSH', 'UPPER_PULL'], $split[2]);
     }
 
     public function test_returns_empty_array_for_non_existent_split_combination(): void

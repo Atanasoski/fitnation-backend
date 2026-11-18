@@ -133,12 +133,14 @@ class WorkoutSplitSeeder extends Seeder
                 ['UPPER_PUSH', 'UPPER_PULL'],   // Upper Body
                 ['LOWER', 'CORE'],              // Legs + Core
             ],
-            // 4 days per week
+            // 4 days per week — three leg days to one upper (#146). The
+            // 2:2 shape this replaces was the balanced split reordered,
+            // so picking Lower Body at four days changed nothing.
             4 => [
-                ['LOWER', 'CORE'],          // Legs + Core
-                ['UPPER_PUSH', 'ARMS'],     // Push + Arms
-                ['LOWER', 'CORE'],          // Legs + Core
-                ['UPPER_PULL', 'ARMS'],     // Pull + Arms
+                ['LOWER'],                          // Legs
+                ['UPPER_PUSH', 'UPPER_PULL'],       // Upper Body
+                ['LOWER'],                          // Legs
+                ['LOWER', 'CORE'],                  // Legs + Core
             ],
             // 5 days per week
             5 => [

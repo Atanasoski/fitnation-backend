@@ -78,19 +78,25 @@ class WeeklyVolumeAuditTest extends TestCase
     }
 
     /**
-     * Legs / Push / Legs / Pull (#143) — the same four day types the
-     * balanced split carries, in a different order, so the week delivers
-     * the same direct sets. Audited anyway: the numbers are what stops the
-     * two splits drifting apart silently.
+     * Legs / Upper Body / Legs / Legs+Core (#146): three leg days to one
+     * upper, so quads and hamstrings carry six sets on each of three days
+     * while the single Upper Body day supplies all the upper-body work.
+     *
+     * Biceps is zero on purpose, and is the number to look at if this
+     * split is ever revisited: an Upper Body day's arms Slot is tier-3
+     * (ADR-0010), so at the Standard Tier this member gets no direct arm
+     * work at all. The 2:2 shape this replaced carried tier-1 biceps on
+     * its Pull day — and was the balanced split reordered, which is why
+     * it had to go.
      */
     public function test_a_four_day_lower_focus_split_delivers_the_declared_weekly_direct_sets(): void
     {
         $this->assertWeeklyDirectSets(SplitFocus::LowerFocus, [
-            'chest' => 6,
-            'quads' => 12,
-            'back' => 9,
-            'hamstrings' => 12,
-            'biceps' => 3,
+            'chest' => 3,
+            'quads' => 18,
+            'back' => 6,
+            'hamstrings' => 18,
+            'biceps' => 0,
         ]);
     }
 

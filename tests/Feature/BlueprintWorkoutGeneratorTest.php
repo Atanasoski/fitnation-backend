@@ -45,36 +45,6 @@ class BlueprintWorkoutGeneratorTest extends TestCase
     }
 
     /**
-     * One level-0 candidate per role across all six blueprints, with enough
-     * duplicates that same-role slots (second_row, arms_finisher…) can
-     * dedupe without relaxing.
-     */
-    private function seedFullGymCatalog(): void
-    {
-        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'FLAT');
-        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'INCLINE');
-        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'BARBELL', 'VERTICAL');
-        $this->catalogExercise('SHOULDER_RAISE', 'UPPER_PUSH', 'DUMBBELL');
-        $this->catalogExercise('FLY', 'UPPER_PUSH', 'CABLE', 'HORIZONTAL');
-        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'CABLE');
-        $this->catalogExercise('ELBOW_EXTENSION', 'ARMS', 'BARBELL');
-        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'DUMBBELL');
-        $this->catalogExercise('ELBOW_FLEXION', 'ARMS', 'CABLE');
-        $this->catalogExercise('PULL_VERTICAL', 'UPPER_PULL', 'CABLE');
-        $this->catalogExercise('ROW', 'UPPER_PULL', 'BARBELL', 'HORIZONTAL');
-        $this->catalogExercise('ROW', 'UPPER_PULL', 'CABLE', 'HORIZONTAL');
-        $this->catalogExercise('REAR_DELT_FLY', 'UPPER_PULL', 'DUMBBELL');
-        $this->catalogExercise('PULLOVER_STRAIGHT_ARM', 'UPPER_PULL', 'CABLE');
-        $this->catalogExercise('SQUAT', 'LOWER', 'BARBELL');
-        $this->catalogExercise('HINGE', 'LOWER', 'BARBELL');
-        $this->catalogExercise('KNEE_EXTENSION', 'LOWER', 'MACHINE');
-        $this->catalogExercise('KNEE_FLEXION', 'LOWER', 'MACHINE');
-        $this->catalogExercise('CALF_RAISE', 'LOWER', 'MACHINE');
-        $this->catalogExercise('TRUNK_FLEXION', 'CORE', 'BODYWEIGHT');
-        $this->catalogExercise('ROTATION', 'CORE', 'CABLE');
-    }
-
-    /**
      * @param  array<string, mixed>  $row
      */
     private function assertRowSatisfiesSlot(array $row, Slot $slot): void

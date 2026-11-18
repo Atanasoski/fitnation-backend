@@ -10,10 +10,12 @@ use App\Models\User;
 use App\Models\WorkoutSplit;
 use Database\Seeders\WorkoutSplitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesCatalogExercises;
 use Tests\TestCase;
 
 class WorkoutPreviewTest extends TestCase
 {
+    use CreatesCatalogExercises;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -114,6 +116,36 @@ class WorkoutPreviewTest extends TestCase
         $this->assertArrayHasKey('unique_exercises', $summary);
         $this->assertArrayHasKey('avg_exercises_per_session', $summary);
         $this->assertEquals(3, $summary['total_workouts']); // 1 week × 3 days
+    }
+
+    /**
+     * The preview takes a Split Focus of its own (#143). It used to derive
+     * one from the previewed gender, which left staff unable to preview
+     * two thirds of the seeded Splits.
+     */
+    public function test_preview_builds_the_split_the_selected_focus_names(): void
+    {
+        $this->seedFullGymCatalog();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+
+        $response = $this->actingAs($admin)->post(route('workout-preview.preview'), [
+            'fitness_goal' => 'general_fitness',
+            'training_experience' => 'beginner',
+            'gender' => 'male',
+            'split_focus' => 'upper_focus',
+            'training_days_per_week' => 4,
+            'duration_minutes' => 60,
+            'weeks' => 1,
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertSame(
+            ['Push Day', 'Pull Day', 'Upper Body Day', 'Legs Day'],
+            array_column($response->viewData('weeks')[1], 'name'),
+        );
     }
 
     public function test_preview_handles_multiple_weeks(): void

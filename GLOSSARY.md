@@ -89,6 +89,14 @@ _Avoid_: big lift, main lift
 A single-joint Exercise, classified by its movement pattern. Fills a Blueprint's later Slots, with fewer sets and higher-rep Prescriptions. An isolation is never reclassified to borrow a compound's treatment.
 _Avoid_: accessory, auxiliary
 
+**Split**:
+A catalogued set of weekly training days, each day a list of target regions, keyed by training days per week and Split Focus. A Program's week is generated from one. The catalog is global and staff-maintained — a Split is not a per-Program schedule, and a Program does not reference the Split it came from.
+_Avoid_: schedule, routine (collides with the Routine plan type), program split
+
+**Split Focus**:
+The emphasis a member chooses — Balanced, Upper Body or Lower Body — selecting which Split of their training frequency their Program is generated from. Stored on the profile beside the other plan inputs; a member who has never chosen trains Balanced. Gender does not decide it (ADR-0013).
+_Avoid_: focus (unqualified), emphasis, goal (collides with fitness goal)
+
 **Blueprint**:
 The declared shape of one workout day type: an ordered list of Slots. Six exist — Push, Pull, Upper, Lower, Full Body, Arms. A day's composition is read off its Blueprint, never emergent from selection rules. A fragment-composed day reuses the Blueprint shape (its Slots come from Fragments, tier-filtered and budget-trimmed) without being one of the six.
 _Avoid_: template (collides with WorkoutTemplate), day plan

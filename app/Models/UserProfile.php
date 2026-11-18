@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FitnessGoal;
 use App\Enums\Gender;
+use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Enums\UnitSystem;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +29,7 @@ class UserProfile extends Model
         'weight',
         'training_experience',
         'training_days_per_week',
+        'split_focus',
         'workout_duration_minutes',
         'unit_system',
     ];
@@ -43,6 +45,7 @@ class UserProfile extends Model
             'fitness_goal' => FitnessGoal::class,
             'gender' => Gender::class,
             'training_experience' => TrainingExperience::class,
+            'split_focus' => SplitFocus::class,
             'unit_system' => UnitSystem::class,
             'age' => 'integer',
             'height' => 'integer',

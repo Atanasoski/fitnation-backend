@@ -28,6 +28,7 @@ class UserProfileResource extends JsonResource
             'unit_system' => $unitSystem?->value,
             'training_experience' => $this->training_experience?->value,
             'training_days_per_week' => $this->training_days_per_week,
+            'split_focus' => $this->split_focus?->value,
             'workout_duration_minutes' => $this->workout_duration_minutes,
         ];
     }

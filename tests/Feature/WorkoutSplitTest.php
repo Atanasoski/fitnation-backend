@@ -48,17 +48,17 @@ class WorkoutSplitTest extends TestCase
 
     public function test_service_throws_exception_when_split_not_found(): void
     {
-        // A female user resolves to lower_focus, which the seeder now provides,
-        // so drop that combination to reach the guard.
+        // The seeder provides every focus for 1-7 days, so drop the one
+        // combination this member asks for to reach the guard.
         WorkoutSplit::query()
             ->where('days_per_week', 3)
-            ->where('focus', SplitFocus::LowerFocus)
+            ->where('focus', SplitFocus::UpperFocus)
             ->delete();
 
         $user = User::factory()->create();
         $user->profile()->update([
             'training_days_per_week' => 3,
-            'gender' => Gender::Female,
+            'split_focus' => SplitFocus::UpperFocus,
         ]);
 
         $service = new WelcomePlanGenerationService(
@@ -66,70 +66,54 @@ class WorkoutSplitTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('No workout split found for 3 days/week with lower_focus focus');
+        $this->expectExceptionMessage('No workout split found for 3 days/week with upper_focus focus');
 
         $service->generateWelcomePlan($user);
     }
 
-    public function test_service_uses_balanced_focus_for_male_user(): void
+    public function test_service_builds_from_the_split_focus_the_member_chose(): void
     {
-        $user = User::factory()->create();
-        $user->profile()->update([
-            'training_days_per_week' => 3,
-            'gender' => Gender::Male,
-            'fitness_goal' => \App\Enums\FitnessGoal::MuscleGain,
-            'training_experience' => \App\Enums\TrainingExperience::Beginner,
-            'workout_duration_minutes' => 60,
-        ]);
+        $this->assertNotEmpty(WorkoutSplit::getSplit(3, SplitFocus::UpperFocus));
 
-        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
+        $user = $this->memberTrainingThreeDays(SplitFocus::UpperFocus);
 
-        // This should not throw an exception because balanced split exists
-        $plan = $service->generateWelcomePlan($user);
+        $plan = (new WelcomePlanGenerationService($this->stubPlanGenerator()))
+            ->generateWelcomePlan($user);
 
         $this->assertNotNull($plan);
+        $this->assertStringContainsString('Upper Body focus', $plan->description);
     }
 
-    public function test_service_uses_lower_focus_for_female_user(): void
+    /**
+     * A member who has never chosen trains Balanced — and gender has no
+     * say in it any more (ADR-0013). SplitFocusTest holds the regression
+     * guard that two members differing only in gender are given the same
+     * Program; this one covers the fallback itself.
+     */
+    public function test_service_falls_back_to_balanced_when_the_member_has_chosen_nothing(): void
     {
-        // The seeder already provides the lower_focus 3-day split this covers;
-        // creating it again violates the days/focus/day_index unique key.
-        $this->assertNotEmpty(WorkoutSplit::getSplit(3, SplitFocus::LowerFocus));
+        $user = $this->memberTrainingThreeDays(null, Gender::Female);
 
-        $user = User::factory()->create();
-        $user->profile()->update([
-            'training_days_per_week' => 3,
-            'gender' => Gender::Female,
-            'fitness_goal' => \App\Enums\FitnessGoal::MuscleGain,
-            'training_experience' => \App\Enums\TrainingExperience::Beginner,
-            'workout_duration_minutes' => 60,
-        ]);
-
-        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
-
-        // This should use lower_focus split
-        $plan = $service->generateWelcomePlan($user);
+        $plan = (new WelcomePlanGenerationService($this->stubPlanGenerator()))
+            ->generateWelcomePlan($user);
 
         $this->assertNotNull($plan);
+        $this->assertStringContainsString('Balanced focus', $plan->description);
     }
 
-    public function test_service_uses_balanced_focus_for_other_gender(): void
+    private function memberTrainingThreeDays(?SplitFocus $focus, Gender $gender = Gender::Male): User
     {
         $user = User::factory()->create();
         $user->profile()->update([
             'training_days_per_week' => 3,
-            'gender' => Gender::Other,
+            'split_focus' => $focus,
+            'gender' => $gender,
             'fitness_goal' => \App\Enums\FitnessGoal::MuscleGain,
             'training_experience' => \App\Enums\TrainingExperience::Beginner,
             'workout_duration_minutes' => 60,
         ]);
 
-        $service = new WelcomePlanGenerationService($this->stubPlanGenerator());
-
-        // This should use balanced split (default)
-        $plan = $service->generateWelcomePlan($user);
-
-        $this->assertNotNull($plan);
+        return $user->fresh();
     }
 
     public function test_all_balanced_splits_are_seeded_correctly(): void

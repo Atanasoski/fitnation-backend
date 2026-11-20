@@ -77,4 +77,40 @@ class ExerciseClassificationSeederTest extends TestCase
             $exercise->fresh()->trainingStyles->pluck('code')->sort()->values()->all(),
         );
     }
+
+    public function test_classification_puts_goblet_squat_on_dumbbell(): void
+    {
+        // ADR-0014 moved it off Kettlebell; a re-seed must not undo that
+        $this->seed([
+            CategorySeeder::class,
+            MovementPatternSeeder::class,
+            TargetRegionSeeder::class,
+            EquipmentTypeSeeder::class,
+            AngleSeeder::class,
+            TrainingStyleSeeder::class,
+        ]);
+        $exercise = Exercise::factory()->create(['name' => 'Goblet Squat']);
+
+        $this->seed(ExerciseClassificationSeeder::class);
+
+        $exercise = $exercise->fresh();
+        $this->assertSame('DUMBBELL', $exercise->equipmentType->code);
+        $this->assertContains('BODYBUILDING', $exercise->trainingStyles->pluck('code')->all());
+    }
+
+    public function test_the_bodybuilding_retag_lists_agree(): void
+    {
+        // ADR-0014: the retag lives in the seeder, exercises:import and a migration
+        $migration = require database_path('migrations/2026_11_20_100000_retag_catalogue_for_bodybuilding_generation.php');
+        $migrationList = (new \ReflectionClassConstant($migration, 'BODYBUILDING_ADDED'))->getValue();
+        $this->assertEqualsCanonicalizing(ExerciseClassificationSeeder::ALSO_BODYBUILDING, $migrationList);
+
+        $import = new \ReflectionMethod(\App\Console\Commands\ImportExercises::class, 'getExerciseData');
+        $importData = collect($import->invoke(app(\App\Console\Commands\ImportExercises::class)))->keyBy('name');
+        foreach (ExerciseClassificationSeeder::ALSO_BODYBUILDING as $name) {
+            if ($importData->has($name)) {
+                $this->assertContains('BODYBUILDING', $importData[$name]['training_styles'] ?? ['BODYBUILDING'], "{$name} lacks BODYBUILDING in exercises:import");
+            }
+        }
+    }
 }

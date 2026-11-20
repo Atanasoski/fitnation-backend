@@ -315,6 +315,7 @@ class ExerciseClassificationSeeder extends Seeder
         'hammer curl' => 'DUMBBELL',
         'renegade row' => 'DUMBBELL',
         'farmer\'s walk' => 'DUMBBELL',
+        'goblet squat' => 'DUMBBELL', // ADR-0014: moved off Kettlebell
 
         // Cable exercises
         'face pulls' => 'CABLE',

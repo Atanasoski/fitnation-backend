@@ -174,13 +174,22 @@ class WelcomePlanGenerationService
      * The preferences every split day is generated under: the member's own
      * filters plus their stored session length.
      *
+     * Equipment Selection: a non-empty request value wins (old builds, and
+     * clients that send it); otherwise the profile's stored selection; null
+     * stored means Full gym, so no key (ADR-0014, #154).
+     *
      * @return array<string, mixed>
      */
     private function generationPreferences(User $user, array $preferences): array
     {
+        $requested = $preferences['equipment_types'] ?? null;
+        $equipmentTypes = $requested !== null && $requested !== []
+            ? $requested
+            : $user->profile->equipment_types;
+
         return array_merge(
             array_filter([
-                'equipment_types' => $preferences['equipment_types'] ?? null,
+                'equipment_types' => $equipmentTypes,
                 'movement_patterns' => $preferences['movement_patterns'] ?? null,
                 'angles' => $preferences['angles'] ?? null,
                 'training_styles' => $preferences['training_styles'] ?? null,

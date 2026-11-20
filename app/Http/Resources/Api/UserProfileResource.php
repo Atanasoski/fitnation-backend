@@ -30,6 +30,7 @@ class UserProfileResource extends JsonResource
             'training_days_per_week' => $this->training_days_per_week,
             'split_focus' => $this->split_focus?->value,
             'workout_duration_minutes' => $this->workout_duration_minutes,
+            'equipment_types' => $this->equipment_types,
         ];
     }
 }

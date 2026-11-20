@@ -51,6 +51,17 @@ _Avoid_: partner media, custom media
 A classification of what an Exercise needs to be performed (Barbell, Cable, Machine, …). Catalogue metadata — never a physical object on a gym floor.
 _Avoid_: equipment (ambiguous), machine
 
+**Training Style**:
+The training discipline an Exercise belongs to (Bodybuilding, Functional, Olympic, Calisthenics). An Exercise can carry several. Generated workouts are Bodybuilding unless another style is asked for.
+_Avoid_: workout type, category
+
+**Equipment Selection**:
+The EquipmentTypes a member says they can use when generating a workout or program. It limits which Exercises can be picked; an empty selection means every EquipmentType except the Opt-in ones.
+_Avoid_: equipment filter, available equipment
+
+**Opt-in EquipmentType**:
+An EquipmentType most members don't have (TRX, Band), whose Exercises are generated only when the member's Equipment Selection names it.
+
 **Station**:
 A physical spot on a Partner's gym floor (e.g. "Cable Crossover") carrying a printed QR code and a curated, ordered list of Exercises that can be performed there, always drawn from the Partner's Library. Identical machines at the same gym share one Station. The only thing a QR sticker ever points at.
 _Avoid_: equipment, machine, QR target

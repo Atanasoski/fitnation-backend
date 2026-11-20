@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Exercise;
 use App\Models\Partner;
 use Database\Seeders\CatalogEnrichmentSeeder;
+use Database\Seeders\ExerciseClassificationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -116,8 +117,9 @@ class CatalogEnrichmentSeederTest extends TestCase
         }
     }
 
-    public function test_band_and_kettlebell_imports_are_functional_only_and_the_rest_bodybuilding(): void
+    public function test_band_and_kettlebell_imports_are_functional_and_the_rest_bodybuilding(): void
     {
+        // ADR-0014: curated hypertrophy band moves also carry BODYBUILDING
         $this->seed(CatalogEnrichmentSeeder::class);
 
         $exercises = Exercise::query()->with(['equipmentType', 'trainingStyles'])->get();
@@ -125,7 +127,9 @@ class CatalogEnrichmentSeederTest extends TestCase
         $this->assertCount(37, $exercises);
         foreach ($exercises as $exercise) {
             $expected = in_array($exercise->equipmentType->code, ['BAND', 'KETTLEBELL'], true)
-                ? ['FUNCTIONAL']
+                ? (in_array($exercise->name, ExerciseClassificationSeeder::ALSO_BODYBUILDING, true)
+                    ? ['BODYBUILDING', 'FUNCTIONAL']
+                    : ['FUNCTIONAL'])
                 : ['BODYBUILDING'];
 
             $this->assertSame(

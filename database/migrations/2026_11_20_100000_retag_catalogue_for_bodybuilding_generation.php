@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
  * Bodyweight movements that are genuine hypertrophy work gain the
  * BODYBUILDING Training Style (alongside whatever they already carry), and
  * Goblet Squat moves from Kettlebell to Dumbbell. Mirrors the inline data in
- * `exercises:import`. Matched by exact name; names missing from this
+ * `exercises:import` and ExerciseClassificationSeeder::ALSO_BODYBUILDING
+ * (kept as its own copy so this migration never changes after it ran). Matched by exact name; names missing from this
  * database are skipped.
  */
 return new class extends Migration

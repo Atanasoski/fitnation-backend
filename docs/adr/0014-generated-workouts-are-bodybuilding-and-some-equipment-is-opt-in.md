@@ -33,5 +33,5 @@ The clients no longer offer a Training Style picker, and the product wants Bodyb
 
 - The Bodybuilding tag now carries policy: tagging a TRX or Band Exercise Bodybuilding makes it generatable for members who opt in, and tagging a Bodyweight Exercise makes it generatable for everyone.
 - The opt-in rule must ship before or with the retag; otherwise retagged TRX Exercises reach default Programs in between.
-- Training Styles are defined inline in `exercises:import`; a retag is applied in both that command and a data migration, so neither a deploy nor a re-import reverts the other.
+- Training Styles are set in three places: the inline data in `exercises:import`, the classification seeders' inference (`ExerciseClassificationSeeder::inferTrainingStyles`, also used by the catalogue enrichment seeder), and data migrations for existing rows. A retag goes in all three, so neither a deploy, a re-import nor a re-seed reverts it.
 - The opt-in list is global. A Partner whose gym floor has a TRX rig cannot yet make TRX a default for its members.

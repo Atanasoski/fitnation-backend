@@ -17,6 +17,24 @@ use Illuminate\Support\Str;
 class ExerciseClassificationSeeder extends Seeder
 {
     /**
+     * Functional-equipment, functional-name or calisthenics exercises that are
+     * also genuine hypertrophy work, so they carry BODYBUILDING alongside their
+     * inferred style (ADR-0014). Kept in step with `exercises:import` and the
+     * 2026_11_20_100000 retag migration. Matched by exact name.
+     *
+     * @var list<string>
+     */
+    public const ALSO_BODYBUILDING = [
+        'TRX Row', 'TRX Wide Row', 'TRX Biceps Curl', 'TRX Triceps Extension', 'TRX Push-Up',
+        'TRX Chest Fly', 'TRX Pec Fly', 'TRX Y Fly', 'TRX T Fly', 'TRX Wide Fly',
+        'TRX Hamstring Curl', 'TRX Bulgarian Split Squat', 'TRX Squat',
+        'Band Biceps Curl', 'Band Chest Press', 'Band Chest Fly', 'Band Overhead Press',
+        'Band Lateral Raise', 'Band Row', 'Seated Band Row', 'Band Face Pull',
+        'Band Pull-Apart', 'Band Triceps Pushdown', 'Band Squat',
+        'Pike Push-ups', 'Handstand Push-ups', 'Cossack Lunge',
+    ];
+
+    /**
      * Lookup arrays populated from database.
      *
      * @var array<string, int>
@@ -198,8 +216,9 @@ class ExerciseClassificationSeeder extends Seeder
             }
         }
 
-        // Default to BODYBUILDING if no other styles found
-        if (empty($styles)) {
+        // Default to BODYBUILDING if no other styles found; the curated
+        // hypertrophy exceptions carry it alongside their other style.
+        if (empty($styles) || in_array($exerciseName, self::ALSO_BODYBUILDING, true)) {
             $styles[] = 'BODYBUILDING';
         }
 

@@ -628,10 +628,15 @@ class BlueprintWorkoutGeneratorTest extends TestCase
      */
     private function tagFunctionalOnly(\App\Models\Exercise $exercise): void
     {
+        $this->tagStyleOnly($exercise, 'FUNCTIONAL');
+    }
+
+    private function tagStyleOnly(\App\Models\Exercise $exercise, string $code): void
+    {
         $exercise->trainingStyles()->sync([
             \App\Models\TrainingStyle::firstOrCreate(
-                ['code' => 'FUNCTIONAL'],
-                ['name' => 'Functional', 'display_order' => 20]
+                ['code' => $code],
+                ['name' => ucfirst(strtolower($code)), 'display_order' => 20]
             )->id,
         ]);
     }
@@ -655,28 +660,61 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertNotContains($thruster->id, $pickedIds->all());
     }
 
-    public function test_an_equipment_selection_applies_no_training_style_default(): void
+    public function test_an_equipment_selection_does_not_lift_the_bodybuilding_default(): void
     {
-        // TRX is functional equipment: a member who selected it gets its
-        // functional-only exercises without naming a style.
-        $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
-        $this->tagFunctionalOnly($trxPress);
+        // ADR-0014: the Training Style filter holds whatever the Equipment
+        // Selection; a functional-only TRX exercise is never generated.
+        $trxFunctional = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxFunctional);
+        $trxBodybuilding = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'INCLINE');
 
         $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
             'equipment_types' => ['TRX'],
         ])->rows;
 
-        $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
+        $this->assertNotContains($trxFunctional->id, array_column($rows, 'exercise_id'));
+        $this->assertContains($trxBodybuilding->id, array_column($rows, 'exercise_id'));
     }
 
-    public function test_a_client_bodybuilding_default_yields_to_functional_equipment(): void
+    public function test_functional_equipment_selected_still_yields_only_bodybuilding_exercises(): void
     {
-        // Mobile sends BODYBUILDING by default; a member who then picks TRX
-        // meant the equipment, so the style filter is dropped rather than
-        // starving the day.
+        $dumbbellPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
+        $olympic = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'VERTICAL');
+        $this->tagStyleOnly($olympic, 'OLYMPIC');
+        $functional = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'INCLINE');
+        $this->tagFunctionalOnly($functional);
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'KETTLEBELL', 'FLAT');
+
+        $pickedIds = collect(range(1, 10))
+            ->flatMap(fn () => array_column($this->generateDay($this->user, ['UPPER_PUSH'], [
+                'duration_minutes' => 45,
+                'equipment_types' => ['DUMBBELL', 'KETTLEBELL'],
+            ])->rows, 'exercise_id'))
+            ->unique()->all();
+
+        $this->assertContains($dumbbellPress->id, $pickedIds);
+        $this->assertNotContains($olympic->id, $pickedIds);
+        $this->assertNotContains($functional->id, $pickedIds);
+    }
+
+    public function test_an_empty_selection_never_picks_opt_in_equipment(): void
+    {
+        $this->seedFullGymCatalog();
+        $trx = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $band = $this->catalogExercise('ROW', 'UPPER_PULL', 'BAND', 'HORIZONTAL');
+
+        $pickedIds = collect(range(1, 10))
+            ->flatMap(fn () => array_column($this->generateDay($this->user, ['UPPER_PUSH', 'UPPER_PULL'], ['duration_minutes' => 60])->rows, 'exercise_id'))
+            ->unique()->all();
+
+        $this->assertNotContains($trx->id, $pickedIds);
+        $this->assertNotContains($band->id, $pickedIds);
+    }
+
+    public function test_a_selection_including_opt_in_equipment_can_pick_its_bodybuilding_exercises(): void
+    {
         $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
-        $this->tagFunctionalOnly($trxPress);
 
         $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
@@ -721,7 +759,7 @@ class BlueprintWorkoutGeneratorTest extends TestCase
         $this->assertNotContains($dumbbellThruster->id, $pickedIds);
     }
 
-    public function test_functional_equipment_anywhere_in_the_selection_drops_the_bodybuilding_default(): void
+    public function test_functional_only_exercises_stay_out_alongside_other_equipment(): void
     {
         $dumbbellPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL', 'FLAT');
         $trxRow = $this->catalogExercise('ROW', 'UPPER_PULL', 'TRX', 'HORIZONTAL');
@@ -735,13 +773,14 @@ class BlueprintWorkoutGeneratorTest extends TestCase
 
         $pickedIds = array_column($rows, 'exercise_id');
         $this->assertContains($dumbbellPress->id, $pickedIds);
-        $this->assertContains($trxRow->id, $pickedIds);
+        $this->assertNotContains($trxRow->id, $pickedIds);
     }
 
-    public function test_an_empty_training_styles_array_is_treated_as_unset_alongside_an_equipment_selection(): void
+    public function test_an_empty_training_styles_array_defaults_to_bodybuilding(): void
     {
-        $trxPress = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
-        $this->tagFunctionalOnly($trxPress);
+        $trxFunctional = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'FLAT');
+        $this->tagFunctionalOnly($trxFunctional);
+        $trxBodybuilding = $this->catalogExercise('PRESS', 'UPPER_PUSH', 'TRX', 'INCLINE');
 
         $rows = $this->generateDay($this->user, ['UPPER_PUSH'], [
             'duration_minutes' => 45,
@@ -749,7 +788,9 @@ class BlueprintWorkoutGeneratorTest extends TestCase
             'training_styles' => [],
         ])->rows;
 
-        $this->assertContains($trxPress->id, array_column($rows, 'exercise_id'));
+        $pickedIds = array_column($rows, 'exercise_id');
+        $this->assertContains($trxBodybuilding->id, $pickedIds);
+        $this->assertNotContains($trxFunctional->id, $pickedIds);
     }
 
     public function test_generation_fails_when_equipment_and_training_style_do_not_overlap(): void

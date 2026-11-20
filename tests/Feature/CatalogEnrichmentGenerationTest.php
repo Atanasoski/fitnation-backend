@@ -83,12 +83,14 @@ class CatalogEnrichmentGenerationTest extends TestCase
     }
 
     #[DataProvider('functionalEquipment')]
-    public function test_a_member_with_only_functional_equipment_receives_its_imports(string $equipmentCode): void
+    public function test_a_member_with_only_functional_equipment_receives_its_imports_when_asking_for_functional(string $equipmentCode): void
     {
         $equipment = $this->equipmentOfGeneratedRows(['UPPER_PUSH'], [
             'duration_minutes' => 60,
             'equipment_types' => [$equipmentCode],
-            'training_styles' => ['BODYBUILDING'],
+            // ADR-0014: equipment no longer lifts the style filter, so the
+            // functional imports need the FUNCTIONAL style named.
+            'training_styles' => ['FUNCTIONAL'],
         ]);
 
         $this->assertContains($equipmentCode, $equipment);

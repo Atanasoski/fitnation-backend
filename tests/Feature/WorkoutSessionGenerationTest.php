@@ -278,6 +278,8 @@ class WorkoutSessionGenerationTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/workout-sessions/generate', [
                 'target_regions' => ['UPPER_PUSH'],
+                // TRX is opt-in (ADR-0014): it is generated only when selected
+                'equipment_types' => ['TRX', 'BARBELL'],
                 'training_styles' => ['FUNCTIONAL'],
                 'duration_minutes' => 45,
             ]);
@@ -290,7 +292,7 @@ class WorkoutSessionGenerationTest extends TestCase
         $this->assertNotContains($barbellExercise->id, $selectedIds);
     }
 
-    public function test_generate_ignores_implicit_bodybuilding_default_for_trx_equipment(): void
+    public function test_generate_picks_a_bodybuilding_tagged_trx_exercise_when_trx_is_selected(): void
     {
         $partner = Partner::factory()->create();
         $user = User::factory()->entitled()->create(['partner_id' => $partner->id]);
@@ -317,6 +319,7 @@ class WorkoutSessionGenerationTest extends TestCase
             'equipment_type_id' => $trxType->id,
         ]);
         $trxRow->partners()->attach($partner->id);
+        // The factory already tags it BODYBUILDING; the functional tag rides along (ADR-0014)
         $trxRow->trainingStyles()->attach($functionalStyle->id);
 
         $response = $this->actingAs($user, 'sanctum')

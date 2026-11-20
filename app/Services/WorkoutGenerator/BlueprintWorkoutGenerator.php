@@ -6,7 +6,6 @@ namespace App\Services\WorkoutGenerator;
 
 use App\Enums\FitnessGoal;
 use App\Enums\TrainingExperience;
-use App\Models\EquipmentType;
 use App\Models\User;
 use App\Services\WorkoutGenerator\Slots\Blueprint;
 use App\Services\WorkoutGenerator\Slots\BlueprintResolver;
@@ -141,45 +140,20 @@ class BlueprintWorkoutGenerator
             partner: $user->partner,
             movementPatterns: $this->normalizeStringList($preferences['movement_patterns'] ?? null),
             angles: $this->normalizeStringList($preferences['angles'] ?? null),
-            trainingStyles: $this->resolveTrainingStyleFilter($preferences, $equipmentTypes),
+            trainingStyles: $this->resolveTrainingStyleFilter($preferences),
         );
     }
 
     /**
-     * The training-style filter a day's pool is queried under: with no
-     * equipment selection the day defaults to the BODYBUILDING catalog so
-     * functional-only movements never surprise a plain request; with one,
-     * only an explicit style filters — except a BODYBUILDING-only default
-     * alongside functional equipment, which is dropped (the member meant
-     * the equipment).
+     * The training-style filter a day's pool is queried under: the requested
+     * styles, else BODYBUILDING, whatever the equipment selection (ADR-0014).
      *
      * @param  array<string, mixed>  $preferences
-     * @param  list<string>|null  $equipmentTypes
-     * @return list<string>|null
+     * @return list<string>
      */
-    private function resolveTrainingStyleFilter(array $preferences, ?array $equipmentTypes): ?array
+    private function resolveTrainingStyleFilter(array $preferences): array
     {
-        $trainingStyles = $this->normalizeStringList($preferences['training_styles'] ?? null);
-
-        if (! empty($equipmentTypes)) {
-            if ($trainingStyles === ['BODYBUILDING'] && $this->hasAnyFunctionalEquipment($equipmentTypes)) {
-                return null;
-            }
-
-            return $trainingStyles;
-        }
-
-        return $trainingStyles ?? ['BODYBUILDING'];
-    }
-
-    /**
-     * @param  list<string>  $equipmentTypes
-     */
-    private function hasAnyFunctionalEquipment(array $equipmentTypes): bool
-    {
-        return collect($equipmentTypes)->contains(
-            fn (string $code) => in_array($code, EquipmentType::FUNCTIONAL_CODES, true)
-        );
+        return $this->normalizeStringList($preferences['training_styles'] ?? null) ?? ['BODYBUILDING'];
     }
 
     /**

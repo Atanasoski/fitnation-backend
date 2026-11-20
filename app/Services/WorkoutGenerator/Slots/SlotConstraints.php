@@ -20,7 +20,7 @@ final class SlotConstraints
      * @param  Partner|null  $partner  restricts to the partner's catalog
      * @param  list<string>|null  $movementPatterns  user-supplied pattern filter
      * @param  list<string>|null  $angles  user-supplied angle filter (null-angle exercises still match)
-     * @param  list<string>|null  $trainingStyles  training-style filter, already resolved (BODYBUILDING default and functional-equipment override applied by the caller)
+     * @param  list<string>|null  $trainingStyles  training-style filter, already resolved by the caller (BODYBUILDING unless another style was requested, ADR-0014)
      */
     public function __construct(
         public readonly ?array $equipmentTypes = null,

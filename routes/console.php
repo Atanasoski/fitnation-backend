@@ -54,3 +54,12 @@ Schedule::call(function () {
 
     WebhookCall::where('created_at', '<', now()->subDays($days))->delete();
 })->daily()->name('prune-webhook-calls');
+
+// Prune every Prunable model: Untrained Programs (Plan) and generator junk —
+// Draft Sessions and setless Cancelled ones — once Insights can no longer look
+// back at them (WorkoutSession, ADR-0012). `model:prune --pretend` counts
+// without deleting.
+Schedule::command('model:prune')
+    ->daily()
+    ->withoutOverlapping()
+    ->onOneServer();

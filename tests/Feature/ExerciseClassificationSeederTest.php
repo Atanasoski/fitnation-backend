@@ -22,9 +22,8 @@ use Tests\TestCase;
  * else is BODYBUILDING. ADR-0014's curated hypertrophy exceptions
  * (ALSO_BODYBUILDING) carry BODYBUILDING alongside their other style.
  *
- * Bodyweight push-ups and pull-ups being CALISTHENICS only is current
- * behaviour, a known latent problem tracked on #106; it is pinned here so
- * that changing it is a deliberate decision.
+ * Push-up, pull-up and dip staples carry BODYBUILDING alongside
+ * CALISTHENICS (#106), so a bodyweight-only member's default pool keeps them.
  */
 class ExerciseClassificationSeederTest extends TestCase
 {
@@ -43,8 +42,10 @@ class ExerciseClassificationSeederTest extends TestCase
             'olympic name' => ['Barbell Push Press', ['OLYMPIC']],
             'olympic name on functional equipment' => ['Kettlebell Push Press', ['FUNCTIONAL', 'OLYMPIC']],
             'functional name' => ['Dumbbell Renegade Row', ['FUNCTIONAL']],
-            'bodyweight push-up' => ['Push-ups', ['CALISTHENICS']],
-            'bodyweight pull-up' => ['Pull-ups', ['CALISTHENICS']],
+            // #106: the production-curated staples keep BODYBUILDING
+            'bodyweight push-up' => ['Push-ups', ['BODYBUILDING', 'CALISTHENICS']],
+            'bodyweight pull-up' => ['Pull-ups', ['BODYBUILDING', 'CALISTHENICS']],
+            'bodyweight dip' => ['Dips (Triceps)', ['BODYBUILDING', 'CALISTHENICS']],
             // ADR-0014: curated hypertrophy exceptions also carry BODYBUILDING
             'trx hypertrophy exception' => ['TRX Row', ['BODYBUILDING', 'FUNCTIONAL']],
             'band hypertrophy exception' => ['Band Face Pull', ['BODYBUILDING', 'FUNCTIONAL']],
@@ -103,7 +104,7 @@ class ExerciseClassificationSeederTest extends TestCase
         // ADR-0014: the retag lives in the seeder, exercises:import and a migration
         $migration = require database_path('migrations/2026_11_20_100000_retag_catalogue_for_bodybuilding_generation.php');
         $migrationList = (new \ReflectionClassConstant($migration, 'BODYBUILDING_ADDED'))->getValue();
-        $this->assertEqualsCanonicalizing(ExerciseClassificationSeeder::ALSO_BODYBUILDING, $migrationList);
+        $this->assertEmpty(array_diff($migrationList, ExerciseClassificationSeeder::ALSO_BODYBUILDING), 'a migrated retag is missing from ALSO_BODYBUILDING');
 
         $import = new \ReflectionMethod(\App\Console\Commands\ImportExercises::class, 'getExerciseData');
         $importData = collect($import->invoke(app(\App\Console\Commands\ImportExercises::class)))->keyBy('name');

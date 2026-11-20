@@ -83,7 +83,11 @@ class WorkoutSessionController extends Controller
             ->whereIn('status', [WorkoutSessionStatus::Draft, WorkoutSessionStatus::Active])
             ->where(function ($query) use ($today) {
                 $query->whereDate('performed_at', $today->toDateString())
-                    ->orWhereNull('performed_at'); // Draft sessions might not have performed_at
+                    // A Draft Session has no performed_at; one older than this
+                    // was abandoned, and resuming it would reopen a stale preview.
+                    ->orWhere(fn ($draft) => $draft
+                        ->whereNull('performed_at')
+                        ->where('created_at', '>', $today->copy()->subHours(WorkoutSession::DRAFT_ABANDONED_AFTER_HOURS)));
             })
             ->with(['workoutSessionExercises.exercise.category'])
             ->orderByDesc('created_at')

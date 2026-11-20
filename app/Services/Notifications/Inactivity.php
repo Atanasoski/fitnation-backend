@@ -21,7 +21,8 @@ use Illuminate\Support\Collection;
  * trained. Training resets the ladder: a Completed Session makes every earlier
  * nudge irrelevant, and the count starts again from it.
  *
- * Not due, whatever the count: onboarding unfinished, a session in progress,
+ * Not due, whatever the count: onboarding unfinished, a session in progress
+ * (an active one, or a Draft Session generated within the last day),
  * the Push Switch off, or no Device at all — the last because there is nothing
  * to send to and no timezone to send it in.
  *
@@ -73,7 +74,16 @@ final class Inactivity
 
         $inProgress = WorkoutSession::query()
             ->whereIn('user_id', $ids)
-            ->whereIn('status', [WorkoutSessionStatus::Draft, WorkoutSessionStatus::Active])
+            ->where(fn ($query) => $query
+                ->where('status', WorkoutSessionStatus::Active)
+                // A Draft Session left longer than this was abandoned, not
+                // previewed: it no longer holds the nudge off. Stored clocks
+                // are app-timezone wall time, so compare in it.
+                ->orWhere(fn ($draft) => $draft
+                    ->where('status', WorkoutSessionStatus::Draft)
+                    ->where('created_at', '>', $now
+                        ->subHours(WorkoutSession::DRAFT_ABANDONED_AFTER_HOURS)
+                        ->setTimezone(config('app.timezone')))))
             ->distinct()
             ->pluck('user_id')
             ->flip();

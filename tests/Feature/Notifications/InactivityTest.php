@@ -187,6 +187,20 @@ class InactivityTest extends TestCase
         $this->assertSame([3], $this->stepsDueAt(self::SKOPJE_SIX_PM));
     }
 
+    public function test_a_draft_session_left_for_more_than_a_day_is_not_in_progress(): void
+    {
+        $user = $this->athlete();
+        $this->completed($user, '2026-09-01 19:00:00');
+        WorkoutSession::factory()->for($user)->create([
+            'status' => WorkoutSessionStatus::Draft,
+            'performed_at' => null,
+            'completed_at' => null,
+            'created_at' => '2026-09-02 08:00:00 UTC',
+        ]);
+
+        $this->assertSame([3], $this->stepsDueAt(self::SKOPJE_SIX_PM));
+    }
+
     public function test_who_is_never_nudged(): void
     {
         $onboarding = $this->athlete(attributes: ['onboarding_completed_at' => null]);
@@ -206,6 +220,7 @@ class InactivityTest extends TestCase
             'status' => WorkoutSessionStatus::Draft,
             'performed_at' => null,
             'completed_at' => null,
+            'created_at' => '2026-09-04 10:00:00 UTC',
         ]);
 
         $switchedOff = $this->athlete(attributes: ['push_enabled' => false]);

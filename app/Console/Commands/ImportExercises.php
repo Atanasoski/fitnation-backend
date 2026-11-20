@@ -1263,7 +1263,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'DUMBBELL',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1343,7 +1343,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'BODYWEIGHT',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1357,7 +1357,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'BODYWEIGHT',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1371,7 +1371,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'DUMBBELL',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
 
             ],
 

@@ -20,7 +20,7 @@ class ExerciseClassificationSeeder extends Seeder
      * Functional-equipment, functional-name or calisthenics exercises that are
      * also genuine hypertrophy work, so they carry BODYBUILDING alongside their
      * inferred style (ADR-0014). Kept in step with `exercises:import` and the
-     * 2026_11_20_100000 retag migration. Matched by exact name.
+     * data migrations that applied them. Matched by exact name.
      *
      * @var list<string>
      */
@@ -32,6 +32,11 @@ class ExerciseClassificationSeeder extends Seeder
         'Band Lateral Raise', 'Band Row', 'Seated Band Row', 'Band Face Pull',
         'Band Pull-Apart', 'Band Triceps Pushdown', 'Band Squat',
         'Pike Push-ups', 'Handstand Push-ups', 'Cossack Lunge',
+        // Bodyweight and single-leg staples curated in production on 2026-11-09 (#106)
+        'Push-ups', 'Wide Push-ups', 'Incline Push-ups', 'Decline Push-ups',
+        'Pull-ups', 'Wide-Grip Pull-ups', 'Close-Grip Pull-ups', 'Assisted Pull-ups',
+        'Dips (Chest)', 'Assisted Dips (Chest)', 'Dips (Triceps)', 'Assisted Dips (Triceps)', 'Bench Dips',
+        'Dumbbell Step-Up', 'Narrow Squat', 'Single Leg Hip Thrust', 'Single Leg Deadlift',
     ];
 
     /**

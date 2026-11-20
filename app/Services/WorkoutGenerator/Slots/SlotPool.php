@@ -40,6 +40,12 @@ final class SlotPool
         if ($constraints->equipmentTypes !== null) {
             $allowed = array_values(array_unique([...$constraints->equipmentTypes, self::BODYWEIGHT]));
             $query->whereHas('equipmentType', fn ($q) => $q->whereIn('code', $allowed));
+        } else {
+            // No selection means everything but the opt-in equipment (ADR-0014)
+            $optIn = config('workout_generator.opt_in_equipment', []);
+            if ($optIn !== []) {
+                $query->whereDoesntHave('equipmentType', fn ($q) => $q->whereIn('code', $optIn));
+            }
         }
 
         if ($constraints->beginner) {

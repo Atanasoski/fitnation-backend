@@ -160,7 +160,7 @@
                         Equipment Types <span class="text-gray-400 text-xs">(optional)</span>
                     </label>
                     <div class="flex flex-wrap gap-3">
-                        @foreach(['BARBELL' => 'Barbell', 'BODYWEIGHT' => 'Bodyweight', 'CABLE' => 'Cable', 'DUMBBELL' => 'Dumbbell', 'KETTLEBELL' => 'Kettlebell', 'MACHINE' => 'Machine', 'TRX' => 'TRX'] as $code => $label)
+                        @foreach(($equipmentTypes ?? collect())->pluck('name', 'code') as $code => $label)
                             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                 <input type="checkbox" name="equipment_types[]" value="{{ $code }}"
                                     {{ in_array($code, old('equipment_types', $params['equipment_types'] ?? [])) ? 'checked' : '' }}

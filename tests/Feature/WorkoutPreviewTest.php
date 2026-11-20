@@ -181,6 +181,34 @@ class WorkoutPreviewTest extends TestCase
         $this->assertEquals(8, $summary['total_workouts']); // 2 weeks × 4 days
     }
 
+    public function test_index_offers_only_bodybuilding_equipment_and_preview_validates_against_the_table(): void
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin', 'description' => 'System admin']));
+        $this->catalogExercise('PRESS', 'UPPER_PUSH', 'DUMBBELL');
+        $kettlebell = $this->catalogExercise('SQUAT', 'LOWER', 'KETTLEBELL');
+        $kettlebell->trainingStyles()->sync([
+            \App\Models\TrainingStyle::firstOrCreate(['code' => 'FUNCTIONAL'], ['name' => 'Functional', 'display_order' => 20])->id,
+        ]);
+
+        $this->actingAs($admin)->get(route('workout-preview.index'))
+            ->assertSee('value="DUMBBELL"', false)
+            ->assertDontSee('value="KETTLEBELL"', false);
+
+        $base = [
+            'fitness_goal' => 'general_fitness',
+            'training_experience' => 'beginner',
+            'gender' => 'male',
+            'training_days_per_week' => 3,
+            'duration_minutes' => 45,
+            'weeks' => 1,
+        ];
+        $this->actingAs($admin)->post(route('workout-preview.preview'), $base + ['equipment_types' => ['NOPE']])
+            ->assertSessionHasErrors(['equipment_types.0']);
+        $this->actingAs($admin)->post(route('workout-preview.preview'), $base + ['equipment_types' => ['KETTLEBELL']])
+            ->assertSessionDoesntHaveErrors(['equipment_types.0']);
+    }
+
     public function test_preview_rejects_durations_outside_the_menu(): void
     {
         $admin = User::factory()->create();

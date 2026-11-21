@@ -131,6 +131,70 @@ class EquipmentSelectionProfileTest extends TestCase
         $this->assertContains('BARBELL', $equipment);
     }
 
+    public function test_regenerate_with_an_empty_selection_falls_back_to_the_stored_one(): void
+    {
+        $user = $this->member(['equipment_types' => ['TRX']]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/plans/regenerate', ['equipment_types' => []])
+            ->assertCreated();
+
+        $this->assertContains('TRX', $this->programEquipment($user));
+    }
+
+    public function test_program_generation_rejects_unknown_or_blank_equipment_codes(): void
+    {
+        $user = $this->member();
+
+        foreach (['/api/plans/regenerate', '/api/onboarding/complete'] as $url) {
+            foreach ([['NOT_A_THING'], [''], ['BARBELL', 'BARBELL']] as $codes) {
+                $this->actingAs($user, 'sanctum')
+                    ->postJson($url, ['equipment_types' => $codes])
+                    ->assertStatus(422)
+                    ->assertJsonValidationErrors('equipment_types.'.(count($codes) - 1));
+            }
+        }
+    }
+
+    public function test_duplicate_codes_are_rejected_on_the_profile_and_deduped_in_the_model(): void
+    {
+        $user = $this->member();
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson('/api/profile', ['equipment_types' => ['BARBELL', 'BARBELL']])
+            ->assertStatus(422);
+
+        $user->profile->update(['equipment_types' => ['BARBELL', 'DUMBBELL', 'BARBELL']]);
+
+        $this->assertSame(['BARBELL', 'DUMBBELL'], $user->profile->fresh()->equipment_types);
+    }
+
+    public function test_smart_workout_regenerate_ignores_the_stored_selection(): void
+    {
+        $user = $this->member(['equipment_types' => ['TRX']]);
+
+        $draftId = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/workout-sessions/generate', ['target_regions' => ['UPPER_PUSH'], 'duration_minutes' => 45])
+            ->assertCreated()
+            ->json('data.id');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson("/api/workout-sessions/{$draftId}/regenerate", ['target_regions' => ['UPPER_PUSH']])
+            ->assertCreated();
+
+        $equipment = Exercise::query()
+            ->with('equipmentType')
+            ->whereIn('id', collect($response->json('data.exercises'))->pluck('session_exercise.exercise_id'))
+            ->get()
+            ->map(fn ($exercise) => $exercise->equipmentType?->code)
+            ->filter()
+            ->unique()
+            ->all();
+
+        $this->assertNotContains('TRX', $equipment);
+        $this->assertContains('BARBELL', $equipment);
+    }
+
     public function test_smart_workout_ignores_the_stored_selection(): void
     {
         $user = $this->member(['equipment_types' => ['TRX']]);

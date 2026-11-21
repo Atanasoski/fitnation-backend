@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\PlanType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\RegenerateProgramRequest;
 use App\Http\Requests\Api\StoreCustomPlanRequest;
 use App\Http\Requests\Api\UpdateCustomPlanRequest;
 use App\Http\Requests\StorePlanRequest;
@@ -41,7 +42,7 @@ class PlanController extends Controller
     /**
      * Regenerate the user's personalized (auto-generated) program from their profile.
      */
-    public function regenerate(Request $request, WelcomePlanGenerationService $planGenerationService): JsonResponse
+    public function regenerate(RegenerateProgramRequest $request, WelcomePlanGenerationService $planGenerationService): JsonResponse
     {
         try {
             $preferences = array_filter([

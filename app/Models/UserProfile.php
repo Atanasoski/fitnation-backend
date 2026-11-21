@@ -71,7 +71,7 @@ class UserProfile extends Model
         return Attribute::make(
             set: fn (?array $value) => $value === null || $value === []
                 ? null
-                : json_encode(array_values($value)),
+                : json_encode(array_values(array_unique($value))),
         );
     }
 

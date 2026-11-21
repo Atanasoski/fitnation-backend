@@ -69,7 +69,7 @@ class ProfileUpdateRequest extends FormRequest
             'workout_duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
             'unit_system' => ['sometimes', Rule::enum(UnitSystem::class)],
             'equipment_types' => ['nullable', 'array'],
-            'equipment_types.*' => ['string', 'exists:equipment_types,code'],
+            'equipment_types.*' => ['string', 'distinct', 'exists:equipment_types,code'],
         ];
     }
 

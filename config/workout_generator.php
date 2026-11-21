@@ -169,6 +169,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Opt-in Equipment (ADR-0014)
+    |--------------------------------------------------------------------------
+    |
+    | Equipment types generated only when the Equipment Selection names them:
+    | an empty selection means every type except these.
+    |
+    */
+
+    'opt_in_equipment' => ['TRX', 'BAND'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Beginner Difficulty Exclusions
     |--------------------------------------------------------------------------
     |

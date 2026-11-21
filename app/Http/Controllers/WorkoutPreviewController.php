@@ -9,6 +9,7 @@ use App\Enums\Gender;
 use App\Enums\SplitFocus;
 use App\Enums\TrainingExperience;
 use App\Enums\WorkoutDuration;
+use App\Models\EquipmentType;
 use App\Models\Exercise;
 use App\Models\Partner;
 use App\Models\User;
@@ -34,7 +35,10 @@ class WorkoutPreviewController extends Controller
     {
         $partners = Partner::orderBy('name')->get();
 
-        return view('admin.workout-preview.index', compact('partners'));
+        return view('admin.workout-preview.index', [
+            'partners' => $partners,
+            'equipmentTypes' => $this->equipmentOptions(null),
+        ]);
     }
 
     /**
@@ -52,7 +56,7 @@ class WorkoutPreviewController extends Controller
             'weeks' => ['required', 'integer', 'min:1', 'max:12'],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'equipment_types' => ['nullable', 'array'],
-            'equipment_types.*' => ['string', 'in:BARBELL,BODYWEIGHT,CABLE,DUMBBELL,KETTLEBELL,MACHINE,TRX'],
+            'equipment_types.*' => ['string', 'exists:equipment_types,code'],
             'training_styles' => ['nullable', 'array'],
             'training_styles.*' => ['string', 'in:BODYBUILDING,FUNCTIONAL'],
         ]);
@@ -88,6 +92,7 @@ class WorkoutPreviewController extends Controller
             return view('admin.workout-preview.index', [
                 'error' => "No workout split found for {$validated['training_days_per_week']} days/week with {$splitFocus->value} focus",
                 'partners' => $partners,
+                'equipmentTypes' => $this->equipmentOptions($partner),
                 'params' => $validated,
             ]);
         }
@@ -169,6 +174,16 @@ class WorkoutPreviewController extends Controller
             ],
             'params' => $validated,
             'partners' => $partners,
+            'equipmentTypes' => $this->equipmentOptions($partner),
         ]);
+    }
+
+    /**
+     * The equipment members are offered for generation: Bodybuilding
+     * equipment in the previewed partner's library (whole catalogue if none).
+     */
+    private function equipmentOptions(?Partner $partner)
+    {
+        return EquipmentType::withTrainingStyle('BODYBUILDING', $partner)->orderBy('display_order')->get();
     }
 }

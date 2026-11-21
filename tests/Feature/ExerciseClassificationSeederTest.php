@@ -19,11 +19,11 @@ use Tests\TestCase;
  * pinned as they stood before the inference was shared with the catalogue
  * enrichment seeder (#130). Functional equipment is FUNCTIONAL only;
  * Olympic, functional and calisthenics names add their style; anything
- * else is BODYBUILDING.
+ * else is BODYBUILDING. ADR-0014's curated hypertrophy exceptions
+ * (ALSO_BODYBUILDING) carry BODYBUILDING alongside their other style.
  *
- * Bodyweight push-ups and pull-ups being CALISTHENICS only is current
- * behaviour, a known latent problem tracked on #106; it is pinned here so
- * that changing it is a deliberate decision.
+ * Push-up, pull-up and dip staples carry BODYBUILDING alongside
+ * CALISTHENICS (#106), so a bodyweight-only member's default pool keeps them.
  */
 class ExerciseClassificationSeederTest extends TestCase
 {
@@ -38,13 +38,20 @@ class ExerciseClassificationSeederTest extends TestCase
             'barbell press' => ['Barbell Bench Press', ['BODYBUILDING']],
             'dumbbell isolation' => ['Dumbbell Lateral Raise', ['BODYBUILDING']],
             'kettlebell' => ['Kettlebell Goblet Squat', ['FUNCTIONAL']],
-            'band' => ['Band Face Pull', ['FUNCTIONAL']],
-            'trx' => ['TRX Row', ['FUNCTIONAL']],
+            'trx' => ['TRX Body Saw', ['FUNCTIONAL']],
             'olympic name' => ['Barbell Push Press', ['OLYMPIC']],
             'olympic name on functional equipment' => ['Kettlebell Push Press', ['FUNCTIONAL', 'OLYMPIC']],
             'functional name' => ['Dumbbell Renegade Row', ['FUNCTIONAL']],
-            'bodyweight push-up' => ['Push-ups', ['CALISTHENICS']],
-            'bodyweight pull-up' => ['Pull-ups', ['CALISTHENICS']],
+            // #106: the production-curated staples keep BODYBUILDING
+            'bodyweight push-up' => ['Push-ups', ['BODYBUILDING', 'CALISTHENICS']],
+            'bodyweight pull-up' => ['Pull-ups', ['BODYBUILDING', 'CALISTHENICS']],
+            'bodyweight dip' => ['Dips (Triceps)', ['BODYBUILDING', 'CALISTHENICS']],
+            // ADR-0014: curated hypertrophy exceptions also carry BODYBUILDING
+            'trx hypertrophy exception' => ['TRX Row', ['BODYBUILDING', 'FUNCTIONAL']],
+            'band hypertrophy exception' => ['Band Face Pull', ['BODYBUILDING', 'FUNCTIONAL']],
+            'functional-name exception' => ['Cossack Lunge', ['BODYBUILDING', 'FUNCTIONAL']],
+            'calisthenics exception' => ['Handstand Push-ups', ['BODYBUILDING', 'CALISTHENICS']],
+            'band not an exception' => ['Band Lateral Monster Walk', ['FUNCTIONAL']],
         ];
     }
 
@@ -70,5 +77,41 @@ class ExerciseClassificationSeederTest extends TestCase
             $expectedStyles,
             $exercise->fresh()->trainingStyles->pluck('code')->sort()->values()->all(),
         );
+    }
+
+    public function test_classification_puts_goblet_squat_on_dumbbell(): void
+    {
+        // ADR-0014 moved it off Kettlebell; a re-seed must not undo that
+        $this->seed([
+            CategorySeeder::class,
+            MovementPatternSeeder::class,
+            TargetRegionSeeder::class,
+            EquipmentTypeSeeder::class,
+            AngleSeeder::class,
+            TrainingStyleSeeder::class,
+        ]);
+        $exercise = Exercise::factory()->create(['name' => 'Goblet Squat']);
+
+        $this->seed(ExerciseClassificationSeeder::class);
+
+        $exercise = $exercise->fresh();
+        $this->assertSame('DUMBBELL', $exercise->equipmentType->code);
+        $this->assertContains('BODYBUILDING', $exercise->trainingStyles->pluck('code')->all());
+    }
+
+    public function test_the_bodybuilding_retag_lists_agree(): void
+    {
+        // ADR-0014: the retag lives in the seeder, exercises:import and a migration
+        $migration = require database_path('migrations/2026_11_20_100000_retag_catalogue_for_bodybuilding_generation.php');
+        $migrationList = (new \ReflectionClassConstant($migration, 'BODYBUILDING_ADDED'))->getValue();
+        $this->assertEmpty(array_diff($migrationList, ExerciseClassificationSeeder::ALSO_BODYBUILDING), 'a migrated retag is missing from ALSO_BODYBUILDING');
+
+        $import = new \ReflectionMethod(\App\Console\Commands\ImportExercises::class, 'getExerciseData');
+        $importData = collect($import->invoke(app(\App\Console\Commands\ImportExercises::class)))->keyBy('name');
+        foreach (ExerciseClassificationSeeder::ALSO_BODYBUILDING as $name) {
+            if ($importData->has($name)) {
+                $this->assertContains('BODYBUILDING', $importData[$name]['training_styles'] ?? ['BODYBUILDING'], "{$name} lacks BODYBUILDING in exercises:import");
+            }
+        }
     }
 }

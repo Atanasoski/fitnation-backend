@@ -379,7 +379,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'TRX',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Reverse Lunge',
@@ -405,7 +405,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PULL',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Wide Row',
@@ -418,7 +418,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PULL',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Y Fly',
@@ -431,7 +431,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PULL',
                 'equipment_type' => 'TRX',
                 'angle' => 'LOW_TO_HIGH',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX T Fly',
@@ -444,7 +444,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PULL',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Biceps Curl',
@@ -457,7 +457,7 @@ class ImportExercises extends Command
                 'target_region' => 'ARMS',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Triceps Extension',
@@ -470,7 +470,7 @@ class ImportExercises extends Command
                 'target_region' => 'ARMS',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Push-Up',
@@ -483,7 +483,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PUSH',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Chest Fly',
@@ -496,7 +496,7 @@ class ImportExercises extends Command
                 'target_region' => 'UPPER_PUSH',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Squat to Y Fly',
@@ -615,7 +615,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'TRX',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Hamstring Curl',
@@ -628,7 +628,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'TRX',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
             [
                 'name' => 'TRX Glute Bridge',
@@ -1165,7 +1165,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'BODYWEIGHT',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1263,7 +1263,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'DUMBBELL',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1343,7 +1343,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'BODYWEIGHT',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1357,7 +1357,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'BODYWEIGHT',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [
@@ -1371,7 +1371,7 @@ class ImportExercises extends Command
                 'target_region' => 'LOWER',
                 'equipment_type' => 'DUMBBELL',
                 'angle' => 'HORIZONTAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
 
             ],
 
@@ -1405,16 +1405,16 @@ class ImportExercises extends Command
 
             [
                 'name' => 'Goblet Squat',
-                'description' => 'Squat holding kettlebell at chest.',
+                'description' => 'Squat holding a dumbbell at chest.',
                 'default_rest_sec' => 75,
                 'category_slug' => 'strength-training',
                 'primary' => ['Quadriceps'],
                 'secondary' => ['Glutes', 'Abs'],
                 'movement_pattern' => 'SQUAT',
                 'target_region' => 'LOWER',
-                'equipment_type' => 'KETTLEBELL',
+                'equipment_type' => 'DUMBBELL',
                 'angle' => 'VERTICAL',
-                'training_styles' => ['FUNCTIONAL'],
+                'training_styles' => ['BODYBUILDING', 'FUNCTIONAL'],
             ],
 
             [

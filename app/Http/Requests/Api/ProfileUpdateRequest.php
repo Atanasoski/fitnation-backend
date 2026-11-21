@@ -68,6 +68,8 @@ class ProfileUpdateRequest extends FormRequest
             'split_focus' => ['nullable', Rule::enum(SplitFocus::class)],
             'workout_duration_minutes' => ['nullable', 'integer', Rule::in(WorkoutDuration::values())],
             'unit_system' => ['sometimes', Rule::enum(UnitSystem::class)],
+            'equipment_types' => ['nullable', 'array'],
+            'equipment_types.*' => ['string', 'distinct', 'exists:equipment_types,code'],
         ];
     }
 

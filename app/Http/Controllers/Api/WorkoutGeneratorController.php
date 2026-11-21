@@ -30,6 +30,8 @@ class WorkoutGeneratorController extends Controller
 
             $preferences = [
                 'target_regions' => $request->input('target_regions'),
+                // Deliberately request-only, no profile fallback (#154): a member
+                // can ask for Full gym for one session. Clients prefill from the profile.
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),
@@ -103,6 +105,8 @@ class WorkoutGeneratorController extends Controller
 
             $preferences = [
                 'target_regions' => $request->input('target_regions'),
+                // Deliberately request-only, no profile fallback (#154): a member
+                // can ask for Full gym for one session. Clients prefill from the profile.
                 'equipment_types' => $request->input('equipment_types'),
                 'movement_patterns' => $request->input('movement_patterns'),
                 'angles' => $request->input('angles'),

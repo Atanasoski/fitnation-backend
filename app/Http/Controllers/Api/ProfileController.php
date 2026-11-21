@@ -66,6 +66,7 @@ class ProfileController extends Controller
             'split_focus',
             'workout_duration_minutes',
             'unit_system',
+            'equipment_types',
         ];
         $profileData = array_intersect_key($validated, array_flip($profileFields));
 

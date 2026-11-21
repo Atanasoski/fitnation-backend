@@ -23,6 +23,8 @@ class CompleteOnboardingRequest extends FormRequest
     {
         return [
             'plan_name' => ['nullable', 'string', 'max:255'],
+            'equipment_types' => ['nullable', 'array'],
+            'equipment_types.*' => ['string', 'distinct', 'exists:equipment_types,code'],
         ];
     }
 }

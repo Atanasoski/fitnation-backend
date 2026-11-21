@@ -56,7 +56,7 @@ The training discipline an Exercise belongs to (Bodybuilding, Functional, Olympi
 _Avoid_: workout type, category
 
 **Equipment Selection**:
-The EquipmentTypes a member says they can use when generating a workout or program. It limits which Exercises can be picked; an empty selection means every EquipmentType except the Opt-in ones.
+The EquipmentTypes a member says they can use. It limits which Exercises can be picked; an empty selection means every EquipmentType except the Opt-in ones. A member keeps one Equipment Selection for their Program; a Smart Workout can be generated with a different one, for that session only.
 _Avoid_: equipment filter, available equipment
 
 **Opt-in EquipmentType**:
